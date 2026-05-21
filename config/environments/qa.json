@@ -1,0 +1,13 @@
+{
+  "environment": "qa",
+  "baseUrl": "http://localhost:5173",
+  "apiBaseUrl": "https://qa-api.company.com",
+  "credentials": {
+    "username": "${QA_USERNAME}",
+    "password": "${QA_PASSWORD}"
+  },
+  "variables": {
+    "timeout": 30000,
+    "retry": 2
+  }
+}

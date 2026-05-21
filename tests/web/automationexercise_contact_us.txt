@@ -1,0 +1,17 @@
+@regression @automationexercise @contact
+Test: Contact Us Form on Automation Exercise
+
+Open https://automationexercise.com/
+Verify home page is visible successfully
+Click Contact Us link in the navigation menu
+Verify text GET IN TOUCH is visible on the Contact Us page
+Enter name WebPilot Tester in the name field
+Enter email webpilot.test@example.com in the email field
+Enter subject Automation test inquiry in the subject field
+Enter message This is an automated test message from WebPilot. in the message field
+Upload the file at tests/fixtures/sample.txt using the contact form file upload control
+Click Submit button on the contact form
+Accept the browser alert dialog by clicking OK
+Verify success message Success! Your details have been submitted successfully. is visible
+Click Home button on the Contact Us page
+Verify user lands on the home page successfully

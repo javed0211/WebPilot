@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "resolveJsonModule": true,
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "@core/*": ["./framework/core/*"],
+      "@pages/*": ["./framework/pages/*"],
+      "@tests/*": ["./framework/tests/*"],
+      "@config/*": ["./framework/config/*"],
+      "@utils/*": ["./framework/utils/*"],
+      "@data/*": ["./framework/data/*"]
+    }
+  },
+  "include": [
+    "cli/**/*",
+    "core/**/*",
+    "agents/**/*",
+    "utils/**/*",
+    "framework/**/*"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

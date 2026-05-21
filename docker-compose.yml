@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  webpilot:
+    build: .
+    container_name: webpilot-qe-agent
+    volumes:
+      - .:/workspace
+      - /workspace/node_modules
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - QA_USERNAME=${QA_USERNAME}
+      - QA_PASSWORD=${QA_PASSWORD}
+    command: ["run", "tests/web/login.txt", "--env", "qa"]

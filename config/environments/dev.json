@@ -1,0 +1,13 @@
+{
+  "environment": "dev",
+  "baseUrl": "https://dev-app.company.com",
+  "apiBaseUrl": "https://dev-api.company.com",
+  "credentials": {
+    "username": "${DEV_USERNAME}",
+    "password": "${DEV_PASSWORD}"
+  },
+  "variables": {
+    "timeout": 15000,
+    "retry": 1
+  }
+}

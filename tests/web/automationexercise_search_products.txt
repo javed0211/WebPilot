@@ -1,0 +1,15 @@
+@smoke @automationexercise @products
+Test: Search Product on Automation Exercise
+
+Given user opens https://automationexercise.com/
+And verify home page is visible successfully with Automation Exercise branding
+When user clicks on Products link in the navigation menu
+Then user should be navigated to ALL PRODUCTS page successfully
+And the products list should be visible on the page
+When user enters "Blue Top" in the product search input field
+And user clicks the search button next to the search input
+Then text "SEARCHED PRODUCTS" should be visible on the page
+And all products related to "Blue Top" search should be visible in the results
+When user clicks View Product on the first searched product
+Then product detail page should open for the selected product
+And product name, category, price, availability, condition, and brand should be visible on the detail page

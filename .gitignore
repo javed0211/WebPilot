@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+.env
+.env.local
+
+# Playwright / browser-use artifacts (regenerated on run)
+playwright-report/
+test-results/
+framework/temp_codegen.json
+
+# Optional runtime outputs (keep reports/ if you want to commit them)
+# reports/

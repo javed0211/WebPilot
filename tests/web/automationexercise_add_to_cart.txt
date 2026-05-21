@@ -1,0 +1,15 @@
+@smoke @automationexercise @cart
+Test: Add Products in Cart on Automation Exercise
+
+1. Navigate to https://automationexercise.com/
+2. Verify that home page is visible successfully with featured items displayed
+3. Click on Products link in the navigation menu
+4. Verify user is navigated to ALL PRODUCTS page successfully
+5. Hover over the first product on the products page
+6. Click Add to cart on the first product
+7. Click Continue Shopping button in the confirmation modal
+8. Hover over the second product on the products page
+9. Click Add to cart on the second product
+10. Click View Cart button from the cart confirmation
+11. Verify user is on the Cart page with both products listed
+12. Verify each product price, quantity, and total price are visible and correct

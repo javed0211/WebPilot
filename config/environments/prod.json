@@ -1,0 +1,13 @@
+{
+  "environment": "prod",
+  "baseUrl": "https://app.company.com",
+  "apiBaseUrl": "https://api.company.com",
+  "credentials": {
+    "username": "${PROD_USERNAME}",
+    "password": "${PROD_PASSWORD}"
+  },
+  "variables": {
+    "timeout": 45000,
+    "retry": 3
+  }
+}
