@@ -25,6 +25,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Setup Python (browser-use)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
+
       - name: Install Playwright System Binaries
         run: npx playwright install --with-deps chromium firefox
 

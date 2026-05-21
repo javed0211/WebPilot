@@ -12,6 +12,11 @@ COPY package*.json tsconfig.json ./
 # Install packages
 RUN npm ci
 
+# Python deps for browser-use runner
+RUN apt-get update && apt-get install -y python3 python3-pip && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt
+
 # Pre-download and setup target browser engines
 RUN npx playwright install chromium firefox
 

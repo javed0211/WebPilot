@@ -4,6 +4,30 @@ WebPilot is a production-grade, AI-native quality engineering (QE) framework bui
 
 ---
 
+## Documentation
+
+| Guide | Contents |
+|-------|----------|
+| **[docs/USAGE.md](docs/USAGE.md)** | Install, credentials, writing tests, CLI commands, reports, Docker |
+| **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** | `webpilot.yaml`, `llm.json`, environments, prompts |
+
+## Quick start
+
+```bash
+npm ci
+npx playwright install chromium
+pip install -r requirements.txt
+
+cp .env.example .env   # optional: add API keys here
+# Or fill azure section in config/llm.json (placeholders in repo)
+
+npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed
+```
+
+`config/llm.json` is in the repo with **placeholder** keys only. Do not commit real API keys. Use `.env` for secrets (gitignored when it contains keys).
+
+---
+
 ## 1. Architecture Overview
 
 ```
@@ -191,20 +215,8 @@ Assert status is 200
 ## 5. Configuration Architecture
 
 ### LLM Setup (`config/llm.json`)
-Configure pluggable models, fallback models, parameters, and key mapping:
-```json
-{
-  "provider": "google",
-  "model": "gemini-2.5-flash",
-  "temperature": 0.1,
-  "maxTokens": 4000,
-  "fallbackModels": [
-    "gpt-4o",
-    "claude-3-5-sonnet"
-  ],
-  "apiKeyEnv": "GEMINI_API_KEY"
-}
-```
+
+Set provider keys in `config/llm.json` and/or environment variables (see `.env.example` and [docs/CONFIGURATION.md](docs/CONFIGURATION.md)). The committed file uses placeholders only.
 
 ### Environment Mapping (`config/environments/qa.json`)
 Configure variables and inject secrets using environment variables automatically interpolated at run time:

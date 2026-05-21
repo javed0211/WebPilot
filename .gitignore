@@ -1,13 +1,58 @@
+# Dependencies
 node_modules/
-dist/
-.DS_Store
-.env
-.env.local
 
-# Playwright / browser-use artifacts (regenerated on run)
+# Build / compile output
+dist/
+*.tsbuildinfo
+
+# Local secrets only — .env.example is committed; copy to .env for real keys
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+.envrc
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cursor / local agent state
+.cursor/
+
+# Playwright & browser-use run artifacts (regenerated every run)
 playwright-report/
 test-results/
-framework/temp_codegen.json
+reports/
+artifacts/*
+!artifacts/.gitkeep
+healing-cache/*
+!healing-cache/.gitkeep
 
-# Optional runtime outputs (keep reports/ if you want to commit them)
-# reports/
+# Codegen / validation scratch (local only)
+framework/temp_codegen.json
+scratch/
+
+# Logs & temp files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.tmp/
+temp/
+tmp/
+
+# Optional: keep a committed logo at repo root (assets/webpilot-logo.png), not under reports/

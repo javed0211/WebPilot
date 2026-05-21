@@ -105,11 +105,17 @@ export class Engine {
       }
 
       const { execSync } = require('child_process');
-      const pythonPath = '/Library/Frameworks/Python.framework/Versions/3.13/bin/python3';
+      const pythonPath =
+        process.env.WEBPILOT_PYTHON ||
+        process.env.PYTHON ||
+        'python3';
       const runnerPath = path.join(process.cwd(), 'core', 'browser_use_runner.py');
-      
+
       try {
-        execSync(`"${pythonPath}" "${runnerPath}" "${this.testFilePath}" "${this.envName}"`, { stdio: 'inherit' });
+        execSync(`"${pythonPath}" "${runnerPath}" "${this.testFilePath}" "${this.envName}"`, {
+          stdio: 'inherit',
+          env: { ...process.env, PYTHONPATH: path.join(process.cwd(), 'core') },
+        });
 
         const testName = path.basename(this.testFilePath, path.extname(this.testFilePath));
         const usagePath = path.join(process.cwd(), 'reports', `${testName}_llm_usage.json`);
