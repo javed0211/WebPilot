@@ -1,9 +1,9 @@
 @api @login
 Test: API Authenticated Token Chaining
 
-Send POST request to {{baseUrl}}/api/login
+Send POST request to {{apiBaseUrl}}/api/login
 With body payload {"username": "admin", "password": "password"}
 Extract response body.token into token
-Send GET request to {{baseUrl}}/api/users
+Send GET request to {{apiBaseUrl}}/api/users
 With Headers {"Authorization": "Bearer {{token}}"}
 Assert status is 200

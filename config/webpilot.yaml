@@ -18,6 +18,8 @@ framework:
   artifactsPath: "./artifacts"
   htmlReport: true # generate reports/index.html after each browser-use run
   htmlReportAiAnalysis: true # LLM quality analysis section (editable in prompts/reports/)
+  apiCodegenEnabled: true # generate framework/apis + framework/tests/api after successful API runs
+  useApiPlaywright: true # execute API tests via Playwright request (not axios)
 
 # 2. Browser Execution Options
 browser:

@@ -4,7 +4,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ora from 'ora';
 import { Engine } from '../core/Engine';
-import { APIRunner } from '../core/APIRunner';
+import { ApiEngine } from '../core/ApiEngine';
+import { OpenApiLoader } from '../core/api/OpenApiLoader';
 import { LLMClient } from '../core/LLMClient';
 import { CliDisplay } from '../utils/CliDisplay';
 import { UsageTracker } from '../utils/UsageTracker';
@@ -30,6 +31,7 @@ program
         'config/environments',
         'tests/web',
         'tests/api',
+        'framework/apis',
         'tests/bdd',
         'framework/core',
         'framework/pages',
@@ -610,10 +612,10 @@ Then dashboard should be visible
       const template = `@api @user
 Test: API User validation
 
-Send POST request to {{baseUrl}}/api/login
+Send POST request to {{apiBaseUrl}}/api/login
 With body payload {"username": "admin", "password": "password"}
 Extract response body.token into token
-Send GET request to {{baseUrl}}/api/users
+Send GET request to {{apiBaseUrl}}/api/users
 With Headers {"Authorization": "Bearer {{token}}"}
 Assert status is 200
 `;
@@ -622,6 +624,45 @@ Assert status is 200
       console.log(chalk.green(`Created API template: ${apiPath}`));
     } else {
       console.error(chalk.red(`Unsupported type: ${type}. Choose "test" or "api".`));
+    }
+  });
+
+/**
+ * COMMAND: import-api <swagger-url-or-file>
+ */
+program
+  .command('import-api')
+  .argument('<source>', 'OpenAPI/Swagger URL or local .json/.yaml file')
+  .option('-o, --output <file>', 'Write generated NL scenario to this path')
+  .option('--operations <ops>', 'Comma-separated operations, e.g. GET /pet/{petId},POST /pet')
+  .description('Import OpenAPI spec and scaffold an API test script')
+  .action(async (source: string, options: { output?: string; operations?: string }) => {
+    try {
+      const loaded = await OpenApiLoader.load(source);
+      const text = OpenApiLoader.toScenarioText(loaded, source);
+      const outPath =
+        options.output ||
+        path.join(
+          process.cwd(),
+          'tests',
+          'api',
+          `${loaded.title.replace(/\s+/g, '_').toLowerCase()}_openapi.txt`
+        );
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      fs.writeFileSync(outPath, text, 'utf8');
+      console.log(chalk.green(`Imported OpenAPI (${loaded.operations.length} operations)`));
+      console.log(chalk.dim(`  Title: ${loaded.title}`));
+      if (loaded.baseUrl) console.log(chalk.dim(`  Base URL: ${loaded.baseUrl}`));
+      console.log(chalk.green(`  Scenario: ${outPath}`));
+      if (options.operations) {
+        const steps = OpenApiLoader.buildSteps(loaded, {
+          operations: options.operations.split(',').map((s) => s.trim())
+        });
+        console.log(chalk.dim(`  Built ${steps.length} executable step(s) from --operations`));
+      }
+    } catch (err: any) {
+      console.error(chalk.red(`import-api failed: ${err.message}`));
+      process.exit(1);
     }
   });
 
@@ -647,11 +688,11 @@ program
             for (const f of fs.readdirSync(dir)) {
               const fp = path.join(dir, f);
               if (fs.statSync(fp).isDirectory()) readdir(fp);
-              else if (fp.endsWith('.txt')) files.push(fp);
+              else if (/\.(txt|ya?ml|json)$/i.test(fp)) files.push(fp);
             }
           };
           readdir(p);
-        } else if (p.endsWith('.txt')) {
+        } else if (/\.(txt|ya?ml|json)$/i.test(p)) {
           files.push(p);
         }
       }
@@ -659,7 +700,7 @@ program
     
     files = [...new Set(files)];
     if (files.length === 0) {
-      console.log(chalk.red('No .txt test scripts found to run.'));
+      console.log(chalk.red('No test scripts found (.txt, .yaml, .json).'));
       process.exit(1);
     }
     
@@ -680,7 +721,10 @@ program
     let fails = 0;
     
     const runTest = async (file: string) => {
-      const isUI = file.endsWith('.txt') && !file.includes('/api/');
+      const isApi =
+        file.includes('/api/') ||
+        /\.(ya?ml|json)$/i.test(file);
+      const isUI = !isApi && file.endsWith('.txt');
       let success = false;
       let stepsExecuted: number | undefined;
       const testName = path.basename(file, path.extname(file));
@@ -699,14 +743,13 @@ program
           success = result.success;
           stepsExecuted = result.stepsExecuted;
         } else {
-          const envPath = path.join(process.cwd(), 'config', 'environments', `${options.env}.json`);
-          const envConfig = JSON.parse(fs.readFileSync(envPath, 'utf8'));
-          const llmClient = new LLMClient();
-          const runner = new APIRunner({ baseUrl: envConfig.baseUrl, apiBaseUrl: envConfig.apiBaseUrl }, llmClient);
-          const fileContent = fs.readFileSync(file, 'utf8');
-          const steps = await runner.parseNaturalLanguageTest(fileContent);
-          stepsExecuted = steps.length;
-          success = await runner.runPipeline(steps);
+          const apiEngine = new ApiEngine({
+            testFilePath: file,
+            env: options.env
+          });
+          const result = await apiEngine.execute();
+          success = result.success;
+          stepsExecuted = result.stepsExecuted;
         }
       } catch (err: any) {
         Logger.error(`Error executing ${file}: ${err.message}`);

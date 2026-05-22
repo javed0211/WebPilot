@@ -1,0 +1,29 @@
+@api @openapi
+Test: Swagger Petstore — OpenAPI smoke
+
+@source https://petstore.swagger.io/v2/swagger.json
+@baseUrl https://petstore.swagger.io/v2
+
+Send POST request to {{apiBaseUrl}}/pet/{petId}/uploadImage
+Assert status is 201
+
+Send POST request to {{apiBaseUrl}}/pet
+Assert status is 201
+
+Send PUT request to {{apiBaseUrl}}/pet
+Assert status is 201
+
+Send GET request to {{apiBaseUrl}}/pet/findByStatus
+Assert status is 200
+
+Send GET request to {{apiBaseUrl}}/pet/findByTags
+Assert status is 200
+
+Send GET request to {{apiBaseUrl}}/pet/{petId}
+Assert status is 200
+
+Send POST request to {{apiBaseUrl}}/pet/{petId}
+Assert status is 201
+
+Send DELETE request to {{apiBaseUrl}}/pet/{petId}
+Assert status is 200

@@ -147,11 +147,31 @@ npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --
 npm run webpilot -- interactive tests/web/login.txt --env qa
 ```
 
-### API tests (no browser)
+### API tests (Playwright request, no browser)
+
+API tests use **TypeScript + Playwright `APIRequestContext`** via `BaseAPI` / `ApiContext`. Sources:
+
+| Source | Example |
+|--------|---------|
+| Plain text | `tests/api/login_api.txt` |
+| OpenAPI URL | First line is spec URL, or `@source https://...` in `.txt` |
+| OpenAPI file | `tests/api/specs/petstore.yaml` |
+| Unstructured prose | LLM parses when line-based rules do not match |
 
 ```bash
+# Run NL API test (regex parser + LLM fallback)
 npm run webpilot -- run tests/api/login_api.txt --env qa
+
+# Import Swagger/OpenAPI into a new scenario file
+npm run webpilot -- import-api https://petstore.swagger.io/v2/swagger.json -o tests/api/petstore_smoke.txt
+
+# Run generated Playwright API specs
+npx playwright test --project=api --config=framework/playwright.config.ts
 ```
+
+On success, WebPilot can generate `framework/apis/<Name>Api.ts` and `framework/tests/api/<slug>.api.spec.ts` when `framework.apiCodegenEnabled: true` in `config/webpilot.yaml`.
+
+Set `apiBaseUrl` in `config/environments/<env>.json` for your API host.
 
 ---
 

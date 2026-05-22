@@ -19,7 +19,8 @@
       "@tests/*": ["./framework/tests/*"],
       "@config/*": ["./framework/config/*"],
       "@utils/*": ["./framework/utils/*"],
-      "@data/*": ["./framework/data/*"]
+      "@data/*": ["./framework/data/*"],
+      "@apis/*": ["./framework/apis/*"]
     }
   },
   "include": [

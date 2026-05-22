@@ -29,7 +29,20 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testMatch: '**/*.spec.ts',
+      testIgnore: '**/*.api.spec.ts',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'api',
+      testMatch: '**/*.api.spec.ts',
+      use: {
+        baseURL: config.apiBaseUrl || config.baseUrl,
+        extraHTTPHeaders: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      },
     },
   ],
 });
