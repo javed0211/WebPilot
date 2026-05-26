@@ -27,6 +27,7 @@ export interface EngineOptions {
   headed?: boolean;
   interactive?: boolean;
   architecture?: 'flat' | 'pom' | 'bdd' | 'pom-bdd';
+  fallbackReason?: string;
 }
 
 export class Engine {
@@ -35,6 +36,7 @@ export class Engine {
   private headed: boolean;
   private interactive: boolean;
   private architecture: 'flat' | 'pom' | 'bdd' | 'pom-bdd';
+  private fallbackReason?: string;
 
   private browserManager!: BrowserManager;
   private llmClient!: LLMClient;
@@ -50,6 +52,7 @@ export class Engine {
     this.headed = options.headed ?? false;
     this.interactive = options.interactive ?? false;
     this.architecture = options.architecture ?? 'pom';
+    this.fallbackReason = options.fallbackReason;
   }
 
   private async promptUser(message: string): Promise<string> {
@@ -384,7 +387,8 @@ export class Engine {
         testName,
         executionHistory,
         this.architecture,
-        symbolGraphContext
+        symbolGraphContext,
+        this.fallbackReason
       );
       Logger.success(`Codegen wrote ${codegen.files.length} file(s)`);
 
@@ -395,7 +399,7 @@ export class Engine {
       }
       
       const usage = UsageTracker.getSnapshot();
-      const reportSummary = {
+      const reportSummary: any = {
         test: testName,
         status: success ? 'PASSED' : 'FAILED',
         timestamp: new Date().toISOString(),
@@ -405,8 +409,16 @@ export class Engine {
         promptTokens: usage.promptTokens,
         completionTokens: usage.completionTokens,
         estimatedCostUsd: usage.estimatedCostUsd,
-        llmCalls: usage.llmCalls
+        llmCalls: usage.llmCalls,
+        phases: usage.phases
       };
+      
+      if (this.fallbackReason) {
+        reportSummary.failureContext = this.fallbackReason;
+      }
+      if (codegen.fixReport) {
+        reportSummary.fixReport = codegen.fixReport;
+      }
       
       fs.mkdirSync(path.join(process.cwd(), 'reports'), { recursive: true });
       fs.writeFileSync(

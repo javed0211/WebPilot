@@ -10,6 +10,7 @@ export interface GeneratedFile {
 export interface CodegenResult {
   files: GeneratedFile[];
   summary: string;
+  fixReport?: string;
 }
 
 export class CodegenAgent {
@@ -26,7 +27,8 @@ export class CodegenAgent {
     testName: string,
     history: { action: string; selector?: string; value?: string; url?: string; description: string }[],
     architecture: 'flat' | 'pom' | 'bdd' | 'pom-bdd',
-    symbolGraphContext?: string
+    symbolGraphContext?: string,
+    fallbackReason?: string
   ): Promise<CodegenResult> {
     const frameworkContext = CodegenContext.buildFullPromptContext(symbolGraphContext);
 
@@ -45,6 +47,7 @@ export class CodegenAgent {
       test_name: testName,
       architecture,
       execution_history: historyText,
+      fallback_reason: fallbackReason ? `\nPlaywright previously failed with this error. You MUST fix it and output a fixReport.\nError:\n${fallbackReason}\n` : '',
     });
 
     const messages: LLMMessage[] = [

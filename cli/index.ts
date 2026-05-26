@@ -692,7 +692,7 @@ program
             }
           };
           readdir(p);
-        } else if (/\.(txt|ya?ml|json)$/i.test(p)) {
+        } else if (/\.(txt|ya?ml|json|spec\.ts)$/i.test(p)) {
           files.push(p);
         }
       }
@@ -721,30 +721,87 @@ program
     let fails = 0;
     
     const runTest = async (file: string) => {
+      let nlFile = file;
+      let testName = '';
+      
+      if (file.endsWith('.spec.ts')) {
+        testName = path.basename(file, '.spec.ts');
+        const possibleTxtWeb = path.join(process.cwd(), 'tests', 'web', `${testName}.txt`);
+        const possibleTxtApi = path.join(process.cwd(), 'tests', 'api', `${testName}.txt`);
+        if (fs.existsSync(possibleTxtWeb)) {
+          nlFile = possibleTxtWeb;
+        } else if (fs.existsSync(possibleTxtApi)) {
+          nlFile = possibleTxtApi;
+        } else {
+           Logger.error(`Could not find natural language file for ${file}`);
+           fails++;
+           return;
+        }
+      } else {
+        testName = path.basename(file, path.extname(file));
+      }
+
       const isApi =
-        file.includes('/api/') ||
-        /\.(ya?ml|json)$/i.test(file);
-      const isUI = !isApi && file.endsWith('.txt');
+        nlFile.includes('/api/') ||
+        /\.(ya?ml|json)$/i.test(nlFile);
+      const isUI = !isApi && nlFile.endsWith('.txt');
       let success = false;
       let stepsExecuted: number | undefined;
-      const testName = path.basename(file, path.extname(file));
       const testStart = Date.now();
+      
+      const expectedSpecPath = path.join(process.cwd(), 'framework', 'tests', `${testName}.spec.ts`);
+      let playPassed = false;
+      let fallbackReason = '';
+      
+      if (fs.existsSync(expectedSpecPath)) {
+        Logger.info(`[Playwright] Running existing spec: ${expectedSpecPath}`);
+        try {
+          const { execSync } = require('child_process');
+          const output = execSync(`npx playwright test ${expectedSpecPath} --config=framework/playwright.config.ts --project=chromium`, { stdio: 'pipe' });
+          console.log(output.toString());
+          playPassed = true;
+          Logger.success(`[Playwright] Spec ${testName} passed successfully.`);
+        } catch (e: any) {
+          fallbackReason = (e.stdout?.toString() || '') + '\n' + (e.stderr?.toString() || '');
+          console.log(fallbackReason);
+          Logger.warn(`[Playwright] Spec ${testName} failed. Falling back to AI healing...`);
+          playPassed = false;
+        }
+      }
+      
+      if (playPassed) {
+        passes++;
+        CliDisplay.printJobSummary({
+          test: testName,
+          success: true,
+          durationMs: Date.now() - testStart,
+          usage: UsageTracker.getSnapshot(),
+          stepsExecuted: 0
+        });
+        return;
+      }
       
       try {
         if (isUI) {
+          if (!playPassed && fs.existsSync(expectedSpecPath)) {
+            UsageTracker.setPhase('healing');
+          } else {
+            UsageTracker.setPhase('design');
+          }
           const engine = new Engine({
-            testFilePath: file,
+            testFilePath: nlFile,
             env: options.env,
             headed: options.headed,
             interactive: false,
-            architecture: options.architecture as any
+            architecture: options.architecture as any,
+            fallbackReason
           });
           const result = await engine.execute();
           success = result.success;
           stepsExecuted = result.stepsExecuted;
         } else {
           const apiEngine = new ApiEngine({
-            testFilePath: file,
+            testFilePath: nlFile,
             env: options.env
           });
           const result = await apiEngine.execute();
@@ -836,6 +893,17 @@ program
     }
 
     process.exit(success ? 0 : 1);
+  });
+
+/**
+ * COMMAND: analyze
+ */
+program
+  .command('analyze')
+  .description('Generate a consolidated Markdown analysis report for all executions')
+  .action(() => {
+    const { execSync } = require('child_process');
+    execSync('npx ts-node core/execution_report/generateMarkdownReport.ts', { stdio: 'inherit', cwd: process.cwd() });
   });
 
 /**

@@ -18,5 +18,6 @@ Output ONLY valid raw JSON (no markdown fences):
     { "path": "framework/pages/example/ExamplePage.ts", "content": "..." },
     { "path": "framework/tests/example.spec.ts", "content": "..." }
   ],
-  "summary": "Brief explanation listing each page class created or updated"
+  "summary": "Brief explanation listing each page class created or updated",
+  "fixReport": "If fallback_reason was provided, explain why it failed and how you fixed it."
 }

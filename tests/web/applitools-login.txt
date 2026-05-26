@@ -1,0 +1,7 @@
+@smoke @login
+Test: User Login Scenario
+
+Given user opens https://demo.applitools.com/
+When user logs in with username "Admin" and password "Admin123"
+Then username "Jack Gomez" should be visible on left side bar
+and settings icons should be visible on top bar
