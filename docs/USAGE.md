@@ -2,6 +2,8 @@
 
 WebPilot turns plain-language test scripts (`.txt`) into live browser automation and Playwright TypeScript. This guide covers install, configuration, running tests, reports, and generated code.
 
+For the full framework reference (architecture, all CLI commands, test formats, CI), see **[FRAMEWORK_GUIDE.md](./FRAMEWORK_GUIDE.md)**.
+
 ---
 
 ## 1. Prerequisites

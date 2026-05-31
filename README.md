@@ -8,7 +8,8 @@ WebPilot is a production-grade, AI-native quality engineering (QE) framework bui
 
 | Guide | Contents |
 |-------|----------|
-| **[docs/USAGE.md](docs/USAGE.md)** | Install, credentials, writing tests, CLI commands, reports, Docker |
+| **[docs/FRAMEWORK_GUIDE.md](docs/FRAMEWORK_GUIDE.md)** | Architecture, writing tests, CLI reference, codegen, reports, CI |
+| **[docs/USAGE.md](docs/USAGE.md)** | Quick start — install, credentials, run tests, troubleshooting |
 | **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** | `webpilot.yaml`, `llm.json`, environments, prompts |
 
 ## Quick start
