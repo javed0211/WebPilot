@@ -9,9 +9,9 @@ Set Padding 18
 Hide
 Type "cd /Users/oldguard/Desktop/WebPilot"
 Enter
-Sleep 400ms
+Sleep 300ms
 Show
 
 Type "npx ts-node scripts/demo-cli-showcase.ts"
 Enter
-Sleep 14000ms
+Sleep 30500ms
