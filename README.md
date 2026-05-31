@@ -2,6 +2,20 @@
 
 WebPilot is a production-grade, AI-native quality engineering (QE) framework built with Node.js, TypeScript, Playwright, and multi-agent AI loop architectures. It enables quality assurance and engineering teams to automate testing pipelines using plain, natural language test scripts. It automatically executes tests using cognitive reasoning, self-heals broken locators, supports interactive debugging, and generates enterprise-grade, deterministic Playwright test suites.
 
+## Demo
+
+<video src="assets/demo.webpilot.mp4" controls width="100%"></video>
+
+*Natural language spec → CLI → browser agent → Playwright codegen.*
+
+Write tests in plain English, run one CLI command, and watch the browser agent execute your scenario in Chrome. WebPilot then generates Playwright TypeScript you can run in CI.
+
+```bash
+npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed
+```
+
+[Download demo video](assets/demo.webpilot.mp4)
+
 ---
 
 ## Documentation
@@ -11,16 +25,6 @@ WebPilot is a production-grade, AI-native quality engineering (QE) framework bui
 | **[docs/FRAMEWORK_GUIDE.md](docs/FRAMEWORK_GUIDE.md)** | Architecture, writing tests, CLI reference, codegen, reports, CI |
 | **[docs/USAGE.md](docs/USAGE.md)** | Quick start — install, credentials, run tests, troubleshooting |
 | **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** | `webpilot.yaml`, `llm.json`, environments, prompts |
-
-## Demo
-
-<video src="https://github.com/javed0211/WebPilot/raw/main/assets/demo.webpilot.mp4" controls width="100%"></video>
-
-Write tests in plain English, run one CLI command, and watch the browser agent execute your scenario in Chrome. WebPilot then generates Playwright TypeScript you can run in CI.
-
-```bash
-npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed
-```
 
 ## Quick start
 
