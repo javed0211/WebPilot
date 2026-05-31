@@ -22,7 +22,7 @@ From the repository root:
 ```bash
 npm ci
 npx playwright install chromium
-pip install -r requirements.txt
+npm run setup    # Python 3.11+ venv + browser-use in .venv/
 ```
 
 Optional checks:
@@ -265,7 +265,7 @@ Pass API keys via environment variables in `docker-compose.yml` or a local `.env
 
 | Issue | What to try |
 |-------|-------------|
-| `python3` / `browser-use` not found | `pip install -r requirements.txt`, set `WEBPILOT_PYTHON` to your Python binary |
+| `python3` / `browser-use` not found | Run `npm run setup` (creates `.venv` with Python 3.12+). Set `WEBPILOT_PYTHON` if needed. |
 | Azure errors | Check `AZURE_OPENAI_*` in `.env` and `azure` block in `config/llm.json` |
 | Browser does not open | Use `--headed` or set `browser.headless: false` in `config/webpilot.yaml` |
 | Codegen / TS errors | See terminal output; validators retry fixes under `framework/` |

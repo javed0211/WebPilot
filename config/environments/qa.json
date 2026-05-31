@@ -1,7 +1,7 @@
 {
   "environment": "qa",
-  "baseUrl": "http://localhost:5173",
-  "apiBaseUrl": "https://qa-api.company.com",
+  "baseUrl": "https://automationexercise.com",
+  "apiBaseUrl": "https://dummyjson.com",
   "credentials": {
     "username": "${QA_USERNAME}",
     "password": "${QA_PASSWORD}"

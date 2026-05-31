@@ -73,9 +73,20 @@ ${steps.map((step, i) => ApiCodegenService.renderSpecCall(step, i)).join('\n')}
     return [clientFile, specFile];
   }
 
+  /** Playwright fixture sets baseURL to apiBaseUrl — emit path-only URLs in generated code. */
+  private static urlForGeneratedClient(url: string): string {
+    const stripped = url
+      .replace(/^\{\{apiBaseUrl\}\}/i, '')
+      .replace(/^\{\{baseUrl\}\}/i, '');
+    if (!stripped || stripped.startsWith('{{')) {
+      return url.replace(/'/g, "\\'");
+    }
+    return (stripped.startsWith('/') ? stripped : `/${stripped}`).replace(/'/g, "\\'");
+  }
+
   private static renderClientMethod(step: ApiRequestStep, index: number): string {
     const fn = methodNameFromStep(step, index);
-    const url = step.url.replace(/'/g, "\\'");
+    const url = ApiCodegenService.urlForGeneratedClient(step.url);
     const hasBody = step.body !== undefined && ['POST', 'PUT', 'PATCH'].includes(step.method);
     const statusAssert =
       step.assertions?.status !== undefined

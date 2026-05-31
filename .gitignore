@@ -33,6 +33,9 @@ Thumbs.db
 # Cursor / local agent state
 .cursor/
 
+# Nested local repo (not part of WebPilot)
+project/
+
 # Playwright & browser-use run artifacts (regenerated every run)
 playwright-report/
 test-results/

@@ -9,6 +9,8 @@
   "scripts": {
     "webpilot": "ts-node cli/index.ts",
     "doctor": "ts-node cli/index.ts doctor",
+    "setup": "bash scripts/setup-python.sh",
+    "postinstall": "bash scripts/setup-python.sh || true",
     "init": "ts-node cli/index.ts init",
     "report": "ts-node cli/index.ts report",
     "report:html": "ts-node cli/index.ts report --html"

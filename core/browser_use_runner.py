@@ -8,7 +8,14 @@ import yaml
 import glob
 import shutil
 import tempfile
-from browser_use import Agent, Browser, ChatAzureOpenAI
+from browser_use import Agent, Browser
+from llm_config import (
+    create_browser_use_llm,
+    create_codegen_client,
+    get_active_provider,
+    resolve_provider_config,
+    validate_provider_config,
+)
 from execution_history_export import (
     build_full_execution_context,
     format_history_for_prompt,
@@ -84,7 +91,7 @@ def update_cumulative_usage_from_snapshot(
     snap_completion: int,
     snap_cost: float,
     snap_calls: int,
-    azure: dict,
+    llm_cfg: dict,
 ) -> tuple[int, float]:
     """
     Keep WebPilot overlay totals monotonically cumulative.
@@ -126,7 +133,7 @@ def update_cumulative_usage_from_snapshot(
     total_tokens = totals['promptTokens'] + totals['completionTokens']
     if totals['estimatedCostUsd'] <= 0 and total_tokens > 0:
         totals['estimatedCostUsd'] = estimate_cost_usd(
-            azure.get('model', azure.get('deploymentId', '')),
+            llm_cfg.get('model', llm_cfg.get('deploymentId', '')),
             totals['promptTokens'],
             totals['completionTokens'],
         )
@@ -335,7 +342,8 @@ def finalize_artifacts(test_slug, video_dir, traces_dir):
     return artifacts
 
 async def generate_playwright_code(
-    azure,
+    provider,
+    llm_cfg,
     test_name,
     steps,
     llm_usage_totals,
@@ -351,20 +359,16 @@ async def generate_playwright_code(
         framework_rules=framework_rules,
         symbol_graph_context=symbol_graph_context or 'None',
     )
-    from openai import AzureOpenAI
-    client = AzureOpenAI(
-        api_key=azure['apiKey'],
-        api_version=azure['apiVersion'],
-        azure_endpoint=azure['endpoint']
-    )
-    
+    client, model_id = create_codegen_client(provider, llm_cfg)
+
     response = client.chat.completions.create(
-        model=azure['deploymentId'],
+        model=model_id,
         messages=[
             {"role": "user", "content": prompt}
         ],
         temperature=0.0
     )
+    pricing_model = llm_cfg.get('model', model_id)
     usage_meta = getattr(response, 'usage', None)
     if usage_meta is not None:
         pt = getattr(usage_meta, 'prompt_tokens', 0) or 0
@@ -373,7 +377,7 @@ async def generate_playwright_code(
             llm_usage_totals,
             pt,
             ct,
-            estimate_cost_usd(azure.get('model', azure['deploymentId']), pt, ct),
+            estimate_cost_usd(pricing_model, pt, ct),
         )
 
     clean_text = response.choices[0].message.content.strip()
@@ -408,24 +412,19 @@ async def main():
     for step in steps:
         print(f"  - {step}")
         
-    with open('config/llm.json', 'r') as f:
-        llm_config = json.load(f)
-    
-    azure = llm_config['azure']
+    provider = get_active_provider()
+    try:
+        provider, llm_cfg = resolve_provider_config(provider)
+        validate_provider_config(provider, llm_cfg)
+    except ValueError as cred_err:
+        print(f"\n[WebPilot] LLM configuration error:\n{cred_err}\n")
+        sys.exit(1)
+
     browser_cfg = load_browser_artifact_config()
-    
-    os.environ["AZURE_OPENAI_API_KEY"] = azure['apiKey']
-    os.environ["AZURE_OPENAI_ENDPOINT"] = azure['endpoint']
-    os.environ["OPENAI_API_VERSION"] = azure['apiVersion']
-    
-    llm = ChatAzureOpenAI(
-        model=azure['model'],
-        api_key=azure['apiKey'],
-        azure_endpoint=azure['endpoint'],
-        azure_deployment=azure['deploymentId'],
-        api_version=azure['apiVersion'],
-        temperature=0.0
-    )
+    llm = create_browser_use_llm(provider, llm_cfg)
+    print(f"[WebPilot] LLM provider={provider} model={llm_cfg.get('model', llm_cfg.get('deploymentId', ''))}")
+    if provider == 'azure':
+        print(f"[WebPilot] Azure endpoint={llm_cfg.get('endpoint', '')[:48]}...")
     
     task = "Please execute the following test scenario step-by-step:\n" + "\n".join(steps)
     upload_paths = resolve_upload_fixture_paths()
@@ -484,7 +483,7 @@ async def main():
             snap_completion,
             snap_cost,
             snap_calls,
-            azure,
+            llm_cfg,
         )
 
         data = {
@@ -515,9 +514,29 @@ async def main():
     agent = Agent(**agent_kwargs)
 
     history_list = None
+    agent_ok = False
     try:
         history_list = await agent.run()
-        print("\nAgent finished execution successfully!")
+
+        if history_list is not None and hasattr(history_list, 'is_successful'):
+            agent_ok = bool(history_list.is_successful())
+        elif history_list is not None and hasattr(history_list, 'has_errors'):
+            agent_ok = not bool(history_list.has_errors())
+        else:
+            agent_ok = llm_usage_totals.get('llmCalls', 0) > 0
+
+        if agent_ok:
+            print("\nAgent finished execution successfully!")
+        else:
+            err_preview = ''
+            if history_list is not None and hasattr(history_list, 'errors'):
+                errs = [e for e in (history_list.errors() or []) if e]
+                if errs:
+                    err_preview = f" Last errors: {errs[-1][:200]}"
+            print(
+                f"\n[WebPilot] Agent run did not complete successfully "
+                f"(LLM failures or task incomplete).{err_preview}"
+            )
 
         usage = getattr(history_list, 'usage', None)
         if usage is not None:
@@ -526,7 +545,7 @@ async def main():
             agent_cost = float(getattr(usage, 'total_cost', 0.0) or 0.0)
             if agent_cost <= 0 and (agent_prompt + agent_completion) > 0:
                 agent_cost = estimate_cost_usd(
-                    azure.get('model', azure['deploymentId']),
+                    llm_cfg.get('model', llm_cfg.get('deploymentId', '')),
                     agent_prompt,
                     agent_completion,
                 )
@@ -536,7 +555,7 @@ async def main():
                 agent_completion,
                 agent_cost,
                 int(getattr(usage, 'entry_count', 0) or 0),
-                azure,
+                llm_cfg,
             )
             print(
                 f"[LLM] browser-use agent: {final_tokens:,} tokens, "
@@ -584,9 +603,26 @@ async def main():
             except Exception as e:
                 print("Warning: Could not read symbol_graph.json:", e)
 
-        print("\nGenerating Playwright TS code using Azure OpenAI...")
+        if not agent_ok:
+            report_summary = {
+                "test": base_file_name,
+                "testName": test_name,
+                "testFile": test_file_path,
+                "environment": env_name,
+                "status": "FAILED",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "stepsExecuted": 0,
+                "summary": "browser-use agent failed (LLM connection or step errors). Check .env Azure/OpenAI credentials.",
+                "llmCalls": llm_usage_totals.get('llmCalls', 0),
+            }
+            with open(f'reports/{base_file_name}_summary.json', 'w', encoding='utf-8') as f_rep:
+                json.dump(report_summary, f_rep, indent=2)
+            sys.exit(1)
+
+        print(f"\nGenerating Playwright TS code ({provider})...")
         code_data = await generate_playwright_code(
-            azure,
+            provider,
+            llm_cfg,
             test_name,
             steps,
             llm_usage_totals,

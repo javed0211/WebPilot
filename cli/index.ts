@@ -581,6 +581,36 @@ program
       console.log(`  ${chalk.red('✘ No LLM credentials active! Please export GEMINI_API_KEY or OPENAI_API_KEY.')}`);
     }
 
+    console.log(`\n${chalk.blue('Checking Python (browser-use):')}`);
+    try {
+      const { resolvePythonPath, hasBrowserUse } = require('../core/pythonEnv');
+      const py = resolvePythonPath();
+      if (!hasBrowserUse(py)) {
+        console.log(`  ${chalk.yellow('⚠')} browser_use not found for ${py}`);
+        console.log(`  ${chalk.dim('→')} Run: ${chalk.bold('npm run setup')}`);
+      } else {
+        console.log(`  ${chalk.green('✔')} browser_use importable (${py})`);
+      }
+    } catch (e: any) {
+      console.log(`  ${chalk.red('✘')} Python check failed: ${e.message}`);
+    }
+
+    console.log(`\n${chalk.blue('Checking LLM config (browser-use / codegen):')}`);
+    try {
+      const { execSync } = require('child_process');
+      const py = require('../core/pythonEnv').resolvePythonPath();
+      execSync(
+        `"${py}" -c "from llm_config import get_active_provider, resolve_provider_config, validate_provider_config; p,c=resolve_provider_config(); validate_provider_config(p,c); print(f'OK provider={p} endpoint configured')"` ,
+        { cwd: path.join(process.cwd(), 'core'), stdio: 'pipe', encoding: 'utf8' }
+      );
+      console.log(`  ${chalk.green('✔')} LLM credentials resolved for browser-use`);
+    } catch (e: any) {
+      const msg = (e.stdout || e.stderr || e.message || '').toString();
+      console.log(`  ${chalk.red('✘')} LLM not ready for browser-use`);
+      console.log(`  ${chalk.dim(msg.split('\\n').slice(0, 6).join('\\n'))}`);
+      console.log(`  ${chalk.dim('→')} Copy .env.example to .env and set AZURE_OPENAI_* (or switch framework.activeProvider)`);
+    }
+
     console.log(`\n${chalk.magenta('=== Diagnostics Complete ===')}\n`);
   });
 
@@ -612,10 +642,10 @@ Then dashboard should be visible
       const template = `@api @user
 Test: API User validation
 
-Send POST request to {{apiBaseUrl}}/api/login
-With body payload {"username": "admin", "password": "password"}
-Extract response body.token into token
-Send GET request to {{apiBaseUrl}}/api/users
+Send POST request to {{apiBaseUrl}}/auth/login
+With body payload {"username": "emilys", "password": "emilyspass"}
+Extract response body.accessToken into token
+Send GET request to {{apiBaseUrl}}/auth/me
 With Headers {"Authorization": "Bearer {{token}}"}
 Assert status is 200
 `;

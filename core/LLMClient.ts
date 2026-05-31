@@ -91,9 +91,15 @@ export class LLMClient {
     if (provConfig.apiKey && provConfig.apiKey.trim() !== '' && !provConfig.apiKey.includes('YOUR_')) {
       // Auto-configure auxiliary options for cloud endpoints
       if (provider === 'azure') {
-        if (provConfig.endpoint) process.env.AZURE_OPENAI_ENDPOINT = provConfig.endpoint;
-        if (provConfig.apiVersion) process.env.AZURE_OPENAI_API_VERSION = provConfig.apiVersion;
-        if (provConfig.deploymentId) process.env.AZURE_OPENAI_DEPLOYMENT = provConfig.deploymentId;
+        if (provConfig.endpoint && String(provConfig.endpoint).trim()) {
+          process.env.AZURE_OPENAI_ENDPOINT = provConfig.endpoint;
+        }
+        if (provConfig.apiVersion && String(provConfig.apiVersion).trim()) {
+          process.env.AZURE_OPENAI_API_VERSION = provConfig.apiVersion;
+        }
+        if (provConfig.deploymentId && String(provConfig.deploymentId).trim()) {
+          process.env.AZURE_OPENAI_DEPLOYMENT = provConfig.deploymentId;
+        }
       } else if (provider === 'aws') {
         process.env.AWS_ACCESS_KEY_ID = provConfig.apiKey;
         if (provConfig.secretKey) process.env.AWS_SECRET_ACCESS_KEY = provConfig.secretKey;

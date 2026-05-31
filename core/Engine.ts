@@ -108,10 +108,14 @@ export class Engine {
       }
 
       const { execSync } = require('child_process');
-      const pythonPath =
-        process.env.WEBPILOT_PYTHON ||
-        process.env.PYTHON ||
-        'python3';
+      const { ensureBrowserUsePython } = require('./pythonEnv');
+      let pythonPath: string;
+      try {
+        pythonPath = ensureBrowserUsePython();
+      } catch (pyErr: any) {
+        Logger.error(pyErr.message);
+        return { success: false, stepsExecuted: 0 };
+      }
       const runnerPath = path.join(process.cwd(), 'core', 'browser_use_runner.py');
 
       try {
