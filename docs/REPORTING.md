@@ -29,6 +29,7 @@ WebPilot produces execution reports at multiple levels: **terminal summaries**, 
 
 | Report type | Format | Primary use |
 |-------------|--------|-------------|
+| **Sample (committed)** | HTML in repo | Preview without running — [docs/sample-reports/](../docs/sample-reports/) |
 | **Terminal dashboard** | CLI text | Quick pass/fail after one or more runs |
 | **Per-test summary** | JSON | Machine-readable result + token/cost data |
 | **Execution history** | JSON | Step-by-step agent/browser actions |

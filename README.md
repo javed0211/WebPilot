@@ -16,6 +16,24 @@ npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --
 
 **Full demo (MP4):** [Watch on GitHub](https://github.com/javed0211/WebPilot/blob/main/assets/demo.webpilot.mp4)
 
+## Sample report
+
+After each UI run, WebPilot generates an **HTML execution report** with pass rate, steps, LLM token usage, cost, environment details, execution logs, artifacts (video/trace/screenshots), and optional **AI quality analysis**.
+
+[![WebPilot sample execution report](assets/sample-report-test.png)](docs/sample-reports/test-report.html)
+
+| Sample | View |
+|--------|------|
+| **Suite dashboard** | [docs/sample-reports/suite-report.html](docs/sample-reports/suite-report.html) |
+| **Per-test report** | [docs/sample-reports/test-report.html](docs/sample-reports/test-report.html) |
+
+Full reporting guide: **[docs/REPORTING.md](docs/REPORTING.md)**
+
+```bash
+npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --report
+open reports/index.html
+```
+
 ---
 
 ## Documentation
