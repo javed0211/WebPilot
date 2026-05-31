@@ -62,6 +62,8 @@ Run `npm run doctor` to verify browser-use can resolve your LLM config before ex
 
 Other providers (`google`, `openai`, `anthropic`, `ollama`, `aws`, `gcp`) are available for alternate code paths.
 
+Reporting (HTML, JSON, artifacts): [REPORTING.md](./REPORTING.md).
+
 ---
 
 ## Environment files

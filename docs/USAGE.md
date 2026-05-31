@@ -195,6 +195,8 @@ During the run you should see:
 
 ## 7. Reports and artifacts
 
+Full guide: **[REPORTING.md](./REPORTING.md)**.
+
 | Output | Location |
 |--------|----------|
 | HTML suite report | `reports/index.html` |
@@ -205,18 +207,12 @@ During the run you should see:
 | Playwright traces | `reports/traces/` |
 | Step screenshots | `reports/screenshots/<test>/` |
 
-Regenerate HTML from existing JSON (no re-run):
-
-```bash
-npm run webpilot -- report --html
-npm run webpilot -- report --html --no-ai          # skip AI analysis section
-npm run webpilot -- report --html --test automationexercise_add_to_cart
-```
-
-Terminal summary only:
-
 ```bash
 npm run report
+npm run webpilot -- report --html
+npm run webpilot -- report --html --no-ai
+npm run webpilot -- report --html --test automationexercise_add_to_cart
+npm run webpilot -- analyze
 ```
 
 ---
@@ -273,4 +269,4 @@ Pass API keys via environment variables in `docker-compose.yml` or a local `.env
 | Codegen / TS errors | See terminal output; validators retry fixes under `framework/` |
 | Empty reports | Run a test first; `reports/` is gitignored and created per run |
 
-More detail: [CONFIGURATION.md](./CONFIGURATION.md), [README.md](../README.md).
+More detail: [CONFIGURATION.md](./CONFIGURATION.md), [REPORTING.md](./REPORTING.md), [README.md](../README.md).

@@ -24,6 +24,7 @@ npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --
 |-------|----------|
 | **[docs/FRAMEWORK_GUIDE.md](docs/FRAMEWORK_GUIDE.md)** | Architecture, writing tests, CLI reference, codegen, reports, CI |
 | **[docs/USAGE.md](docs/USAGE.md)** | Quick start — install, credentials, run tests, troubleshooting |
+| **[docs/REPORTING.md](docs/REPORTING.md)** | HTML reports, JSON artifacts, videos, traces, AI analysis, CI |
 | **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** | `webpilot.yaml`, `llm.json`, environments, prompts |
 
 ## Quick start

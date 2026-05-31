@@ -10,6 +10,7 @@ This guide covers architecture, test authoring, CLI commands, generated code, re
 |----------|-------------------|
 | [USAGE.md](./USAGE.md) | Quick install and first run |
 | [CONFIGURATION.md](./CONFIGURATION.md) | `webpilot.yaml`, `llm.json`, environments, prompts |
+| [REPORTING.md](./REPORTING.md) | HTML reports, JSON artifacts, CLI, AI analysis, CI |
 | [../README.md](../README.md) | Project overview and quick start |
 
 ---
@@ -733,7 +734,7 @@ execution:
 
 ## 11. Reports and artifacts
 
-### Output locations
+Full guide: **[REPORTING.md](./REPORTING.md)** — HTML dashboards, JSON files, videos, traces, AI analysis, CLI, and CI.
 
 | Artifact | Path |
 |----------|------|
@@ -742,25 +743,13 @@ execution:
 | Summary JSON | `reports/<test>_summary.json` |
 | LLM usage | `reports/<test>_llm_usage.json` |
 | Execution history | `reports/<test>_execution_history.json` |
-| API run log | `reports/api-<test>-<timestamp>.json` |
-| Videos | `reports/videos/` |
-| Playwright traces | `reports/traces/` |
-| Step screenshots | `reports/screenshots/<test>/` |
-| Playwright HTML report | `playwright-report/` |
-
-All report paths are gitignored — regenerated each run.
-
-### Regenerate reports without re-running tests
-
-```bash
-npm run webpilot -- report --html
-npm run webpilot -- report --html --test automationexercise_add_to_cart --no-ai
-```
-
-Terminal-only dashboard:
+| Videos / traces / screenshots | `reports/videos/`, `reports/traces/`, `reports/screenshots/` |
 
 ```bash
 npm run report
+npm run webpilot -- report --html
+npm run webpilot -- run tests/web/foo.txt --env qa --report
+npm run webpilot -- analyze
 ```
 
 ---
