@@ -4,9 +4,9 @@ WebPilot is a production-grade, AI-native quality engineering (QE) framework bui
 
 ## Demo
 
-<video src="assets/demo.webpilot.mp4" controls width="100%"></video>
+[![WebPilot demo — CLI and browser agent in action](assets/demo.webpilot.gif)](https://github.com/javed0211/WebPilot/blob/main/assets/demo.webpilot.mp4)
 
-*Natural language spec → CLI → browser agent → Playwright codegen.*
+*Click to open the full video · Natural language spec → CLI → browser agent → Playwright codegen*
 
 Write tests in plain English, run one CLI command, and watch the browser agent execute your scenario in Chrome. WebPilot then generates Playwright TypeScript you can run in CI.
 
@@ -14,7 +14,7 @@ Write tests in plain English, run one CLI command, and watch the browser agent e
 npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed
 ```
 
-[Download demo video](assets/demo.webpilot.mp4)
+**Full demo (MP4):** [Watch on GitHub](https://github.com/javed0211/WebPilot/blob/main/assets/demo.webpilot.mp4)
 
 ---
 
