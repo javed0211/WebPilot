@@ -1,6 +1,6 @@
 # WebPilot Framework Guide
 
-WebPilot is an AI-native quality engineering platform. You write tests in plain English (`.txt` files), run them from the CLI, and WebPilot executes them in a real browser or over HTTP—then generates maintainable Playwright TypeScript you can run in CI without the LLM.
+WebPilot is an AI-native quality engineering platform. You write tests in plain English (`.txt` files), run them from the CLI, and WebPilot executes them in a real browser or over HTTP—then generates maintainable Playwright Python you can run in CI without the LLM.
 
 This guide covers architecture, test authoring, CLI commands, generated code, reports, and day-to-day workflows.
 
@@ -109,7 +109,7 @@ When `framework.useBrowserUse: false`:
 2. **ExecutionAgent** reads the live DOM and decides the next Playwright action.
 3. **ValidationAgent** checks assertions.
 4. **HealingAgent** recovers broken locators and caches fixes.
-5. **CodegenAgent** generates Playwright TypeScript from execution history.
+5. **CodegenAgent** generates Playwright Python from execution history.
 
 Interactive mode (`webpilot interactive`) uses the legacy engine with human approval before each action.
 
@@ -117,7 +117,7 @@ Interactive mode (`webpilot interactive`) uses the legacy engine with human appr
 
 1. **ApiTestParser** reads the file — regex for structured lines, LLM fallback for free-form prose, or OpenAPI import.
 2. **ApiRunnerPlaywright** runs steps: HTTP requests, variable extraction, assertions.
-3. On success, **ApiCodegenService** generates `framework/apis/<Name>Api.ts` and `framework/tests/api/<slug>.api.spec.ts`.
+3. On success, **ApiCodegenService** generates `framework/apis/<name>_api.py` and `framework/tests/api/test_<slug>.py`.
 
 ### Agent responsibilities
 
@@ -156,9 +156,9 @@ WebPilot/
 │   ├── core/               # BasePage, BaseAPI, fixtures
 │   ├── pages/              # Page Object Models
 │   ├── apis/               # Generated API client classes
-│   ├── tests/              # Generated .spec.ts files
+│   ├── tests/              # Generated pytest files
 │   ├── config/             # Playwright-side ConfigManager
-│   ├── playwright.config.ts
+│   ├── conftest.py
 │   └── symbol_graph.json   # AST index of page methods
 ├── prompts/                # Editable LLM prompts (codegen, locators, reports)
 ├── reports/                # Run artifacts (gitignored)
@@ -460,7 +460,7 @@ Shortcuts in `package.json`:
 
 ### `init`
 
-Scaffold directories, `BasePage`, `BaseAPI`, fixtures, and `framework/playwright.config.ts`.
+Scaffold directories, `BasePage`, `BaseAPI`, fixtures, and `pytest.ini`.
 
 ```bash
 npm run webpilot -- init
@@ -515,7 +515,7 @@ npm run webpilot -- run tests/web --env qa --report
 | `--parallel <n>` | `1` | Concurrent test workers |
 | `--report` | off | Generate HTML report after run |
 
-**Smart re-run behavior:** If `framework/tests/<name>.spec.ts` already exists, WebPilot runs the Playwright spec first. On failure, it falls back to AI execution/healing.
+**Smart re-run behavior:** If `framework/tests/test_<name>.py` already exists, WebPilot runs the pytest Playwright test first. On failure, it falls back to AI execution/healing.
 
 ### `interactive <file>`
 
@@ -644,14 +644,13 @@ After codegen, run deterministic tests without the LLM:
 
 ```bash
 # All UI specs
-npx playwright test --config=framework/playwright.config.ts --project=chromium
+python -m pytest framework/tests
 
 # All API specs
-npx playwright test --config=framework/playwright.config.ts --project=api
+python -m pytest framework/tests/api -m api
 
 # Single file
-npx playwright test framework/tests/demoApplitools-login.spec.ts \
-  --config=framework/playwright.config.ts
+python -m pytest framework/tests/test_demo_applitools_login.py
 ```
 
 Set `ENV=qa` (or `dev` / `prod`) so `framework/config/ConfigManager.ts` loads the right environment.
@@ -665,10 +664,10 @@ Set `ENV=qa` (or `dev` / `prod`) so `framework/config/ConfigManager.ts` loads th
 | Path | Contents |
 |------|----------|
 | `framework/pages/<site>/` | Page Object Models extending `BasePage` |
-| `framework/tests/*.spec.ts` | UI Playwright specs |
+| `framework/tests/test_*.py` | UI Playwright specs |
 | `framework/apis/*Api.ts` | API client classes extending `BaseAPI` |
-| `framework/tests/api/*.api.spec.ts` | API Playwright specs |
-| `framework/core/BasePage.ts` | Shared navigate, click, fill, assert helpers |
+| `framework/tests/api/test_*.py` | API Playwright specs |
+| `framework/core/base_page.py` | Shared navigate, click, fill, assert helpers |
 | `framework/core/BaseAPI.ts` | Shared GET/POST, status/body/schema assertions |
 | `framework/core/fixtures.ts` | Playwright fixtures (`apiClient`, etc.) |
 
@@ -788,7 +787,7 @@ Pass secrets via environment variables in `docker-compose.yml` or a local `.env`
 
 1. **Author** NL specs in `tests/` (committed).
 2. **Generate** Playwright code via `webpilot run` (optional in CI if specs already committed under `framework/`).
-3. **Run deterministic tests** with `npx playwright test --config=framework/playwright.config.ts` for fast, LLM-free CI.
+3. **Run deterministic tests** with `python -m pytest framework/tests` for fast, LLM-free CI.
 4. **Re-run with AI** on failure for self-healing in nightly or manual workflows.
 
 ---
@@ -807,7 +806,7 @@ Pass secrets via environment variables in `docker-compose.yml` or a local `.env`
 
 - Review and commit stable POMs under `framework/pages/` — they improve symbol graph reuse.
 - Re-run `webpilot run` after UI changes; WebPilot merges new methods instead of duplicating files.
-- Run `npx playwright test` locally before pushing generated specs.
+- Run `python -m pytest framework/tests` locally before pushing generated tests.
 
 ### Cost control
 
@@ -842,7 +841,7 @@ Pass secrets via environment variables in `docker-compose.yml` or a local `.env`
 npm run doctor
 npm run webpilot -- self-heal
 npm run webpilot -- report --html --test <slug>
-ENV=qa npx playwright test --config=framework/playwright.config.ts --debug
+ENV=qa python -m pytest framework/tests --debug
 ```
 
 ---
@@ -868,7 +867,7 @@ npm run webpilot -- run tests/api/my_api.txt --env qa
 npm run webpilot -- import-api https://example.com/openapi.json -o tests/api/smoke.txt
 
 # Run generated Playwright (no LLM)
-npx playwright test --config=framework/playwright.config.ts
+python -m pytest framework/tests
 
 # Reports
 npm run report

@@ -1,6 +1,6 @@
 # WebPilot: AI-Native Test Automation & QE Platform
 
-WebPilot is a production-grade, AI-native quality engineering (QE) framework built with Node.js, TypeScript, Playwright, and multi-agent AI loop architectures. It enables quality assurance and engineering teams to automate testing pipelines using plain, natural language test scripts. It automatically executes tests using cognitive reasoning, self-heals broken locators, supports interactive debugging, and generates enterprise-grade, deterministic Playwright test suites.
+WebPilot is a production-grade, AI-native quality engineering (QE) framework built with a TypeScript orchestration CLI and a Python Playwright test framework. It enables quality assurance and engineering teams to automate testing pipelines using plain, natural language test scripts. It executes tests using cognitive reasoning, self-heals broken locators, supports interactive debugging, and generates deterministic pytest-playwright suites.
 
 ## Demo
 
@@ -8,7 +8,7 @@ WebPilot is a production-grade, AI-native quality engineering (QE) framework bui
 
 *Click to open the full video · Real terminal output + browser agent · NL spec → Playwright codegen*
 
-Write tests in plain English, run one CLI command, and watch the browser agent execute your scenario in Chrome. WebPilot then generates Playwright TypeScript you can run in CI.
+Write tests in plain English, run one CLI command, and watch the browser agent execute your scenario in Chrome. WebPilot then generates Playwright Python tests you can run with pytest in CI.
 
 ```bash
 npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed
@@ -49,8 +49,8 @@ open reports/index.html
 
 ```bash
 npm ci
-npx playwright install chromium
 pip install -r requirements.txt
+python -m playwright install chromium
 
 cp .env.example .env   # optional: add API keys here
 # Or fill azure section in config/llm.json (placeholders in repo)
@@ -86,8 +86,8 @@ npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --
          |                    |                   |                    |                    |
          |                    v                   |                    v                    v
          |              +-----+------+            |             +------+-----+       +------+-----+
-         |              | Playwright |            |             |  .healing- |       | /generated |
-         |              |  Browser   |            |             |   -cache/  |       | TypeScript |
+       |              | Playwright |            |             |  .healing- |       | /framework |
+       |              |  Browser   |            |             |   -cache/  |       | Python     |
          |              +------------+            |             +------------+       +------------+
          v                                        v
   [Parses Test Input]                       [Runs Assertions]
@@ -112,7 +112,7 @@ npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --
  │    └── /api                  # API REST/GraphQL narratives
  ├── /generated                 # PLAYWRIGHT AUTOMATION EXPORTS
  │    ├── /pages                # Generated Page Objects (POM)
- │    └── /tests                # Generated Playwright TS Spec Suites
+ │    └── /tests                # Generated pytest-playwright suites
  ├── /core                      # Core orchestration engine
  ├── /agents                    # Multi-agent specialized components
  ├── /plugins                   # Extensible Plugin SDK hooks
@@ -226,10 +226,10 @@ Use whichever format fits the scenario; the planner accepts all three. Tags (`@s
 After a successful run, WebPilot generates Playwright POMs and specs with:
 
 - **Strict semantic locators** — scope regions and use `.filter()` when multiple matches (`prompts/shared/locator-strict-rules.md`); full codegen rules in `prompts/`
-- **BasePage reuse** — generated POMs call `navigate`, `click`, `clickByRole`, `assertCountAtLeast`, etc. from `framework/core/BasePage.ts`
-- **Multi-page POM** — one class per route (e.g. `framework/pages/automationexercise/AutomationExerciseHomePage.ts`, `...ProductsPage.ts`, `...CartPage.ts`), not one file per site
+- **BasePage reuse** — generated POMs call `navigate`, `click_by_role`, `assert_count_at_least`, etc. from `framework/core/base_page.py`
+- **Multi-page POM** — one class per route in snake_case Python modules under `framework/pages/`
 - **Symbol graph reuse** — existing page methods are extended via AST merge into the correct page file only
-- **Post-generation validation** — TypeScript compiler checks run on every generated file; the agent auto-fixes up to 2 rounds when errors are found (e.g. invalid `expect` APIs)
+- **Post-generation validation** — Python syntax checks and pytest Playwright runs validate generated files; the agent can auto-fix failures.
 
 ### API Pipeline Template (`tests/api/login_api.txt`)
 ```cucumber

@@ -195,7 +195,7 @@ def parse_txt_file(file_path):
 
 def load_codegen_guidelines():
     """Framework rules from prompts/ (locator strictness, POM layout, catalog)."""
-    base_page_path = os.path.join('framework', 'core', 'BasePage.ts')
+    base_page_path = os.path.join('framework', 'core', 'base_page.py')
     parts = [load_framework_rules()]
     if os.path.exists(base_page_path):
         with open(base_page_path, 'r', encoding='utf-8') as f:

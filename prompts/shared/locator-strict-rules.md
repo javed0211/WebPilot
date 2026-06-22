@@ -1,82 +1,35 @@
-# Playwright locator strictness (mandatory)
+# Playwright Python locator strictness
 
-WebPilot codegen MUST produce tests that pass Playwright **strict mode**. A locator used for `click`, `fill`, `check`, or `expect` must resolve to **exactly one** element.
+A locator used for an action or assertion must resolve to exactly one element.
 
-## Priority order
+Priority:
 
-1. **Semantic locators** — `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`, `getByAltText`
-2. **Stable attributes** — `name`, `data-testid`, `href`, `type` on a scoped parent
-3. **CSS** — only when semantic locators are ambiguous
-4. **XPath** — last resort
+1. Semantic locators: `get_by_role`, `get_by_label`, `get_by_placeholder`, `get_by_text`.
+2. Stable attributes inside a scoped parent.
+3. CSS when semantic locators are ambiguous.
+4. XPath only as a last resort.
 
-## When semantic locators match multiple elements
+Scope forms and route regions:
 
-**Never** call actions on an unscoped locator that can match footer, nav, modals, or duplicate widgets.
-
-### Required techniques (in order of preference)
-
-1. **Scope to a page region** (best for forms and route-specific UI):
-
-```typescript
-const form = this.page.locator('.contact-form');
-await form.locator('input[name="email"]').fill(email);
+```python
+form = self.page.locator(".contact-form")
+form.locator('input[name="email"]').fill(email)
 ```
 
-```typescript
-await this.page.locator('#contact-page').getByRole('link', { name: /Home/i }).click();
+```python
+self.page.locator("#contact-page").get_by_role(
+    "link", name=re.compile("Home", re.I)
+).click()
 ```
 
-2. **Chain `.filter()`** on semantic locators:
+Filter repeated elements:
 
-```typescript
-await this.page
-  .getByRole('button', { name: /Submit/i })
-  .filter({ has: this.page.locator('#contact-page') })
-  .click();
+```python
+expect(
+    self.page.locator("#contact-page .alert-success").filter(
+        has_text=re.compile("submitted successfully", re.I)
+    )
+).to_be_visible()
 ```
 
-```typescript
-await expect(
-  this.page.locator('#contact-page .alert-success').filter({
-    hasText: /Success! Your details have been submitted successfully/i,
-  })
-).toBeVisible();
-```
-
-3. **Use `.filter({ hasText })` / `.filter({ has })`** to disambiguate siblings:
-
-```typescript
-await this.page.getByRole('link', { name: 'Products' }).filter({ hasNot: this.page.locator('footer') }).click();
-```
-
-4. **Prefer `name` / `id` inside a scoped parent** when placeholders repeat site-wide (e.g. footer “Your email address” vs form “Email”):
-
-```typescript
-// BAD — matches newsletter + form
-await page.getByPlaceholder('Email').fill(email);
-
-// GOOD
-await page.locator('.contact-form input[name="email"]').fill(email);
-```
-
-5. **`.first()` / `.nth(i)`** — only when the target is genuinely the first visible match **after** scoping; never as the first choice on a full-page semantic locator.
-
-```typescript
-// BAD
-await page.locator('.product-image-wrapper').click();
-
-// GOOD
-await page.locator('.features_items .product-image-wrapper').nth(0).locator('a.add-to-cart').first().click();
-```
-
-## POM pattern
-
-- Expose **private region locators** (`contactForm()`, `productCards()`) and build actions from them.
-- Assertions: scope success/error messages to the route container (`#contact-page`, `#cart_info_table`), not `page.getByText(...)` globally.
-
-## Anti-patterns (reject in generated code)
-
-- `page.getByPlaceholder('Email')` on pages with a footer email field
-- `page.getByRole('link', { name: 'Home' })` when nav and in-content Home links both exist
-- `page.getByText(/Success/)` when subscription and form success banners share text
-- `expect(page.locator('.foo')).toBeVisible()` when `.foo` matches 10+ nodes — use `.first()` after `assertCountAtLeast` or scope the parent
+Do not use `.first` or `.nth()` on a page-wide semantic locator merely to hide ambiguity. Scope the parent first, then use an index only when order is part of the scenario.

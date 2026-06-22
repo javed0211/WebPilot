@@ -1,6 +1,6 @@
 # WebPilot usage guide
 
-WebPilot turns plain-language test scripts (`.txt`) into live browser automation and Playwright TypeScript. This guide covers install, configuration, running tests, reports, and generated code.
+WebPilot turns plain-language test scripts (`.txt`) into live browser automation and Playwright Python. This guide covers install, configuration, running tests, reports, and generated code.
 
 For the full framework reference (architecture, all CLI commands, test formats, CI), see **[FRAMEWORK_GUIDE.md](./FRAMEWORK_GUIDE.md)**.
 
@@ -151,7 +151,7 @@ npm run webpilot -- interactive tests/web/login.txt --env qa
 
 ### API tests (Playwright request, no browser)
 
-API tests use **TypeScript + Playwright `APIRequestContext`** via `BaseAPI` / `ApiContext`. Sources:
+API tests use **Python + Playwright `APIRequestContext`** via `BaseAPI` / `ApiContext`. Sources:
 
 | Source | Example |
 |--------|---------|
@@ -168,10 +168,10 @@ npm run webpilot -- run tests/api/login_api.txt --env qa
 npm run webpilot -- import-api https://petstore.swagger.io/v2/swagger.json -o tests/api/petstore_smoke.txt
 
 # Run generated Playwright API specs
-npx playwright test --project=api --config=framework/playwright.config.ts
+python -m pytest framework/tests/api -m api
 ```
 
-On success, WebPilot can generate `framework/apis/<Name>Api.ts` and `framework/tests/api/<slug>.api.spec.ts` when `framework.apiCodegenEnabled: true` in `config/webpilot.yaml`.
+On success, WebPilot can generate `framework/apis/<name>_api.py` and `framework/tests/api/test_<slug>.py` when `framework.apiCodegenEnabled: true` in `config/webpilot.yaml`.
 
 Set `apiBaseUrl` in `config/environments/<env>.json` for your API host.
 
@@ -222,13 +222,13 @@ npm run webpilot -- analyze
 After a successful UI run, check:
 
 - **Page objects:** `framework/pages/<site>/`
-- **Specs:** `framework/tests/*.spec.ts`
+- **Specs:** `framework/tests/test_*.py`
 
 Run generated Playwright tests:
 
 ```bash
 cd framework
-npx playwright test
+python -m pytest framework/tests
 ```
 
 Canonical automationexercise POMs may be merged from `core/CodegenCanonicalPages.ts` for stability; see `prompts/shared/framework-guidelines.md`.

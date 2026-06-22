@@ -12,23 +12,13 @@
     "resolveJsonModule": true,
     "moduleResolution": "bundler",
     "types": ["node"],
-    "ignoreDeprecations": "6.0",
-    "paths": {
-      "@core/*": ["./framework/core/*"],
-      "@pages/*": ["./framework/pages/*"],
-      "@tests/*": ["./framework/tests/*"],
-      "@config/*": ["./framework/config/*"],
-      "@utils/*": ["./framework/utils/*"],
-      "@data/*": ["./framework/data/*"],
-      "@apis/*": ["./framework/apis/*"]
-    }
+    "ignoreDeprecations": "6.0"
   },
   "include": [
     "cli/**/*",
     "core/**/*",
     "agents/**/*",
-    "utils/**/*",
-    "framework/**/*"
+    "utils/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

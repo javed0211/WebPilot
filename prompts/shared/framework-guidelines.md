@@ -1,53 +1,38 @@
-# WebPilot framework guidelines
+# WebPilot Playwright Python framework guidelines
 
-## Multi-page POM (mandatory for multi-route flows)
+## Stack
 
-When a test visits **more than one screen/route** (e.g. Home → Products → Cart), generate **one Page Object class per logical page**, not a single catch-all class.
+- Python 3.11+
+- Synchronous `playwright.sync_api`
+- `pytest` + `pytest-playwright`
+- Tests use the built-in `page: Page` fixture.
 
-| Route / screen | Example class | Example file |
-|----------------|---------------|--------------|
-| Home | `AutomationExerciseHomePage` | `framework/pages/automationexercise/AutomationExerciseHomePage.ts` |
-| Products listing | `AutomationExerciseProductsPage` | `framework/pages/automationexercise/AutomationExerciseProductsPage.ts` |
-| Product detail | `AutomationExerciseProductDetailPage` | `framework/pages/automationexercise/AutomationExerciseProductDetailPage.ts` |
-| Cart | `AutomationExerciseCartPage` | `framework/pages/automationexercise/AutomationExerciseCartPage.ts` |
-| Contact Us | `AutomationExerciseContactUsPage` | `framework/pages/automationexercise/AutomationExerciseContactUsPage.ts` |
+## Multi-page POM
+
+Use one Page Object per logical page:
+
+| Screen | Class | Module |
+|---|---|---|
+| Home | `AutomationExerciseHomePage` | `framework/pages/automationexercise/automation_exercise_home_page.py` |
+| Products | `AutomationExerciseProductsPage` | `framework/pages/automationexercise/automation_exercise_products_page.py` |
+| Product detail | `AutomationExerciseProductDetailPage` | `framework/pages/automationexercise/automation_exercise_product_detail_page.py` |
+| Cart | `AutomationExerciseCartPage` | `framework/pages/automationexercise/automation_exercise_cart_page.py` |
+| Contact Us | `AutomationExerciseContactUsPage` | `framework/pages/automationexercise/automation_exercise_contact_us_page.py` |
 
 Rules:
-- Each class has its own `@pageIdentity` and `@urlPattern` matching that route.
-- Shared site-wide actions (cookie banner, global nav) go in a **base** class (e.g. `AutomationExerciseBasePage`), not duplicated in every page.
-- **Never** generate `AutomationExercisePage` or one mega-class for an entire site.
-- Specs import **multiple** page classes and orchestrate the flow.
-- Put site-specific pages under `framework/pages/<site>/`.
 
-## Site-specific notes (automationexercise.com)
+- Use snake_case file and method names.
+- Classes use PascalCase.
+- Page objects extend `BasePage` or a site base class.
+- Shared site-wide actions belong in the site base class.
+- Tests belong in `framework/tests/test_<name>.py`.
+- Imports are absolute from `framework`.
+- Never generate TypeScript, JavaScript, `async`, or `await`.
 
-- **Add to cart** is `<a class="add-to-cart">`, not `role=button`.
-- Cookie consent: `button.fc-cta-consent` or role `Consent`.
-- Cart modal: `#cartModal button.close-modal`, `#cartModal a[href="/view_cart"]`; wait for `/add_to_cart/` response.
-- Cart page: URL `/view_cart`, rows via `.cart_description`, `.cart_price`, `.cart_quantity`, `.cart_total`.
-- Contact form: scope to `.contact-form` and `input[name="..."]`; success under `#contact-page .alert-success`.
+## Strict locators
 
-## BasePage reuse (mandatory)
+Scope forms and page regions before selecting fields or text. Use `locator.filter(has_text=...)` for repeated elements. Avoid page-wide semantic locators when multiple elements can match.
 
-- Page objects MUST `extend BasePage` (or a site base that extends `BasePage`).
-- Use: `navigate()`, `clickByRole()`, `assertCountAtLeast()`, `assertUrl()`, etc.
-- Do NOT redeclare `readonly page: Page` on subclasses.
-- Do NOT instantiate abstract classes (e.g. `AutomationExerciseBasePage`).
+## Validation
 
-## Live execution history (browser-use)
-
-Codegen receives **LIVE EXECUTION HISTORY** as source of truth. NL steps are secondary.
-Every workaround from the live run (cookies, modals, force clicks) must appear in POMs.
-
-## Canonical POM injection
-
-For `automationexercise.com`, WebPilot **replaces** LLM-generated page files with canonical POMs post-codegen.
-Focus LLM effort on a **correct spec** using stable method names (see `automationexercise-catalog.md`).
-
-Post-write: TypeScript check → Playwright run → auto-fix on spec failures.
-
-## TypeScript quality
-
-- Valid `@playwright/test` APIs only.
-- NEVER `toHaveCountGreaterThan` — use `assertCountAtLeast(locator, n)`.
-- Spec imports: `@pages/<folder>/<ClassName>` (never `../pages/...`).
+Generated files run through `python -m py_compile`, then the generated pytest Playwright test is executed and auto-fixed when configured.

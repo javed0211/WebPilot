@@ -399,7 +399,7 @@ export class Engine {
       const { ok } = await CodegenWriter.writeAndValidate(codegen.files, this.llmClient!);
       if (!ok) {
         success = false;
-        Logger.error('Codegen validation failed — unresolved TypeScript errors');
+        Logger.error('Codegen validation failed — unresolved Python or pytest errors');
       }
       
       const usage = UsageTracker.getSnapshot();

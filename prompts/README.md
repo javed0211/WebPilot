@@ -11,7 +11,7 @@ Edit these Markdown files to change LLM behavior **without changing TypeScript o
 | `shared/automationexercise-catalog.md` | Automation Exercise flows |
 | `codegen/agent-system.md` | `CodegenAgent` (Engine path) |
 | `codegen/agent-user.md` | `CodegenAgent` user message template |
-| `codegen-fix/typescript-system.md` | `CodegenValidator` auto-fix |
+| `codegen-fix/python-system.md` | Python syntax/import auto-fix |
 | `codegen-fix/playwright-system.md` | `CodegenPlaywrightValidator` auto-fix |
 | `browser-use/codegen.md` | `browser_use_runner.py` codegen |
 | `reports/ai-analysis-system.md` | HTML execution report — AI analyst |

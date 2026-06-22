@@ -13,14 +13,15 @@
     "postinstall": "bash scripts/setup-python.sh || true",
     "init": "ts-node cli/index.ts init",
     "report": "ts-node cli/index.ts report",
-    "report:html": "ts-node cli/index.ts report --html"
+    "report:html": "ts-node cli/index.ts report --html",
+    "test:py": ".venv/bin/python -m pytest",
+    "test:py:api": ".venv/bin/python -m pytest framework/tests/api -m api"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
     "@types/inquirer": "^9.0.9",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.0",

@@ -1,6 +1,11 @@
-# Python deps for browser-use execution path (core/browser_use_runner.py)
-# Requires Python 3.11+ — use: npm run setup  (creates .venv with python3.12)
+# Python runtime for browser-use plus the generated Playwright framework.
+# Requires Python 3.11+ — use: npm run setup
 browser-use>=0.12.0
 openai>=1.0.0
 PyYAML>=6.0
 python-dotenv>=1.0.0
+playwright>=1.52.0
+pytest>=8.0.0
+pytest-playwright>=0.7.0
+pytest-xdist>=3.6.0
+jsonschema>=4.23.0

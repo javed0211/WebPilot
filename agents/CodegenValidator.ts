@@ -1,6 +1,6 @@
+import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as ts from 'typescript';
 import { LLMClient, LLMMessage } from '../core/LLMClient';
 import { CodegenContext } from '../core/CodegenContext';
 import { PromptLoader } from '../core/PromptLoader';
@@ -19,59 +19,41 @@ export interface ValidationResult {
   issues: ValidationIssue[];
 }
 
-/**
- * Validates generated TypeScript with the compiler API and optionally auto-fixes via LLM.
- */
 export class CodegenValidator {
-  private static readonly TS_CONFIG = path.join(process.cwd(), 'tsconfig.json');
   private static readonly MAX_FIX_ROUNDS = 2;
 
+  private static pythonExecutable(): string {
+    const venv = path.join(process.cwd(), '.venv', 'bin', 'python');
+    return fs.existsSync(venv) ? venv : process.env.WEBPILOT_PYTHON || 'python3';
+  }
+
   public static validateFiles(relativePaths: string[]): ValidationResult {
-    const configPath = CodegenValidator.TS_CONFIG;
-    if (!fs.existsSync(configPath)) {
-      return { valid: true, issues: [] };
-    }
-
-    const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
-    const parsed = ts.parseJsonConfigFileContent(
-      configFile.config,
-      ts.sys,
-      path.dirname(configPath)
+    const existing = relativePaths.filter(
+      (filePath) => filePath.endsWith('.py') && fs.existsSync(path.join(process.cwd(), filePath))
     );
-
-    const absolutePaths = relativePaths
-      .map((p) => path.join(process.cwd(), p))
-      .filter((p) => fs.existsSync(p));
-
-    if (absolutePaths.length === 0) {
-      return { valid: true, issues: [] };
-    }
-
-    const rootNames = parsed.fileNames.length > 0 ? parsed.fileNames : absolutePaths;
-    const program = ts.createProgram(rootNames, parsed.options);
-    const targetSet = new Set(absolutePaths.map((p) => path.normalize(p)));
+    if (existing.length === 0) return { valid: true, issues: [] };
+    const result = spawnSync(
+      CodegenValidator.pythonExecutable(),
+      ['-m', 'py_compile', ...existing],
+      { cwd: process.cwd(), encoding: 'utf8' }
+    );
+    if (result.status === 0) return { valid: true, issues: [] };
+    const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+    const issuePattern = /File "([^"]+)", line (\d+)[\s\S]*?(?:SyntaxError|IndentationError): ([^\n]+)/g;
     const issues: ValidationIssue[] = [];
-
-    for (const diag of ts.getPreEmitDiagnostics(program)) {
-      const diagFile = diag.file?.fileName;
-      if (!diagFile || !targetSet.has(path.normalize(diagFile))) {
-        continue;
-      }
-      const sourcePath = diagFile;
-
-      if (diag.file && diag.start !== undefined) {
-        const { line, character } = diag.file.getLineAndCharacterOfPosition(diag.start);
-        issues.push({
-          file: path.relative(process.cwd(), sourcePath),
-          line: line + 1,
-          column: character + 1,
-          message: ts.flattenDiagnosticMessageText(diag.messageText, '\n'),
-          code: diag.code,
-        });
-      }
+    for (const match of output.matchAll(issuePattern)) {
+      issues.push({
+        file: path.relative(process.cwd(), match[1]),
+        line: Number(match[2]),
+        column: 1,
+        message: match[3],
+        code: 1,
+      });
     }
-
-    return { valid: issues.length === 0, issues };
+    if (issues.length === 0) {
+      issues.push({ file: existing[0], line: 1, column: 1, message: output.trim(), code: 1 });
+    }
+    return { valid: false, issues };
   }
 
   public static async validateAndFix(
@@ -79,42 +61,21 @@ export class CodegenValidator {
     llm: LLMClient
   ): Promise<{ valid: boolean; files: GeneratedFile[]; issues: ValidationIssue[] }> {
     let currentFiles = [...files];
-
     for (let round = 0; round <= CodegenValidator.MAX_FIX_ROUNDS; round++) {
-      const paths = currentFiles.map((f) => f.path);
-      const result = CodegenValidator.validateFiles(paths);
-
-      if (result.valid) {
-        if (round > 0) {
-          console.log(`\x1b[32m[CodegenValidator] All generated files pass TypeScript checks.\x1b[0m`);
-        }
-        return { valid: true, files: currentFiles, issues: [] };
-      }
-
-      console.warn(
-        `\x1b[33m[CodegenValidator] Found ${result.issues.length} TypeScript issue(s) in generated code.\x1b[0m`
-      );
-      result.issues.forEach((i) => {
-        console.warn(`  - ${i.file}:${i.line}:${i.column} TS${i.code}: ${i.message}`);
-      });
-
+      const result = CodegenValidator.validateFiles(currentFiles.map((file) => file.path));
+      if (result.valid) return { valid: true, files: currentFiles, issues: [] };
       if (round === CodegenValidator.MAX_FIX_ROUNDS) {
         return { valid: false, files: currentFiles, issues: result.issues };
       }
-
-      console.log(`\x1b[34m[CodegenValidator] Attempting LLM auto-fix (round ${round + 1})...\x1b[0m`);
       const fixed = await CodegenValidator.requestFix(currentFiles, result.issues, llm);
-      if (!fixed || fixed.length === 0) {
-        return { valid: false, files: currentFiles, issues: result.issues };
-      }
+      if (!fixed?.length) return { valid: false, files: currentFiles, issues: result.issues };
       currentFiles = fixed;
-      for (const file of currentFiles) {
+      currentFiles.forEach((file) => {
         const fullPath = path.join(process.cwd(), file.path);
         fs.mkdirSync(path.dirname(fullPath), { recursive: true });
         fs.writeFileSync(fullPath, file.content, 'utf8');
-      }
+      });
     }
-
     return { valid: false, files: currentFiles, issues: [] };
   }
 
@@ -123,37 +84,23 @@ export class CodegenValidator {
     issues: ValidationIssue[],
     llm: LLMClient
   ): Promise<GeneratedFile[] | null> {
-    const issuesText = issues
-      .map((i) => `${i.file}:${i.line}:${i.column} TS${i.code}: ${i.message}`)
-      .join('\n');
-
-    const filesText = files
-      .map((f) => `--- ${f.path} ---\n${f.content}`)
-      .join('\n\n');
-
-    const systemPrompt = PromptLoader.loadWithVars('codegen-fix/typescript-system.md', {
+    const systemPrompt = PromptLoader.loadWithVars('codegen-fix/python-system.md', {
       guidelines: CodegenContext.loadGuidelines(),
       base_page_api: CodegenContext.buildBasePageApiSummary(),
     });
-
     const messages: LLMMessage[] = [
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `Compiler errors:\n${issuesText}\n\nFiles to fix:\n${filesText}`,
+        content: `Python errors:\n${issues.map((issue) => `${issue.file}:${issue.line} ${issue.message}`).join('\n')}\n\nFiles:\n${files.map((file) => `--- ${file.path} ---\n${file.content}`).join('\n\n')}`,
       },
     ];
-
     try {
       const response = await llm.complete(messages);
-      let cleaned = response.text.trim();
-      if (cleaned.startsWith('```')) {
-        cleaned = cleaned.replace(/^```json\s*/, '').replace(/```$/, '');
-      }
-      const parsed = JSON.parse(cleaned.trim()) as { files: GeneratedFile[] };
-      return parsed.files ?? null;
-    } catch (err) {
-      console.error('[CodegenValidator] Auto-fix parse failed:', err);
+      const cleaned = response.text.trim().replace(/^```json\s*/, '').replace(/```$/, '');
+      return (JSON.parse(cleaned) as { files: GeneratedFile[] }).files ?? null;
+    } catch (error) {
+      console.error('[CodegenValidator] Auto-fix parse failed:', error);
       return null;
     }
   }

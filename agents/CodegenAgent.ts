@@ -21,7 +21,7 @@ export class CodegenAgent {
   }
 
   /**
-   * Generates Playwright POM + spec from execution history, respecting framework conventions.
+   * Generates Playwright Python POM + pytest test from execution history.
    */
   public async generateCode(
     testName: string,
@@ -70,11 +70,11 @@ export class CodegenAgent {
       return {
         files: [
           {
-            path: `framework/tests/${safeTestName}.spec.ts`,
-            content: `import { test, expect } from '@playwright/test';\n\ntest('${testName}', async ({ page }) => {\n  // Fallback — codegen parse failed\n});`,
+            path: `framework/tests/test_${safeTestName}.py`,
+            content: `from playwright.sync_api import Page\n\n\ndef test_${safeTestName}(page: Page) -> None:\n    # Fallback — codegen parse failed\n    pass\n`,
           },
         ],
-        summary: 'Codegen parse failed; minimal flat spec written.',
+        summary: 'Codegen parse failed; minimal pytest Playwright test written.',
       };
     }
   }

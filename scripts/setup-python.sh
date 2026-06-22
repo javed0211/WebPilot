@@ -40,3 +40,5 @@ rm -rf .venv
 .venv/bin/python3 -m pip install -r requirements.txt
 echo "Done. browser-use is installed in .venv"
 .venv/bin/python3 -c "import browser_use; print('browser_use ok')"
+.venv/bin/python3 -m playwright install chromium
+.venv/bin/python3 -c "import pytest, playwright; print('pytest-playwright ok')"

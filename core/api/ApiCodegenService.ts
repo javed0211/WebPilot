@@ -2,24 +2,28 @@ import { GeneratedFile } from '../../agents/CodegenAgent';
 import { ApiRequestStep, ApiStepExecutionRecord, ApiTestScenario } from './types';
 
 function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48) || 'api-test';
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
+      .slice(0, 48) || 'api_test'
+  );
+}
+
+function snakeCase(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
 }
 
 function methodNameFromStep(step: ApiRequestStep, index: number): string {
-  if (step.name) {
-    const fromName = step.name
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .split(/\s+/)
-      .map((w, i) => (i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
-      .join('');
-    if (fromName && /^[a-z]/.test(fromName)) return fromName.slice(0, 40);
-  }
-  const pathPart = step.url.replace(/\{\{[^}]+\}\}/g, '').split('/').filter(Boolean).pop() ?? 'step';
-  return `${step.method.toLowerCase()}${pathPart.charAt(0).toUpperCase()}${pathPart.slice(1)}${index}`;
+  if (step.name) return snakeCase(step.name).slice(0, 40);
+  const pathPart =
+    step.url.replace(/\{\{[^}]+\}\}/g, '').split('/').filter(Boolean).pop() ?? 'step';
+  return `${step.method.toLowerCase()}_${snakeCase(pathPart)}_${index}`;
 }
 
 export class ApiCodegenService {
@@ -31,85 +35,80 @@ export class ApiCodegenService {
     const slug = slugify(scenario.name);
     const className =
       slug
-        .split('-')
-        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join('') + 'Api';
+    const moduleName = `${slug}_api`;
 
-    const clientMethods = steps
-      .map((step, i) => ApiCodegenService.renderClientMethod(step, i))
-      .join('\n\n');
+    return [
+      {
+        path: `framework/apis/${moduleName}.py`,
+        content: `from playwright.sync_api import APIResponse
 
-    const clientFile: GeneratedFile = {
-      path: `framework/apis/${className}.ts`,
-      content: `import { APIResponse } from '@playwright/test';
-import { BaseAPI } from '@core/BaseAPI';
+from framework.core.base_api import BaseAPI
 
-/**
- * Generated API client — ${scenario.name}
- * @generated WebPilot
- */
-export class ${className} {
-  constructor(private readonly client: BaseAPI) {}
 
-${clientMethods}
-}
-`
-    };
+class ${className}:
+    """Generated API client — ${scenario.name.replace(/"""/g, '')}."""
 
-    const specFile: GeneratedFile = {
-      path: `framework/tests/api/${slug}.api.spec.ts`,
-      content: `import { test } from '@core/fixtures';
-import { ${className} } from '../../apis/${className}';
+    def __init__(self, client: BaseAPI) -> None:
+        self.client = client
 
-test.describe('API: ${scenario.name.replace(/'/g, "\\'")}', () => {
-  test('${scenario.name.replace(/'/g, "\\'")}', async ({ apiClient }) => {
-    const api = new ${className}(apiClient);
-${steps.map((step, i) => ApiCodegenService.renderSpecCall(step, i)).join('\n')}
-  });
-});
-`
-    };
+${steps.map((step, index) => ApiCodegenService.renderClientMethod(step, index)).join('\n\n')}
+`,
+      },
+      {
+        path: `framework/tests/api/test_${slug}.py`,
+        content: `import json
 
-    return [clientFile, specFile];
+import pytest
+
+from framework.apis.${moduleName} import ${className}
+from framework.core.base_api import BaseAPI
+
+
+@pytest.mark.api
+def test_${slug}(api_client: BaseAPI) -> None:
+    api = ${className}(api_client)
+${steps.map((step, index) => ApiCodegenService.renderTestCall(step, index)).join('\n')}
+`,
+      },
+    ];
   }
 
-  /** Playwright fixture sets baseURL to apiBaseUrl — emit path-only URLs in generated code. */
   private static urlForGeneratedClient(url: string): string {
+    if (/^https?:\/\//i.test(url)) return url.replace(/'/g, "\\'");
     const stripped = url
       .replace(/^\{\{apiBaseUrl\}\}/i, '')
       .replace(/^\{\{baseUrl\}\}/i, '');
-    if (!stripped || stripped.startsWith('{{')) {
-      return url.replace(/'/g, "\\'");
-    }
+    if (!stripped || stripped.startsWith('{{')) return url.replace(/'/g, "\\'");
     return (stripped.startsWith('/') ? stripped : `/${stripped}`).replace(/'/g, "\\'");
   }
 
   private static renderClientMethod(step: ApiRequestStep, index: number): string {
-    const fn = methodNameFromStep(step, index);
+    const methodName = methodNameFromStep(step, index);
     const url = ApiCodegenService.urlForGeneratedClient(step.url);
     const hasBody = step.body !== undefined && ['POST', 'PUT', 'PATCH'].includes(step.method);
     const statusAssert =
       step.assertions?.status !== undefined
-        ? `\n    await this.client.assertStatus(response, ${step.assertions.status});`
+        ? `\n        self.client.assert_status(response, ${step.assertions.status})`
         : '';
-
     if (hasBody) {
-      return `  async ${fn}(body: unknown): Promise<APIResponse> {
-    const response = await this.client.${step.method.toLowerCase()}('${url}', body);${statusAssert}
-    return response;
-  }`;
+      return `    def ${methodName}(self, body: object) -> APIResponse:
+        response = self.client.${step.method.toLowerCase()}('${url}', body)${statusAssert}
+        return response`;
     }
-    return `  async ${fn}(): Promise<APIResponse> {
-    const response = await this.client.${step.method.toLowerCase()}('${url}');${statusAssert}
-    return response;
-  }`;
+    return `    def ${methodName}(self) -> APIResponse:
+        response = self.client.${step.method.toLowerCase()}('${url}')${statusAssert}
+        return response`;
   }
 
-  private static renderSpecCall(step: ApiRequestStep, index: number): string {
-    const fn = methodNameFromStep(step, index);
+  private static renderTestCall(step: ApiRequestStep, index: number): string {
+    const methodName = methodNameFromStep(step, index);
     if (step.body !== undefined && ['POST', 'PUT', 'PATCH'].includes(step.method)) {
-      return `    await api.${fn}(${JSON.stringify(step.body)});`;
+      const body = JSON.stringify(JSON.stringify(step.body));
+      return `    api.${methodName}(json.loads(${body}))`;
     }
-    return `    await api.${fn}();`;
+    return `    api.${methodName}()`;
   }
 }

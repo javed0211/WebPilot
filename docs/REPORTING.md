@@ -369,7 +369,7 @@ There is no `_summary.json` or HTML report for API tests today. Use the JSON fil
 When running generated Playwright specs directly:
 
 ```bash
-npx playwright test --config=framework/playwright.config.ts
+python -m pytest framework/tests
 ```
 
 Additional outputs:

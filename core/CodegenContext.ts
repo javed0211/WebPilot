@@ -3,7 +3,7 @@ import * as path from 'path';
 import { PromptLoader } from './PromptLoader';
 import { SymbolGraph, SymbolParser } from './SymbolParser';
 
-const BASE_PAGE_PATH = path.join(process.cwd(), 'framework', 'core', 'BasePage.ts');
+const BASE_PAGE_PATH = path.join(process.cwd(), 'framework', 'core', 'base_page.py');
 
 /**
  * Builds repository-aware context for LLM code generation prompts.
@@ -28,7 +28,7 @@ export class CodegenContext {
         return `  - ${m.name}(${params}): ${m.returnType}`;
       })
       .join('\n');
-    return `BasePage (framework/core/BasePage.ts) — subclasses MUST reuse these methods:\n${methods}`;
+    return `BasePage (framework/core/base_page.py) — subclasses MUST reuse these methods:\n${methods}`;
   }
 
   public static buildSymbolGraphContext(pagesDir?: string): string {

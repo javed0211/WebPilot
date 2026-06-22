@@ -8,7 +8,7 @@ import { ApiTestParser } from './api/ApiTestParser';
 import { ApiRunnerPlaywright } from './api/ApiRunnerPlaywright';
 import { ApiCodegenService } from './api/ApiCodegenService';
 import { CodegenWriter } from './CodegenWriter';
-import { ApiContext } from '../framework/core/ApiContext';
+import { ApiContext } from './api/ApiContext';
 import { EngineRunResult } from './Engine';
 
 export interface ApiEngineOptions {

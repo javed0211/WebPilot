@@ -17,8 +17,9 @@ RUN apt-get update && apt-get install -y python3 python3-pip && rm -rf /var/lib/
 COPY requirements.txt ./
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Pre-download and setup target browser engines
-RUN npx playwright install chromium firefox
+# Pre-download browser engines for both the Node execution engine and Python tests.
+RUN npx playwright install chromium
+RUN python3 -m playwright install chromium
 
 # Copy remaining code files
 COPY . .

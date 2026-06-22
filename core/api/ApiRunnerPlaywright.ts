@@ -1,4 +1,4 @@
-import { ApiContext } from '../../framework/core/ApiContext';
+import { ApiContext } from './ApiContext';
 import { Logger } from '../../utils/Logger';
 import { ApiExecutionResult, ApiRequestStep, ApiStepExecutionRecord } from './types';
 
