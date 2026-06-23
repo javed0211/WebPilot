@@ -16,34 +16,26 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js Runtime
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Setup Python (browser-use)
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
+          cache: 'pip'
 
-      - name: Install Python Dependencies
-        run: pip install -r requirements.txt
+      - name: Install WebPilot
+        run: pip install -e .
 
       - name: Install Playwright System Binaries
-        run: npx playwright install --with-deps chromium firefox
+        run: python -m playwright install --with-deps chromium
 
-      - name: Compile and Run doctor Diagnostics
-        run: npm run doctor
+      - name: Run doctor Diagnostics
+        run: webpilot doctor
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Execute WebPilot Autonomous UI Suite
-        run: npm run webpilot -- run tests/web/login.txt --env qa
+        run: webpilot run tests/web/login.txt --env qa
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

@@ -31,7 +31,7 @@ BDD_PREFIXES = ('given', 'when', 'then', 'and', 'but')
 NUMBERED_STEP_RE = re.compile(r'^\d+\.\s+')
 
 def estimate_cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    """Approximate USD cost (mirrors utils/ModelPricing.ts)."""
+    """Approximate USD cost for supported providers."""
     m = model.lower()
     input_per_m, output_per_m = 2.5, 10.0
     if 'gpt-4.1-mini' in m or 'gpt-4.1-nano' in m:
@@ -227,6 +227,8 @@ def load_browser_artifact_config():
             yaml_config = yaml.safe_load(f) or {}
         browser = yaml_config.get('browser', {})
         defaults['headless'] = browser.get('headless', True)
+        if os.environ.get('WEBPILOT_HEADED') == '1':
+            defaults['headless'] = False
         defaults['target'] = browser.get('target', 'chrome')
         vp = browser.get('viewport')
         if isinstance(vp, dict) and vp.get('width') and vp.get('height'):
@@ -294,12 +296,11 @@ def persist_screenshots(test_slug, history_path):
 
 
 def trigger_html_reports(test_slug, env_name, test_file_path):
-    """Generate reports/index.html (fast path via run-cli.ts)."""
-    import subprocess
-    cli = os.path.join('core', 'execution_report', 'run-cli.ts')
-    cmd = ['npx', 'ts-node', cli, '--env', env_name, '--test', test_slug]
+    """Generate reports/index.html using the Python reporting module."""
     try:
-        subprocess.run(cmd, cwd=os.getcwd(), check=False, timeout=300)
+        from webpilot.reports import generate_reports
+
+        generate_reports(test_slug)
     except Exception as e:
         print(f"Warning: HTML report generation skipped: {e}")
 
@@ -619,7 +620,7 @@ async def main():
                 json.dump(report_summary, f_rep, indent=2)
             sys.exit(1)
 
-        print(f"\nGenerating Playwright TS code ({provider})...")
+        print(f"\nGenerating Playwright Python code ({provider})...")
         code_data = await generate_playwright_code(
             provider,
             llm_cfg,

@@ -1,9 +1,7 @@
-# Dependencies
-node_modules/
-
-# Build / compile output
+# Python packaging
+*.egg-info/
+build/
 dist/
-*.tsbuildinfo
 
 # Local secrets only — .env.example is committed; copy to .env for real keys
 .env
@@ -51,9 +49,6 @@ scratch/
 
 # Logs & temp files
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 .tmp/
 temp/
 tmp/

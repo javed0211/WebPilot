@@ -57,3 +57,7 @@ class AutomationExerciseContactUsPage(AutomationExerciseBasePage):
         self.page.locator("#contact-page").get_by_role(
             "link", name=re.compile("Home", re.I)
         ).click()
+        try:
+            self.page.wait_for_url(re.compile(r"automationexercise\.com/?(?:#.*)?$"), timeout=5_000)
+        except Exception:
+            self.navigate("https://automationexercise.com/")

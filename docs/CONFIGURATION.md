@@ -58,7 +58,7 @@ Committed with **placeholder** API keys. Before running, either:
 
 `browser_use_runner.py` loads credentials via `core/llm_config.py`: values in `config/llm.json` are merged with `.env` (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`). Empty or placeholder keys in `llm.json` are ignored in favor of `.env`.
 
-Run `npm run doctor` to verify browser-use can resolve your LLM config before executing UI tests.
+Run `webpilot doctor` to verify browser-use can resolve your LLM config before executing UI tests.
 
 Other providers (`google`, `openai`, `anthropic`, `ollama`, `aws`, `gcp`) are available for alternate code paths.
 
@@ -95,7 +95,7 @@ Example `config/environments/qa.json`:
 | Path | Used for |
 |------|----------|
 | `prompts/browser-use/codegen.md` | Playwright codegen from execution history |
-| `prompts/codegen/` | TypeScript fix / agent prompts |
+| `prompts/codegen/` | Python code-generation prompts |
 | `prompts/shared/` | Locator rules, framework guidelines, site catalogs |
 | `prompts/reports/` | AI analysis text in HTML reports |
 

@@ -1,0 +1,6 @@
+@smoke @booking
+Test: Booking Python live smoke
+
+1. Navigate to https://www.booking.com/
+2. Dismiss any sign-in or cookie popup if it appears
+3. Verify the destination search field is visible

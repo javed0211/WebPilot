@@ -1,5 +1,5 @@
 # Python runtime for browser-use plus the generated Playwright framework.
-# Requires Python 3.11+ — use: npm run setup
+# Requires Python 3.11+ — prefer: pip install -e .
 browser-use>=0.12.0
 openai>=1.0.0
 PyYAML>=6.0

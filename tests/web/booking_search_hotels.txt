@@ -1,0 +1,10 @@
+@smoke @booking
+Test: Search for hotels in London
+
+1. Navigate to https://www.booking.com/
+2. Dismiss any sign-in, cookie, or promotional popup if it appears
+3. Enter London in the destination field
+4. Select London, Greater London, United Kingdom from the suggestions
+5. Keep the default dates and search
+6. Verify the search results page is displayed
+7. Verify the destination search field remains visible

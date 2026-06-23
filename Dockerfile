@@ -1,32 +1,21 @@
-# ====================================================================
-# WebPilot: Production-Grade AI-Native QE Container Config
-# ====================================================================
-FROM mcr.microsoft.com/playwright:v1.45.0-noble
+FROM python:3.12-slim
 
-# Set working context
 WORKDIR /workspace
 
-# Copy dependencies manifest
-COPY package*.json tsconfig.json ./
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install packages
-RUN npm ci
+COPY pyproject.toml README.md ./
+COPY webpilot ./webpilot
+COPY framework ./framework
+COPY core ./core
+COPY config ./config
+COPY prompts ./prompts
+COPY tests ./tests
 
-# Python deps for browser-use runner
-RUN apt-get update && apt-get install -y python3 python3-pip && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt ./
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -e . \
+    && python -m playwright install --with-deps chromium
 
-# Pre-download browser engines for both the Node execution engine and Python tests.
-RUN npx playwright install chromium
-RUN python3 -m playwright install chromium
-
-# Copy remaining code files
-COPY . .
-
-# Run diagnostics checks to confirm compilation
-RUN npm run doctor
-
-# Default execution trigger
-ENTRYPOINT ["npm", "run", "webpilot", "--"]
+ENTRYPOINT ["webpilot"]
 CMD ["doctor"]

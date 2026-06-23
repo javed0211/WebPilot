@@ -37,7 +37,7 @@ echo "Creating venv at ${ROOT}/.venv"
 rm -rf .venv
 "$PYTHON" -m venv .venv
 .venv/bin/python3 -m pip install -U pip
-.venv/bin/python3 -m pip install -r requirements.txt
+.venv/bin/python3 -m pip install -e .
 echo "Done. browser-use is installed in .venv"
 .venv/bin/python3 -c "import browser_use; print('browser_use ok')"
 .venv/bin/python3 -m playwright install chromium

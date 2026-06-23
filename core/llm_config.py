@@ -1,7 +1,7 @@
 """
 Resolve LLM credentials for Python runners (browser-use, codegen).
 
-Mirrors core/LLMClient.ts: config/llm.json + .env + config/webpilot.yaml activeProvider.
+Resolves config/llm.json + .env + config/webpilot.yaml activeProvider.
 """
 from __future__ import annotations
 

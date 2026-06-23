@@ -1,6 +1,6 @@
 # WebPilot prompts
 
-Edit these Markdown files to change LLM behavior **without changing TypeScript or Python code**.
+Edit these Markdown files to change LLM behavior without changing Python code.
 
 ## Layout
 
