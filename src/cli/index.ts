@@ -34,10 +34,22 @@ import { TestTemplateRegistry, TestTemplateKind } from '../core/authoring/TestTe
 process.env.DOTENV_CONFIG_QUIET = process.env.DOTENV_CONFIG_QUIET || 'true';
 dotenv.config({ quiet: true });
 
+// Commands that bootstrap, diagnose, or describe WebPilot must run without an
+// existing project. `init` scaffolds a project; `setup` builds the Python
+// engine inside the installed package; `doctor` inspects the environment.
+const PROJECTLESS_COMMANDS = new Set([
+  'init',
+  'setup',
+  'doctor',
+  '--help',
+  '-h',
+  '--version',
+  '-V',
+  'help',
+]);
+
 const requestedCommand = process.argv[2];
-initializeProjectContext(
-  ![undefined, 'init', '--help', '-h', '--version', '-V'].includes(requestedCommand)
-);
+initializeProjectContext(requestedCommand !== undefined && !PROJECTLESS_COMMANDS.has(requestedCommand));
 const program = new Command();
 
 program
@@ -2345,4 +2357,400 @@ program
     }
   });
 
-program.parse(process.argv);
+/**
+ * COMMAND GROUP: requirements
+ * Import and inspect normalized requirements (Feature 09).
+ */
+const requirements = program
+  .command('requirements')
+  .description('Import and inspect requirements for coverage analysis');
+
+requirements
+  .command('import [file]')
+  .description('Import requirements from a JSON file (generic, ADO REST, or Jira REST shape)')
+  .option('--file <file>', 'Path to the requirements JSON file (alternative to positional)')
+  .option('--source <source>', 'Source system: ado | jira | import', 'import')
+  .option('--project <project>', 'Scope: project name')
+  .option('--team <team>', 'Scope: team name')
+  .option('--sprint <sprint>', 'Scope: sprint/iteration')
+  .option('--release <release>', 'Scope: release/version')
+  .option('--epic <epic>', 'Scope: epic/feature')
+  .option('--no-merge', 'Replace the stored requirement set instead of merging')
+  .action((file: string | undefined, options: Record<string, string | boolean>) => {
+    const { RequirementStore } = require('../core/requirements/RequirementStore');
+    const sourceFile = file || (options.file as string | undefined);
+    if (!sourceFile) {
+      console.error(chalk.red('Provide a requirements file: webpilot requirements import <file.json> (or --file <path>).'));
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const result = RequirementStore.importFromFile(sourceFile, {
+        source: options.source as string,
+        merge: options.merge !== false,
+        scope: {
+          source: options.source as string,
+          project: options.project as string | undefined,
+          team: options.team as string | undefined,
+          sprint: options.sprint as string | undefined,
+          release: options.release as string | undefined,
+          epic: options.epic as string | undefined,
+        },
+      });
+      console.log(`\n${chalk.magenta('=== WebPilot Requirements Import ===')}`);
+      console.log(`  Added   : ${chalk.green(result.added)}`);
+      console.log(`  Updated : ${chalk.cyan(result.updated)}`);
+      console.log(`  Total   : ${chalk.bold(result.set.requirements.length)}`);
+      const withoutAc = result.set.requirements.filter(
+        (r: { acceptanceCriteria: unknown[] }) => r.acceptanceCriteria.length === 0
+      ).length;
+      if (withoutAc > 0) {
+        console.log(
+          chalk.yellow(`  Note    : ${withoutAc} requirement(s) have no acceptance criteria; title is used as a single criterion.`)
+        );
+      }
+      console.log(`\n${chalk.dim('Next:')} webpilot coverage generate`);
+    } catch (err) {
+      console.error(chalk.red(`Import failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+requirements
+  .command('list')
+  .description('List imported requirements and their acceptance-criteria counts')
+  .action(() => {
+    const { RequirementStore } = require('../core/requirements/RequirementStore');
+    const set = RequirementStore.load();
+    if (!set || set.requirements.length === 0) {
+      console.log(chalk.yellow('No requirements imported yet. Run: webpilot requirements import <file.json>'));
+      return;
+    }
+    console.log(`\n${chalk.magenta('=== WebPilot Requirements ===')} (${set.requirements.length})\n`);
+    for (const req of set.requirements) {
+      const pr = req.priority ? chalk.dim(`[${req.priority}]`) : '';
+      console.log(`  ${chalk.bold(req.id)} ${pr} ${req.title}`);
+      console.log(`    ${chalk.dim(`${req.acceptanceCriteria.length} acceptance criteria · ${req.source}`)}`);
+    }
+  });
+
+requirements
+  .command('sync [source]')
+  .description('Guided sync from official ADO/Jira MCP servers')
+  .option('--source <source>', 'Source system: ado | jira')
+  .option('--project <project>', 'Scope: project name/key')
+  .option('--team <team>', 'Scope: ADO team/area path')
+  .option('--sprint <sprint>', 'Scope: sprint/iteration')
+  .option('--release <release>', 'Scope: release/fixVersion')
+  .option('--epic <epic>', 'Scope: ADO parent id or Jira epic key')
+  .option('--backlog', 'Include backlog/open requirements for the project')
+  .option('--dry-run', 'Build and print the WIQL/JQL query without calling MCP')
+  .option('--no-merge', 'Replace the stored requirement set instead of merging')
+  .action(async (sourceArg: string | undefined, options: Record<string, string | boolean>) => {
+    const { RequirementSyncService } = require('../core/requirements/RequirementSyncService');
+    const selectedSource = String(options.source || sourceArg || '').toLowerCase();
+    const source =
+      selectedSource === 'ado' || selectedSource === 'jira'
+        ? selectedSource
+        : (
+            await inquirer.prompt([
+              {
+                type: 'list',
+                name: 'source',
+                message: 'Where should WebPilot sync requirements from?',
+                choices: [
+                  { name: 'Azure DevOps (official ADO MCP)', value: 'ado' },
+                  { name: 'Jira (official Atlassian/Jira MCP)', value: 'jira' },
+                ],
+              },
+            ])
+          ).source;
+
+    const hasScope =
+      options.project || options.team || options.sprint || options.release || options.epic || options.backlog;
+    let scope: {
+      project?: string;
+      team?: string;
+      sprint?: string;
+      release?: string;
+      epic?: string;
+      backlog?: boolean;
+    } = {
+      project: options.project as string | undefined,
+      team: options.team as string | undefined,
+      sprint: options.sprint as string | undefined,
+      release: options.release as string | undefined,
+      epic: options.epic as string | undefined,
+      backlog: Boolean(options.backlog),
+    };
+
+    if (!hasScope) {
+      const answers = (await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'project',
+          message: source === 'ado' ? 'ADO project name (optional):' : 'Jira project key/name (optional):',
+        },
+        {
+          type: 'list',
+          name: 'scopeKind',
+          message: 'Which requirement scope should WebPilot pull?',
+          choices: [
+            { name: 'Project backlog / open requirements', value: 'backlog' },
+            { name: 'Team / area path', value: 'team' },
+            { name: 'Sprint / iteration', value: 'sprint' },
+            { name: 'Release / fixVersion', value: 'release' },
+            { name: 'Epic / feature', value: 'epic' },
+          ],
+        },
+        {
+          type: 'input',
+          name: 'scopeValue',
+          message: 'Scope value (leave blank for project backlog):',
+          when: (answers: { scopeKind: string }) => answers.scopeKind !== 'backlog',
+        },
+      ])) as { project?: string; scopeKind: string; scopeValue?: string };
+      scope = {
+        project: answers.project || undefined,
+        backlog: answers.scopeKind === 'backlog',
+        team: answers.scopeKind === 'team' ? answers.scopeValue || undefined : undefined,
+        sprint: answers.scopeKind === 'sprint' ? answers.scopeValue || undefined : undefined,
+        release: answers.scopeKind === 'release' ? answers.scopeValue || undefined : undefined,
+        epic: answers.scopeKind === 'epic' ? answers.scopeValue || undefined : undefined,
+      };
+    }
+
+    console.log(`\n${chalk.magenta('=== WebPilot Requirements Sync ===')}`);
+    console.log(`  Source : ${chalk.cyan(source.toUpperCase())}`);
+    console.log(`  Scope  : ${chalk.dim(JSON.stringify(scope))}`);
+
+    try {
+      const result = await RequirementSyncService.sync({
+        source,
+        scope,
+        merge: options.merge !== false,
+        dryRun: Boolean(options.dryRun),
+      });
+      if (result.dryRun) {
+        console.log(`\n${chalk.bold('Generated query:')}\n${result.query}\n`);
+        console.log(chalk.dim('Configure requirements.mcp in webpilot.yaml, then run without --dry-run to sync.'));
+        return;
+      }
+      console.log(`  Tool   : ${chalk.cyan(result.toolName || 'auto')}`);
+      console.log(`  Pulled : ${chalk.bold(result.imported)}`);
+      console.log(`  Added  : ${chalk.green(result.added)}`);
+      console.log(`  Updated: ${chalk.cyan(result.updated)}`);
+      console.log(`  Total  : ${chalk.bold(result.total)}`);
+      console.log(`\n${chalk.dim('Next:')} webpilot coverage generate`);
+    } catch (err) {
+      console.error(chalk.red(`Requirements sync failed: ${err instanceof Error ? err.message : String(err)}`));
+      console.error(chalk.dim('Tip: run `webpilot requirements sync --source ado --project <name> --dry-run` to validate scope/query without calling MCP.'));
+      process.exitCode = 1;
+    }
+  });
+
+/**
+ * COMMAND GROUP: coverage
+ * AI-assisted, criterion-level coverage with reconciliation of existing maps.
+ */
+const coverage = program
+  .command('coverage')
+  .description('Generate and inspect requirement coverage');
+
+function printCoverageSummary(report: {
+  summary: { requirements: number; covered: number; partial: number; uncovered: number; coveragePct: number; highRisk: number };
+}): void {
+  const s = report.summary;
+  console.log(`  Requirements : ${chalk.bold(s.requirements)}`);
+  console.log(`  Covered      : ${chalk.green(s.covered)}`);
+  console.log(`  Partial      : ${chalk.yellow(s.partial)}`);
+  console.log(`  Uncovered    : ${chalk.red(s.uncovered)}`);
+  console.log(`  Coverage     : ${chalk.bold(`${s.coveragePct}%`)}`);
+  console.log(`  High risk    : ${s.highRisk > 0 ? chalk.red(s.highRisk) : chalk.green(0)}`);
+}
+
+function statusColor(status: string): string {
+  if (status === 'covered') return chalk.green(status);
+  if (status === 'partial') return chalk.yellow(status);
+  return chalk.red(status);
+}
+
+coverage
+  .command('generate', { isDefault: true })
+  .description('Reconcile mappings, compute coverage, and propose new mappings')
+  .option('--no-proposals', 'Do not write proposed mappings into requirement-map.yaml')
+  .option('--json', 'Print the full coverage report as JSON')
+  .action((options: { proposals?: boolean; json?: boolean }) => {
+    const { CoverageService } = require('../core/requirements/CoverageService');
+    const { RequirementMap } = require('../core/requirements/RequirementMap');
+    try {
+      const result = CoverageService.generate({ writeProposals: options.proposals !== false });
+      if (options.json) {
+        console.log(JSON.stringify(result.coverage, null, 2));
+        return;
+      }
+      console.log(`\n${chalk.magenta('=== WebPilot Coverage ===')}\n`);
+      printCoverageSummary(result.coverage);
+      const r = result.reconcile.summary;
+      console.log(`\n${chalk.magenta('Reconciliation of existing mappings:')}`);
+      console.log(
+        `  valid ${chalk.green(r.valid)} · stale ${chalk.yellow(r.stale)} · broken ${chalk.red(r.broken)} · ` +
+          `orphan ${chalk.red(r.orphan)} · conflict ${chalk.red(r.conflict)} · low-quality ${chalk.yellow(r['low-quality'])}`
+      );
+      if (result.proposalsWritten > 0) {
+        console.log(
+          `\n${chalk.cyan(`${result.proposalsWritten} mapping proposal(s)`)} written to ${RequirementMap.path()}.`
+        );
+        console.log(`${chalk.dim('Confirm them:')} webpilot coverage apply-mapping --all`);
+      }
+      console.log(`\n${chalk.dim('Inspect gaps:')} webpilot coverage show --gaps`);
+    } catch (err) {
+      console.error(chalk.red(`Coverage failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+coverage
+  .command('show')
+  .description('Show the most recently generated coverage report')
+  .option('--gaps', 'Show only requirements that are not fully covered')
+  .option('--json', 'Print the report as JSON')
+  .action((options: { gaps?: boolean; json?: boolean }) => {
+    const { CoverageService } = require('../core/requirements/CoverageService');
+    const report = CoverageService.loadCoverage();
+    if (!report) {
+      console.log(chalk.yellow('No coverage report found. Run: webpilot coverage generate'));
+      return;
+    }
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    console.log(`\n${chalk.magenta('=== WebPilot Coverage ===')}\n`);
+    printCoverageSummary(report);
+    console.log('');
+    const rows = options.gaps
+      ? report.requirements.filter((r: { status: string }) => r.status !== 'covered')
+      : report.requirements;
+    for (const req of rows) {
+      console.log(
+        `  ${chalk.bold(req.requirementId)} ${req.priority ? chalk.dim(`[${req.priority}]`) : ''} ` +
+          `${statusColor(req.status)} ${chalk.dim(`(${Math.round(req.confidence * 100)}%)`)} ${req.title}`
+      );
+      if (options.gaps) {
+        for (const gap of req.gaps) console.log(`      ${chalk.red('gap:')} ${gap}`);
+      }
+    }
+  });
+
+coverage
+  .command('reconcile')
+  .description('Validate existing tags/mappings against current requirements and tests')
+  .option('--json', 'Print findings as JSON')
+  .action((options: { json?: boolean }) => {
+    const { RequirementStore } = require('../core/requirements/RequirementStore');
+    const { TestInventory } = require('../core/requirements/TestInventory');
+    const { RequirementMap } = require('../core/requirements/RequirementMap');
+    const { CoverageMatcher } = require('../core/requirements/CoverageMatcher');
+    const set = RequirementStore.load();
+    if (!set) {
+      console.log(chalk.yellow('No requirements imported yet. Run: webpilot requirements import <file.json>'));
+      return;
+    }
+    const report = CoverageMatcher.reconcile(set, TestInventory.collect(), RequirementMap.load());
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    console.log(`\n${chalk.magenta('=== WebPilot Mapping Reconciliation ===')}\n`);
+    const s = report.summary;
+    console.log(
+      `  valid ${chalk.green(s.valid)} · stale ${chalk.yellow(s.stale)} · broken ${chalk.red(s.broken)} · ` +
+        `orphan ${chalk.red(s.orphan)} · conflict ${chalk.red(s.conflict)} · low-quality ${chalk.yellow(s['low-quality'])}\n`
+    );
+    for (const f of report.findings) {
+      if (f.status === 'valid') continue;
+      console.log(`  ${chalk.bold(f.status.toUpperCase())} ${f.requirementId} → ${f.testPath}`);
+      console.log(`    ${chalk.dim(f.detail)}`);
+      if (f.suggestion) console.log(`    ${chalk.cyan('fix:')} ${f.suggestion}`);
+    }
+    if (report.findings.every((f: { status: string }) => f.status === 'valid')) {
+      console.log(chalk.green('  All existing mappings are valid.'));
+    }
+  });
+
+coverage
+  .command('apply-mapping')
+  .description('Promote proposed mappings to confirmed')
+  .option('--requirement <id>', 'Only confirm mappings for this requirement id')
+  .option('--all', 'Confirm all proposed mappings')
+  .action((options: { requirement?: string; all?: boolean }) => {
+    if (!options.all && !options.requirement) {
+      console.error(chalk.red('Specify --all or --requirement <id>.'));
+      process.exitCode = 1;
+      return;
+    }
+    const { CoverageService } = require('../core/requirements/CoverageService');
+    const confirmed = CoverageService.confirmMappings(options.requirement);
+    if (confirmed === 0) {
+      console.log(chalk.yellow('No proposed mappings to confirm.'));
+      return;
+    }
+    console.log(chalk.green(`Confirmed ${confirmed} mapping(s).`));
+    console.log(`${chalk.dim('Re-run coverage to reflect confirmations:')} webpilot coverage generate`);
+  });
+
+/**
+ * COMMAND GROUP: regression
+ * Recommend a regression pack from coverage + flake signals.
+ */
+const regression = program
+  .command('regression')
+  .description('Recommend and manage regression packs');
+
+regression
+  .command('recommend', { isDefault: true })
+  .description('Build a regression pack from coverage, priority, and flake signals')
+  .option('--name <name>', 'Pack name', 'default')
+  .option('--no-partial', 'Exclude partially covered requirements')
+  .option('--json', 'Print the pack as JSON')
+  .action((options: { name?: string; partial?: boolean; json?: boolean }) => {
+    const { CoverageService } = require('../core/requirements/CoverageService');
+    const { TestInventory } = require('../core/requirements/TestInventory');
+    const { RegressionPackManager } = require('../core/regression/RegressionPackManager');
+    const report = CoverageService.loadCoverage();
+    if (!report) {
+      console.log(chalk.yellow('No coverage report found. Run: webpilot coverage generate'));
+      return;
+    }
+    const pack = RegressionPackManager.recommend(report, TestInventory.collect(), {
+      name: options.name,
+      includePartial: options.partial !== false,
+    });
+    RegressionPackManager.save(pack);
+    if (options.json) {
+      console.log(JSON.stringify(pack, null, 2));
+      return;
+    }
+    console.log(`\n${chalk.magenta('=== WebPilot Regression Pack ===')} ${chalk.dim(`(${pack.name})`)}\n`);
+    console.log(`  Tests        : ${chalk.bold(pack.summary.tests)}`);
+    console.log(`  High priority: ${chalk.cyan(pack.summary.highPriority)}`);
+    console.log(`  Quarantined  : ${pack.summary.quarantined > 0 ? chalk.yellow(pack.summary.quarantined) : 0}\n`);
+    for (const t of pack.tests) {
+      console.log(
+        `  ${chalk.bold(t.weight.toFixed(2))} ${t.path} ${chalk.dim(`(${t.reason})`)}` +
+          (t.flakeScore > 0 ? chalk.yellow(` flake ${t.flakeScore}`) : '')
+      );
+    }
+    if (pack.quarantine.length > 0) {
+      console.log(`\n${chalk.yellow('Quarantined (stabilize before including):')}`);
+      for (const q of pack.quarantine) {
+        console.log(`  ${q.path} ${chalk.dim(`flake ${q.flakeScore}`)}`);
+      }
+    }
+  });
+
+program.parseAsync(process.argv).catch((err: unknown) => {
+  console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+  process.exit(1);
+});

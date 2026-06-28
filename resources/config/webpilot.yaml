@@ -22,6 +22,38 @@ framework:
   apiCodegenEnabled: true # generate packages/test-framework/apis + packages/test-framework/tests/api after successful API runs
   useApiPlaywright: true # execute API tests via Playwright request (not axios)
 
+# 1b. Requirements coverage sync (Feature 09)
+# WebPilot can sync stories/requirements directly from official ADO/Jira MCP
+# servers, normalize them, then generate coverage without requiring users to
+# hand-author requirements JSON.
+requirements:
+  mcp:
+    timeoutMs: 90000
+    ado:
+      enabled: false
+      # Configure the official Azure DevOps MCP server command for your org.
+      # Example shape only; use the command/args from Microsoft's MCP docs.
+      command: ""
+      args: []
+      env:
+        AZURE_DEVOPS_ORG_URL: "${AZURE_DEVOPS_ORG_URL}"
+      # Optional overrides when the MCP server uses non-standard tool/arg names.
+      # toolName: "query_work_items"
+      # queryArgument: "wiql"
+      # resultPath: "value"
+    jira:
+      enabled: false
+      # Configure the official Jira/Atlassian MCP server command for your site.
+      # Example shape only; use the command/args from Atlassian's MCP docs.
+      command: ""
+      args: []
+      env:
+        JIRA_SITE_URL: "${JIRA_SITE_URL}"
+      # Optional overrides when the MCP server uses non-standard tool/arg names.
+      # toolName: "search_issues"
+      # queryArgument: "jql"
+      # resultPath: "issues"
+
 # 2. Intelligent runner and learned site knowledge
 intelligentRunner:
   enabled: true

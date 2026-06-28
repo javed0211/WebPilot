@@ -7,9 +7,25 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 from .paths import CONFIG_ROOT, PROJECT_ROOT
+
+_ENV_REF_RE = re.compile(r'\$\{([A-Za-z_][A-Za-z0-9_]*)\}')
+
+
+def _expand_env_refs(value: Any) -> Any:
+    """Replace ``${VAR}`` references with environment values.
+
+    `webpilot init` writes env placeholders (e.g. ``${AZURE_OPENAI_API_KEY}``)
+    into config/llm.json instead of real secrets, so the secret lives in .env.
+    Unresolved references collapse to an empty string, which downstream
+    placeholder checks then treat as "not configured".
+    """
+    if not isinstance(value, str):
+        return value
+    return _ENV_REF_RE.sub(lambda match: os.environ.get(match.group(1), ''), value)
 
 
 def _load_dotenv() -> None:
@@ -37,7 +53,11 @@ def _load_dotenv() -> None:
 def _is_placeholder(value: str | None) -> bool:
     if not value or not str(value).strip():
         return True
-    upper = str(value).upper()
+    text = str(value).strip()
+    # An unresolved ${VAR} reference means the .env value was never set.
+    if '${' in text:
+        return True
+    upper = text.upper()
     return 'YOUR_' in upper or upper in ('', 'CHANGE_ME', 'CHANGEME')
 
 
@@ -75,7 +95,7 @@ def resolve_provider_config(provider: str | None = None) -> tuple[str, dict[str,
     _load_dotenv()
     prov = (provider or get_active_provider()).lower()
     llm = load_llm_json()
-    block = dict(llm.get(prov) or {})
+    block = {key: _expand_env_refs(value) for key, value in (llm.get(prov) or {}).items()}
 
     if prov == 'azure':
         block['apiKey'] = (

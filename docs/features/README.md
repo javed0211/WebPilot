@@ -20,6 +20,7 @@ The north star is:
 | [06 Browser Providers](./06-browser-provider-matrix.md) | [Browser Providers](../guides/browser-providers.md) |
 | [07 CI & Artifacts](./07-ci-mode-and-release-artifacts.md) | [CI & Artifacts](../guides/ci-and-artifacts.md) |
 | [08 Test Authoring](./08-test-authoring-ux.md) | [Test Authoring](../guides/test-authoring.md) |
+| [09 Requirements Coverage & Regression](./09-requirements-coverage-regression.md) | Planned |
 | — | [Intelligent Runner & Site Knowledge](../guides/intelligent-runner-and-site-knowledge.md) |
 | — | [Execution & Replay](../guides/execution-and-replay.md) |
 | — | [API Testing](../guides/api-testing.md) |
@@ -38,6 +39,7 @@ Recommended order:
 6. [Browser Provider Matrix](./06-browser-provider-matrix.md) — **complete**
 7. [CI Mode and Release Artifacts](./07-ci-mode-and-release-artifacts.md) — **complete**
 8. [Test Authoring UX](./08-test-authoring-ux.md) — **complete**
+9. [Requirements Coverage and Regression Manager](./09-requirements-coverage-regression.md) — **planned**
 
 ## How To Use These Specs
 
@@ -59,6 +61,7 @@ Already implemented or partially implemented:
 - Tree-sitter WASM extraction for Python, Java, C#, and Go.
 - React-based HTML reports.
 - Runtime artifact organization under `runtime/`.
+- Official MCP is the planned integration path for Azure DevOps and Jira requirements sync.
 
 ## Prioritization Rules
 

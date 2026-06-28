@@ -21,3 +21,15 @@ export const CODEGEN_HISTORY_DIR = path.join(CODEGEN_ROOT, 'history');
 export const SELECTORS_ROOT = path.join(RUNTIME_ROOT, 'selectors');
 export const SELECTOR_REGISTRY_PATH = path.join(SELECTORS_ROOT, 'registry.json');
 export const HEALING_PROPOSALS_DIR = path.join(SELECTORS_ROOT, 'healing-proposals');
+
+// Feature 09: requirements coverage and regression manager
+export const REQUIREMENTS_ROOT = path.join(RUNTIME_ROOT, 'requirements');
+export const REQUIREMENTS_NORMALIZED_DIR = path.join(REQUIREMENTS_ROOT, 'normalized');
+export const REQUIREMENTS_NORMALIZED_PATH = path.join(REQUIREMENTS_NORMALIZED_DIR, 'requirements.json');
+export const REQUIREMENTS_COVERAGE_DIR = path.join(REQUIREMENTS_ROOT, 'coverage');
+export const REQUIREMENTS_COVERAGE_PATH = path.join(REQUIREMENTS_COVERAGE_DIR, 'requirement-coverage.json');
+export const REQUIREMENTS_GAPS_PATH = path.join(REQUIREMENTS_COVERAGE_DIR, 'coverage-gaps.json');
+export const REGRESSION_PACKS_DIR = path.join(REQUIREMENTS_ROOT, 'regression-packs');
+export const REQUIREMENT_MAP_PATH = path.join(CONFIG_ROOT, 'requirement-map.yaml');
+export const TESTS_WEB_ROOT = path.join(PROJECT_ROOT, 'tests', 'web');
+export const TESTS_API_ROOT = path.join(PROJECT_ROOT, 'tests', 'api');

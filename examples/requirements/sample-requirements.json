@@ -1,0 +1,45 @@
+{
+  "value": [
+    {
+      "id": 4821,
+      "fields": {
+        "System.Id": 4821,
+        "System.WorkItemType": "User Story",
+        "System.Title": "Search for hotels by destination on Booking.com",
+        "System.State": "Active",
+        "System.AreaPath": "Travel\\Search",
+        "System.IterationPath": "Travel\\Sprint 12",
+        "System.Tags": "booking; search",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "Microsoft.VSTS.Common.AcceptanceCriteria": "Acceptance Criteria\n- User can enter a destination in the search field\n- User can select a destination from the autocomplete suggestions\n- User can pick check-in and check-out dates\n- Search results page shows accommodation results for the destination"
+      }
+    },
+    {
+      "id": 4822,
+      "fields": {
+        "System.Id": 4822,
+        "System.WorkItemType": "User Story",
+        "System.Title": "User can add a product to the cart",
+        "System.State": "Active",
+        "System.AreaPath": "Shop\\Cart",
+        "System.IterationPath": "Shop\\Sprint 12",
+        "System.Tags": "cart",
+        "Microsoft.VSTS.Common.Priority": 2,
+        "Microsoft.VSTS.Common.AcceptanceCriteria": "- User can add a product to the cart\n- The cart count updates after adding a product"
+      }
+    },
+    {
+      "id": 4823,
+      "fields": {
+        "System.Id": 4823,
+        "System.WorkItemType": "User Story",
+        "System.Title": "User can reset their password via email",
+        "System.State": "New",
+        "System.AreaPath": "Account\\Auth",
+        "System.IterationPath": "Account\\Sprint 12",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "Microsoft.VSTS.Common.AcceptanceCriteria": "- User can request a password reset email\n- User can set a new password from the reset link\n- User is notified when the password is changed"
+      }
+    }
+  ]
+}

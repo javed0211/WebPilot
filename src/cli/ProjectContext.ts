@@ -30,8 +30,9 @@ export function findProjectRoot(start = process.cwd()): string {
   const root = findUp(start, (directory) => fs.existsSync(path.join(directory, PROJECT_CONFIG)));
   if (!root) {
     throw new Error(
-      `No WebPilot project found from ${start}. Expected ${PROJECT_CONFIG}. ` +
-        'Run this command inside a WebPilot project or set WEBPILOT_PROJECT_ROOT.'
+      `No WebPilot project found from ${start} (expected ${PROJECT_CONFIG}).\n` +
+        'Scaffold one first with `npx webpilot init`, then run this command inside the project.\n' +
+        'Alternatively set WEBPILOT_PROJECT_ROOT to an existing WebPilot project.'
     );
   }
   return root;
@@ -42,13 +43,28 @@ export function findCliInstallRoot(start = __dirname): string {
     const packagePath = path.join(directory, 'package.json');
     if (!fs.existsSync(packagePath)) return false;
     try {
-      return JSON.parse(fs.readFileSync(packagePath, 'utf8')).name === 'webpilot';
+      const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8')) as {
+        name?: string;
+        bin?: string | Record<string, string>;
+      };
+      const name = pkg.name ?? '';
+      // Match by name (plain or any scope ending in /webpilot) OR by the
+      // `webpilot` bin entry, so a future scope/rename never breaks discovery.
+      const nameMatches = name === 'webpilot' || /(^|\/)webpilot$/.test(name);
+      const binMatches =
+        typeof pkg.bin === 'object' && pkg.bin !== null
+          ? Object.prototype.hasOwnProperty.call(pkg.bin, 'webpilot')
+          : false;
+      return nameMatches || binMatches;
     } catch {
       return false;
     }
   });
   if (!root) {
-    throw new Error(`Unable to locate the WebPilot CLI installation from ${start}`);
+    throw new Error(
+      `Unable to locate the WebPilot CLI installation from ${start}. ` +
+        'Reinstall the package (npm install @qubiqlabs/webpilot) and try again.'
+    );
   }
   return root;
 }

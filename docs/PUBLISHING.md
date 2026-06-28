@@ -112,9 +112,34 @@ The npm tarball includes:
 
 ---
 
-## Mandatory pre-publish checks
+## Release script (recommended)
 
-Run these before every publish:
+`scripts/publish.sh` runs all mandatory checks, bumps the version, inspects the
+tarball for secrets, and publishes. It refuses to publish from a dirty tree or
+when audits fail.
+
+```bash
+# Validate everything without publishing (bumps, dry-runs, then reverts):
+npm run release -- patch --dry-run
+
+# Publish a patch release with your MFA code:
+npm run release -- patch --otp 123456
+
+# Other bumps / explicit version:
+npm run release -- minor --otp 123456
+npm run release -- 1.2.0 --otp 123456 --yes
+```
+
+Options: `--otp <code>`, `--dry-run`, `--skip-pip`, `--skip-audit`, `--yes`, `--help`.
+
+The script performs, in order: precondition checks (npm login, clean tree) →
+`npm ci` → `npm audit --audit-level=high` → `pip-audit` → `npm run build` →
+`npm pack --dry-run` secret scan → version bump → `npm publish --dry-run` →
+confirm → `npm publish` → git commit + tag.
+
+## Mandatory pre-publish checks (manual equivalent)
+
+If you publish by hand instead of `scripts/publish.sh`, run these first:
 
 ```bash
 npm ci

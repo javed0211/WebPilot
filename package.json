@@ -1,6 +1,6 @@
 {
   "name": "@qubiqlabs/webpilot",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "AI-native web automation on top of Playwright: natural language execution, codegen, healing, and reports",
   "main": "./dist/src/cli/index.js",
   "bin": {
@@ -44,6 +44,7 @@
     "doctor": "node dist/src/cli/index.js doctor",
     "ci": "node dist/src/cli/index.js ci run",
     "setup": "bash scripts/setup-python.sh",
+    "release": "bash scripts/publish.sh",
     "init": "node dist/src/cli/index.js init",
     "report": "node dist/src/cli/index.js report",
     "report:html": "node dist/src/cli/index.js report --html",
@@ -81,8 +82,7 @@
     "@types/inquirer": "^9.0.9",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3"
+    "ts-node": "^10.9.2"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
@@ -97,6 +97,7 @@
     "js-yaml": "^4.1.1",
     "ora": "^5.4.1",
     "playwright": "^1.60.0",
+    "typescript": "^6.0.3",
     "web-tree-sitter": "^0.26.9"
   }
 }
