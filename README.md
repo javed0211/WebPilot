@@ -1,294 +1,201 @@
-# WebPilot: AI-Native Test Automation & QE Platform
+# WebPilot
 
-WebPilot is a production-grade, AI-native quality engineering (QE) framework built with Node.js, TypeScript, Playwright, and multi-agent AI loop architectures. It enables quality assurance and engineering teams to automate testing pipelines using plain, natural language test scripts. It automatically executes tests using cognitive reasoning, self-heals broken locators, supports interactive debugging, and generates enterprise-grade, deterministic Playwright test suites.
+**AI-native web automation on top of Playwright.**
 
-## Demo
+WebPilot lets teams describe browser and API workflows in natural language, run them through an autonomous browser agent, reuse learned site knowledge, generate deterministic Playwright code, self-heal broken automation, and publish rich execution reports.
 
-[![WebPilot demo — CLI and browser agent in action](assets/demo.webpilot.gif)](https://github.com/javed0211/WebPilot/blob/main/assets/demo.webpilot.mp4)
+It is not trying to replace Playwright or Selenium. Playwright is the browser engine. WebPilot is the intelligent automation layer above it: generation, execution, healing, knowledge reuse, reporting, and CI-ready artifacts.
 
-*Click to open the full video · Real terminal output + browser agent · NL spec → Playwright codegen*
+[![WebPilot demo: CLI and browser agent](https://raw.githubusercontent.com/javed0211/WebPilot/main/resources/assets/demo.webpilot.gif)](https://github.com/javed0211/WebPilot/blob/main/resources/assets/demo.webpilot.mp4)
 
-Write tests in plain English, run one CLI command, and watch the browser agent execute your scenario in Chrome. WebPilot then generates Playwright TypeScript you can run in CI.
+## Why WebPilot?
 
-```bash
-npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed
-```
+Traditional browser automation is powerful, but teams still spend too much time writing boilerplate, maintaining selectors, diagnosing flaky failures, and explaining what happened in CI.
 
-**Full demo (MP4):** [Watch on GitHub](https://github.com/javed0211/WebPilot/blob/main/assets/demo.webpilot.mp4)
+WebPilot focuses on the missing layer:
 
-## Sample report
+- **Natural language to automation**: write test intent as readable steps, not just code.
+- **Playwright-native output**: generate TypeScript tests and page objects that can run in standard CI.
+- **Agentic execution**: use Browser Use and Playwright to navigate real web pages when a flow is not yet known.
+- **Knowledge reuse**: learn validated page capabilities so future runs can replay known steps more deterministically.
+- **Self-healing**: recover from locator drift and persist healed behavior for future runs.
+- **Open reports**: static HTML dashboards with screenshots, traces, videos, token usage, cost, trends, and AI analysis.
+- **API + UI coverage**: automate browser flows and API scenarios from one CLI.
 
-After each UI run, WebPilot generates an **HTML execution report** with pass rate, steps, LLM token usage, cost, environment details, execution logs, artifacts (video/trace/screenshots), and optional **AI quality analysis**.
-
-[![WebPilot sample execution report](assets/sample-report-test.png)](docs/sample-reports/test-report.html)
-
-| Sample | View |
-|--------|------|
-| **Suite dashboard** | [docs/sample-reports/suite-report.html](docs/sample-reports/suite-report.html) |
-| **Per-test report** | [docs/sample-reports/test-report.html](docs/sample-reports/test-report.html) |
-
-Full reporting guide: **[docs/REPORTING.md](docs/REPORTING.md)**
+## Quick Start
 
 ```bash
-npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --report
-open reports/index.html
-```
+git clone https://github.com/javed0211/WebPilot.git
+cd WebPilot
 
----
-
-## Documentation
-
-| Guide | Contents |
-|-------|----------|
-| **[docs/FRAMEWORK_GUIDE.md](docs/FRAMEWORK_GUIDE.md)** | Architecture, writing tests, CLI reference, codegen, reports, CI |
-| **[docs/USAGE.md](docs/USAGE.md)** | Quick start — install, credentials, run tests, troubleshooting |
-| **[docs/REPORTING.md](docs/REPORTING.md)** | HTML reports, JSON artifacts, videos, traces, AI analysis, CI |
-| **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** | `webpilot.yaml`, `llm.json`, environments, prompts |
-
-## Quick start
-
-```bash
 npm ci
+npm run build
 npx playwright install chromium
-pip install -r requirements.txt
+npm run setup
 
-cp .env.example .env   # optional: add API keys here
-# Or fill azure section in config/llm.json (placeholders in repo)
-
-npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed
+cp .env.example .env
 ```
 
-`config/llm.json` is in the repo with **placeholder** keys only. Do not commit real API keys. Use `.env` for secrets (gitignored when it contains keys).
+Add provider credentials to `.env` or configure `resources/config/llm.json`, then run a sample scenario:
 
----
-
-## 1. Architecture Overview
-
-```
-                                +-----------------------------------+
-                                |            CLI Commands           |
-                                |     (npm run webpilot -- ...)      |
-                                +-----------------+-----------------+
-                                                  |
-                                                  v
-                                +-----------------+-----------------+
-                                |            Core Engine            |
-                                |         (core/Engine.ts)          |
-                                +-----------------+-----------------+
-                                                  |
-         +--------------------+-------------------+--------------------+--------------------+
-         |                    |                   |                    |                    |
-         v                    v                   v                    v                    v
-+--------+-----------+ +------+------+ +----------+---------+ +--------+--------+ +--------+--------+
-|   Planner Agent    | |  Executor   | | Validation Agent | |  Healing Agent   | |  Codegen Agent   |
-| (PlannerAgent.ts)  | |  (Executor) | |(ValidationAgent) | |(HealingAgent.ts) | |(CodegenAgent.ts) |
-+--------+-----------+ +------+------+ +----------+---------+ +--------+--------+ +--------+--------+
-         |                    |                   |                    |                    |
-         |                    v                   |                    v                    v
-         |              +-----+------+            |             +------+-----+       +------+-----+
-         |              | Playwright |            |             |  .healing- |       | /generated |
-         |              |  Browser   |            |             |   -cache/  |       | TypeScript |
-         |              +------------+            |             +------------+       +------------+
-         v                                        v
-  [Parses Test Input]                       [Runs Assertions]
-```
-
----
-
-## 2. Directory Structure
-
-```
-/Users/oldguard/Desktop/WebPilot
- ├── /config                    # Config-driven execution system
- │    ├── framework.json        # Central paths and options
- │    ├── browsers.json         # Browser viewport, screenshots and video settings
- │    ├── llm.json              # Provider models, temperature, and fallback chains
- │    └── /environments         # Multi-environment targets
- │         ├── dev.json
- │         ├── qa.json
- │         └── prod.json
- ├── /tests                     # Human-writable natural language specs
- │    ├── /web                  # Web UI tests
- │    └── /api                  # API REST/GraphQL narratives
- ├── /generated                 # PLAYWRIGHT AUTOMATION EXPORTS
- │    ├── /pages                # Generated Page Objects (POM)
- │    └── /tests                # Generated Playwright TS Spec Suites
- ├── /core                      # Core orchestration engine
- ├── /agents                    # Multi-agent specialized components
- ├── /plugins                   # Extensible Plugin SDK hooks
- ├── /reports                   # Trace files, videos, and JSON reports
- └── /.healing-cache            # Local selector mappings cache
-```
-
----
-
-## 3. CLI Developer Experience
-
-We provide a robust set of CLI workflows. Execute commands using `npm run webpilot -- <command>` or direct `npm run` shortcuts:
-
-### `npm run doctor`
-Audits required directories, verifies environment credentials, and scans for active browser engine binaries:
 ```bash
-npm run doctor
+npm run webpilot -- run tests/web/automationexercise_add_to_cart.txt --env qa --headed --report
+open runtime/reports/html/index.html
 ```
 
-### `npm run init`
-Scaffolds all framework directories and baseline JSON template configs:
+For global local development:
+
 ```bash
-npm run init
+npm link
+webpilot run tests/web/automationexercise_add_to_cart.txt --env qa --headed --report
 ```
 
-### `npm run webpilot -- create <type> <name>`
-Instantiates a new BDD-style template script:
-```bash
-# Create a Web UI script
-npm run webpilot -- create test user_login
+## A WebPilot Test
 
-# Create an API contract script
-npm run webpilot -- create api user_profile
-```
+Natural language specs live in `tests/web/` or `tests/api/`.
 
-### `npm run webpilot -- run <file>`
-Executes a natural language test script in fully autonomous mode:
-```bash
-# Run Web UI test in QA environment
-npm run webpilot -- run tests/web/login.txt --env qa
-
-# Run headed Chrome to visually observe execution
-npm run webpilot -- run tests/web/login.txt --env qa --headed
-
-# Specify clean Playwright Page Object Model output
-npm run webpilot -- run tests/web/login.txt --architecture pom
-```
-
-### `npm run webpilot -- interactive <file>`
-Launches Human-in-the-Loop interactive debugging mode. WebPilot displays the planned action and queries you for approval or prompt adjustments in the terminal before running it:
-```bash
-npm run webpilot -- interactive tests/web/login.txt
-```
-
-### `npm run report`
-Aggregates JSON reports inside `/reports` and prints a high-density, gorgeous terminal summary:
-```bash
-npm run report
-```
-
-### `npm run webpilot -- self-heal`
-Audits the list of selector overrides currently stored in the self-healing cache:
-```bash
-# View healed selectors
-npm run webpilot -- self-heal
-
-# Purge cache
-npm run webpilot -- self-heal --clean
-```
-
----
-
-## 4. Test Script Specifications
-
-Write natural language scripts using standard `.txt` files inside `/tests/web` or `/tests/api`.
-
-### Web UI Scenario Templates
-
-**BDD style** (`tests/web/login.txt`) — use `Given` / `When` / `Then` / `And` keywords:
-```cucumber
-@smoke @login
-Test: User Login Scenario
-
-Given user opens application
-When user logs in with valid credentials
-Then dashboard should be visible
-```
-
-**Simple numbered steps** (`tests/web/automationexercise_add_to_cart.txt`):
-```
+```text
 Test: Add Products in Cart
 
 1. Navigate to https://automationexercise.com/
 2. Verify that home page is visible successfully
-3. Click on Products link in the navigation menu
+3. Click Products in the navigation menu
+4. Add the first product to the cart
+5. Verify the product appears in the cart
 ```
 
-**Simple plain steps** (`tests/web/automationexercise_contact_us.txt`) — one action per line, no keywords:
-```
-Test: Contact Us Form
+WebPilot can execute that flow, collect runtime evidence, generate Playwright code, and write a report.
 
-Open https://automationexercise.com/
-Verify home page is visible successfully
-Click Contact Us link in the navigation menu
-```
+## Reports
 
-Use whichever format fits the scenario; the planner accepts all three. Tags (`@smoke`) and `Test:` title lines work in every format.
+After each run, WebPilot writes a static report under `runtime/reports/html/`.
 
-### Generated code quality
+[![WebPilot sample execution report](https://raw.githubusercontent.com/javed0211/WebPilot/main/resources/assets/sample-report-test.png)](https://github.com/javed0211/WebPilot/blob/main/docs/sample-reports/test-report.html)
 
-After a successful run, WebPilot generates Playwright POMs and specs with:
+Sample reports:
 
-- **Strict semantic locators** — scope regions and use `.filter()` when multiple matches (`prompts/shared/locator-strict-rules.md`); full codegen rules in `prompts/`
-- **BasePage reuse** — generated POMs call `navigate`, `click`, `clickByRole`, `assertCountAtLeast`, etc. from `framework/core/BasePage.ts`
-- **Multi-page POM** — one class per route (e.g. `framework/pages/automationexercise/AutomationExerciseHomePage.ts`, `...ProductsPage.ts`, `...CartPage.ts`), not one file per site
-- **Symbol graph reuse** — existing page methods are extended via AST merge into the correct page file only
-- **Post-generation validation** — TypeScript compiler checks run on every generated file; the agent auto-fixes up to 2 rounds when errors are found (e.g. invalid `expect` APIs)
+- [Suite dashboard](https://github.com/javed0211/WebPilot/blob/main/docs/sample-reports/suite-report.html)
+- [Per-test report](https://github.com/javed0211/WebPilot/blob/main/docs/sample-reports/test-report.html)
 
-### API Pipeline Template (`tests/api/login_api.txt`)
-```cucumber
-@api @login
-Test: API Token Chaining
+The report includes pass/fail status, actions, runtime insights, LLM tokens, estimated cost, environment details, screenshots, videos, traces, historical trends, and optional AI analysis.
 
-Send POST request to {{baseUrl}}/api/login
-With body payload {"username": "admin", "password": "password"}
-Extract response body.token into token
-Send GET request to {{baseUrl}}/api/users
-With Headers {"Authorization": "Bearer {{token}}"}
-Assert status is 200
-```
+See [docs/REPORTING.md](docs/REPORTING.md).
 
----
+## Core Commands
 
-## 5. Configuration Architecture
-
-### LLM Setup (`config/llm.json`)
-
-Set provider keys in `config/llm.json` and/or environment variables (see `.env.example` and [docs/CONFIGURATION.md](docs/CONFIGURATION.md)). The committed file uses placeholders only.
-
-### Environment Mapping (`config/environments/qa.json`)
-Configure variables and inject secrets using environment variables automatically interpolated at run time:
-```json
-{
-  "environment": "qa",
-  "baseUrl": "https://qa-app.company.com",
-  "apiBaseUrl": "https://qa-api.company.com",
-  "credentials": {
-    "username": "${QA_USERNAME}",
-    "password": "${QA_PASSWORD}"
-  }
-}
-```
-
----
-
-## 6. Self-Healing Capabilities
-
-When WebPilot executes visual steps, it is backed by a cognitive locator recovery system:
-1. If a button click or field input throws a locator `TimeoutException`, the **Self-Healing Agent** is invoked.
-2. It captures the current DOM element tree and matches textual and structural anchors to locate the candidate element.
-3. The healed locator is executed and persisted directly inside `/.healing-cache/cache.json`.
-4. Subsequent runs bypass the AI overhead, loading healed locators instantly for maximum speed and determinism.
-
----
-
-## 8. Docker & CI/CD Pipelines
-
-### Execute Containerized:
-Build and boot WebPilot using our included Noblesse-based Playwright container:
 ```bash
-# Build
-docker compose build
-
-# Run
-docker compose run webpilot
+webpilot init
+webpilot setup
+webpilot doctor
+webpilot create test checkout --template checkout-flow
+webpilot run tests/web/login.txt --env qa --headed --report
+webpilot replay
+webpilot report --html
+webpilot ci init
+webpilot ci run tests/web
+webpilot reports-tidy
+webpilot self-heal
 ```
 
-### GitHub Actions:
-Our workflow `.github/workflows/ai-test.yml` automatically triggers on push or pull requests, runs `doctor` validations, executes tests via `npm run webpilot`, and archives artifacts (traces, videos, reports).
+During local development, prefix commands with `npm run webpilot --` if you have not linked the CLI.
+
+`webpilot init` starts an interactive project wizard. It records your LLM provider, model/deployment, automation target, generated-code language, automation tool, test runner, and framework pattern in `resources/config/webpilot.yaml`. The current fully supported generated-code profile is TypeScript + Playwright, and the wizard also scaffolds starter templates for Python Playwright, Cypress, WebdriverIO, and Java Selenium profiles as the codegen backend expands.
+
+Author tests from templates:
+
+```bash
+webpilot create test checkout --template checkout-flow
+webpilot create api petstore
+```
+
+Scenario files can include metadata such as `@smoke`, `target: web`, `baseUrl: ...`, `codegen: true`, and `report: true` so the first run explains where reports, artifacts, and generated tests are written.
+
+## How It Works
+
+```text
+Natural language spec
+        |
+        v
+WebPilot CLI + Engine
+        |
+        +--> Browser Use agent for discovery and live navigation
+        +--> Playwright for deterministic browser automation
+        +--> Site knowledge for learned reusable actions
+        +--> Codegen for TypeScript specs and page objects
+        +--> Report service for static HTML dashboards and artifacts
+```
+
+The long-term goal is simple: make WebPilot the best open-source way to move from human-readable test intent to reliable, maintainable browser automation.
+
+## CI Mode
+
+Add a GitHub Actions workflow with one command:
+
+```bash
+webpilot ci init
+```
+
+Run with CI defaults and uploadable artifacts:
+
+```bash
+webpilot ci doctor --provider browser-use
+webpilot ci run tests/web --provider browser-use
+```
+
+CI artifacts are written under `runtime/reports/`, including `runtime/reports/artifact-manifest.json`.
+
+## WebPilot vs Playwright, Selenium, and Cypress
+
+WebPilot complements existing automation tools.
+
+- Use **Playwright/Selenium/Cypress** when you want to hand-code browser automation directly.
+- Use **WebPilot** when you want AI-assisted generation, autonomous execution, self-healing, knowledge reuse, and richer reports while still keeping Playwright-compatible output.
+
+WebPilot should feel familiar to automation engineers, but useful to product engineers, QA teams, and SDETs who want faster test creation and better failure diagnosis.
+
+## Documentation
+
+- [Quick start and usage](docs/USAGE.md)
+- [Framework guide](docs/FRAMEWORK_GUIDE.md)
+- [Configuration](docs/CONFIGURATION.md)
+- [Reporting](docs/REPORTING.md)
+- [Project structure](docs/PROJECT_STRUCTURE.md)
+- [Open-source roadmap](docs/OPEN_SOURCE_ROADMAP.md)
+
+## Open-Source Roadmap
+
+WebPilot is being shaped into a serious open-source automation project. The roadmap focuses on:
+
+- stable CLI and npm packaging
+- clean example projects
+- polished documentation
+- deterministic Playwright output
+- report UI improvements
+- self-healing and knowledge reuse
+- CI integrations
+- contributor-friendly architecture
+
+Read the full roadmap in [docs/OPEN_SOURCE_ROADMAP.md](docs/OPEN_SOURCE_ROADMAP.md).
+
+## Contributing
+
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), then check the roadmap for the highest-impact areas.
+
+Good first contribution areas:
+
+- documentation examples
+- sample tests against public demo sites
+- report UI polish
+- CLI error messages
+- provider configuration docs
+- deterministic replay improvements
+
+## Security
+
+Do not commit real API keys, access tokens, session cookies, traces with private data, or customer screenshots. Use `.env` for secrets and review generated artifacts before sharing them publicly.
+
+For vulnerability reporting, see [SECURITY.md](SECURITY.md).
+
+## License
+
+WebPilot is open source under the [ISC License](LICENSE).

@@ -14,21 +14,18 @@
     "types": ["node"],
     "ignoreDeprecations": "6.0",
     "paths": {
-      "@core/*": ["./framework/core/*"],
-      "@pages/*": ["./framework/pages/*"],
-      "@tests/*": ["./framework/tests/*"],
-      "@config/*": ["./framework/config/*"],
-      "@utils/*": ["./framework/utils/*"],
-      "@data/*": ["./framework/data/*"],
-      "@apis/*": ["./framework/apis/*"]
+      "@core/*": ["./packages/test-framework/core/*"],
+      "@pages/*": ["./packages/test-framework/pages/*"],
+      "@tests/*": ["./packages/test-framework/tests/*"],
+      "@config/*": ["./packages/test-framework/config/*"],
+      "@utils/*": ["./packages/test-framework/utils/*"],
+      "@data/*": ["./packages/test-framework/data/*"],
+      "@apis/*": ["./packages/test-framework/apis/*"]
     }
   },
   "include": [
-    "cli/**/*",
-    "core/**/*",
-    "agents/**/*",
-    "utils/**/*",
-    "framework/**/*"
+    "src/**/*",
+    "packages/test-framework/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

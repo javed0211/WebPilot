@@ -1,1 +1,0 @@
-{"id":"f737bb7b-2497-460c-8439-d5d95b4eb88c","timestamp":"2026-05-22T18:57:57.882135","source":"environment","code":"APIError","detail":"litellm.APIError: AzureException APIError - Must provide one of the `base_url` or `azure_endpoint` arguments, or the `AZURE_OPENAI_ENDPOINT` environment variable","kind":"ConversationErrorEvent"}

@@ -1,0 +1,126 @@
+# ====================================================================
+# WebPilot Master Configuration (YAML Format)
+# ====================================================================
+
+# 1. Framework General Options
+framework:
+  name: "WebPilot AI-Native QE Framework"
+  version: "1.0.0"
+  activeProvider: "azure"
+  defaultEnvironment: "qa"
+  interactive: true
+  useBrowserUse: true
+  codegenMode: deterministic # deterministic | llm | auto (auto falls back to LLM if validation fails)
+  healingCachePath: "./runtime/healing-cache/cache.json"
+  generatedCodePath: "./packages/test-framework"
+  validationLoopEnabled: true
+  validationRetries: 3
+  reportsPath: "./runtime/reports"
+  artifactsPath: "./runtime/artifacts"
+  htmlReport: true # generate reports/index.html after each browser-use run
+  htmlReportAiAnalysis: true # LLM quality analysis section (editable in prompts/reports/)
+  apiCodegenEnabled: true # generate packages/test-framework/apis + packages/test-framework/tests/api after successful API runs
+  useApiPlaywright: true # execute API tests via Playwright request (not axios)
+
+# 2. Intelligent runner and learned site knowledge
+intelligentRunner:
+  enabled: true
+  knowledgePath: "./runtime/site-knowledge/knowledge.json"
+  scopedAgentMaxSteps: 12
+  # Performance tuning: speeds up execution without lowering execution/codegen quality.
+  # The independent LLM judge is the most expensive add-on (one extra LLM call per
+  # step). It does NOT override the agent's own success/failure self-report, so it is
+  # only needed as a false-positive guard on assertion steps.
+  performance:
+    judgeMode: "verification" # verification | always | off — run the judge only on verify/assert steps
+    maxActionsPerStep: 6      # let the agent batch more actions per LLM round-trip
+    useVision: "auto"         # auto | always | off
+    useThinking: true         # keep model reasoning (quality)
+    flashMode: false          # true skips eval/next-goal/thinking (fastest, lower quality)
+    # Browser wait tuning in seconds. Page-load / network-idle waits keep browser-use
+    # defaults (null) so the agent never acts on a not-yet-settled DOM (reliability).
+    # Only the pure dead-time between actions is trimmed (0.5 -> 0.3).
+    minPageLoadWait: null
+    networkIdleWait: null
+    waitBetweenActions: 0.3
+
+# 3. Browser Execution Options
+browser:
+  target: "chrome" # chrome (Google Chrome), chromium, msedge — browser-use channel
+  headless: false
+  video: "on" # off, on, retain-on-failure — "on" records every WebPilot/browser-use run
+  screenshots: "only-on-failure" # off, on, only-on-failure
+  trace: "on" # off, on, retain-on-failure — saves Playwright trace zips under reports/traces
+  viewport:
+    width: 1280
+    height: 720
+  # TestMu AI remote browser (browser-use connects via CDP WebSocket)
+  testmu:
+    enabled: false
+    username: "${TESTMU_USERNAME}"
+    accessKey: "${TESTMU_ACCESS_KEY}"
+    adapter: "puppeteer" # puppeteer (browser-use / raw CDP) | playwright
+    browserName: "Chrome" # Chrome | MicrosoftEdge | pw-chromium | pw-firefox | pw-webkit
+    browserVersion: "latest"
+    platform: "Windows 10"
+    build: "WebPilot"
+    name: "WebPilot Test" # overridden per run with the test file slug
+    network: true
+    video: true
+    console: true
+    tunnel: false
+    tunnelName: ""
+    geoLocation: ""
+  emulateMobile: false
+  permissions:
+    - "geolocation"
+    - "notifications"
+  networkThrottling: "none"
+  downloadsPath: "./runtime/artifacts/downloads"
+
+# 3b. Browser Provider Matrix
+browserProviders:
+  active: "browser-use" # local-playwright | browser-use | testmu | remote-cdp | selenium-grid | browserstack | lambdatest
+  local-playwright:
+    browserName: "chromium"
+    headless: true
+  browser-use:
+    browserName: "chrome"
+    headless: false
+  remote-cdp:
+    endpoint: "${REMOTE_CDP_URL}"
+  selenium-grid:
+    endpoint: "${SELENIUM_GRID_URL}"
+  testmu:
+    enabled: false
+    username: "${TESTMU_USERNAME}"
+    accessKey: "${TESTMU_ACCESS_KEY}"
+    adapter: "puppeteer"
+    browserName: "Chrome"
+    browserVersion: "latest"
+    platform: "Windows 10"
+
+# 4. Test Runner & Execution Options
+execution:
+  parallelWorkers: 4
+  timeout: 60000
+  retries: 1
+  sharding:
+    enabled: false
+    totalShards: 1
+    shardIndex: 0
+  selfHealing:
+    enabled: true
+    similarityThreshold: 0.7
+    autoUpdateCache: true
+  reporters:
+    - "html"
+    - "json"
+    - "junit"
+  accessibilityTesting:
+    enabled: true
+    standards:
+      - "WCAG2AA"
+  visualTesting:
+    enabled: false
+    diffTolerance: 0.05

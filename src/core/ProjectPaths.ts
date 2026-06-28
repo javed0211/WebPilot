@@ -1,0 +1,23 @@
+import * as path from 'path';
+
+export const PROJECT_ROOT = path.resolve(process.env.WEBPILOT_PROJECT_ROOT || process.cwd());
+export const SOURCE_ROOT = path.join(PROJECT_ROOT, 'src');
+export const PACKAGES_ROOT = path.join(PROJECT_ROOT, 'packages');
+export const TEST_FRAMEWORK_ROOT = path.join(PACKAGES_ROOT, 'test-framework');
+export const RESOURCES_ROOT = path.join(PROJECT_ROOT, 'resources');
+export const CONFIG_ROOT = path.join(RESOURCES_ROOT, 'config');
+export const PROMPTS_ROOT = path.join(RESOURCES_ROOT, 'prompts');
+export const ASSETS_ROOT = path.join(RESOURCES_ROOT, 'assets');
+export const RUNTIME_ROOT = path.join(PROJECT_ROOT, 'runtime');
+export const REPORTS_ROOT = path.join(RUNTIME_ROOT, 'reports');
+export const ARTIFACTS_ROOT = path.join(RUNTIME_ROOT, 'artifacts');
+export const HEALING_CACHE_ROOT = path.join(RUNTIME_ROOT, 'healing-cache');
+export const KNOWLEDGE_ROOT = path.join(RUNTIME_ROOT, 'knowledge');
+export const KNOWLEDGE_GRAPH_PATH = path.join(KNOWLEDGE_ROOT, 'knowledge-graph.json');
+export const CODEGEN_ROOT = path.join(RUNTIME_ROOT, 'codegen');
+export const CODEGEN_TRACES_DIR = path.join(CODEGEN_ROOT, 'traces');
+export const CODEGEN_PLANS_DIR = path.join(CODEGEN_ROOT, 'plans');
+export const CODEGEN_HISTORY_DIR = path.join(CODEGEN_ROOT, 'history');
+export const SELECTORS_ROOT = path.join(RUNTIME_ROOT, 'selectors');
+export const SELECTOR_REGISTRY_PATH = path.join(SELECTORS_ROOT, 'registry.json');
+export const HEALING_PROPOSALS_DIR = path.join(SELECTORS_ROOT, 'healing-proposals');

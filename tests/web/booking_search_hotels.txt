@@ -1,0 +1,15 @@
+@smoke @booking @search
+Test: Search for Hotels on Booking.com
+
+1. Navigate to https://www.booking.com/
+2. If a cookie consent dialog is visible, accept or dismiss it
+3. Verify the Booking.com logo and accommodation search form are visible
+4. Enter "London" in the destination field
+5. Select London, United Kingdom from the destination suggestions
+6. Open the date picker
+7. Select a check-in date at least 7 days from today
+8. Select a check-out date 2 days after the selected check-in date
+9. Click the Search button
+10. Verify the search results page is displayed
+11. Verify the destination is London and accommodation results are visible
+

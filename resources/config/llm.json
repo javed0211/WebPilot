@@ -1,0 +1,37 @@
+{
+  "google": {
+    "model": "gemini-2.5-flash",
+    "apiKey": "YOUR_GEMINI_API_KEY"
+  },
+  "openai": {
+    "model": "gpt-4o",
+    "apiKey": "YOUR_OPENAI_API_KEY"
+  },
+  "anthropic": {
+    "model": "claude-3-5-sonnet",
+    "apiKey": "YOUR_ANTHROPIC_API_KEY"
+  },
+  "ollama": {
+    "model": "llama3",
+    "endpoint": "http://localhost:11434"
+  },
+  "azure": {
+    "model": "gpt-4.1",
+    "endpoint": "https://rfpqualityai2.services.ai.azure.com/",
+    "deploymentId": "gpt-4.1",
+    "apiVersion": "2024-12-01-preview",
+    "apiKey": ""
+  },
+  "aws": {
+    "model": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "region": "us-east-1",
+    "apiKey": "YOUR_AWS_ACCESS_KEY_ID",
+    "secretKey": "YOUR_AWS_SECRET_ACCESS_KEY"
+  },
+  "gcp": {
+    "model": "gemini-2.5-flash",
+    "projectId": "your-gcp-project-id",
+    "region": "us-central1",
+    "apiKey": "YOUR_GCP_API_KEY"
+  }
+}

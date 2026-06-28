@@ -1,26 +1,83 @@
 {
-  "name": "webpilot",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "@qubiqlabs/webpilot",
+  "version": "1.0.1",
+  "description": "AI-native web automation on top of Playwright: natural language execution, codegen, healing, and reports",
+  "main": "./dist/src/cli/index.js",
   "bin": {
-    "webpilot": "./cli/index.ts"
+    "webpilot": "./dist/src/cli/index.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist/",
+    "!dist/packages/test-framework/tests/",
+    "src/**/*.py",
+    "packages/browser-use/browser_use/",
+    "!packages/browser-use/browser_use/**/tests/",
+    "!packages/browser-use/browser_use/**/playground/",
+    "packages/browser-use/pyproject.toml",
+    "packages/browser-use/LICENSE",
+    "packages/browser-use/README.md",
+    "packages/browser-use/WEBPILOT_CUSTOMIZATION.md",
+    "resources/config/",
+    "resources/templates/",
+    "resources/prompts/",
+    "resources/report-ui/",
+    "resources/assets/webpilot-logo.png",
+    "resources/assets/webpilot-logo-light.png",
+    "resources/assets/webpilot-logo-dark.png",
+    ".env.example",
+    "requirements.txt",
+    "scripts/setup-python.sh",
+    "docs/*.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "webpilot": "ts-node cli/index.ts",
-    "doctor": "ts-node cli/index.ts doctor",
+    "build": "tsc",
+    "prepack": "npm run build",
+    "webpilot": "node dist/src/cli/index.js",
+    "webpilot:dev": "ts-node src/cli/index.ts",
+    "doctor": "node dist/src/cli/index.js doctor",
+    "ci": "node dist/src/cli/index.js ci run",
     "setup": "bash scripts/setup-python.sh",
-    "postinstall": "bash scripts/setup-python.sh || true",
-    "init": "ts-node cli/index.ts init",
-    "report": "ts-node cli/index.ts report",
-    "report:html": "ts-node cli/index.ts report --html"
+    "init": "node dist/src/cli/index.js init",
+    "report": "node dist/src/cli/index.js report",
+    "report:html": "node dist/src/cli/index.js report --html",
+    "check:architecture": "node scripts/check-browser-use-boundary.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "web-automation",
+    "playwright",
+    "selenium",
+    "testing",
+    "e2e-testing",
+    "ai-testing",
+    "browser-automation",
+    "test-automation",
+    "self-healing-tests",
+    "codegen",
+    "qa",
+    "sdet"
+  ],
+  "homepage": "https://github.com/javed0211/WebPilot#readme",
+  "bugs": {
+    "url": "https://github.com/javed0211/WebPilot/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/javed0211/WebPilot.git"
+  },
+  "author": "WebPilot contributors",
   "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "commonjs",
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
     "@types/inquirer": "^9.0.9",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.0",
@@ -29,6 +86,8 @@
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
+    "@playwright/test": "^1.60.0",
+    "@vscode/tree-sitter-wasm": "^0.3.1",
     "ajv": "^8.20.0",
     "axios": "^1.16.1",
     "chalk": "^4.1.2",
@@ -37,6 +96,7 @@
     "inquirer": "^8.2.7",
     "js-yaml": "^4.1.1",
     "ora": "^5.4.1",
-    "playwright": "^1.60.0"
+    "playwright": "^1.60.0",
+    "web-tree-sitter": "^0.26.9"
   }
 }

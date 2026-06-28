@@ -1,0 +1,177 @@
+import { TraceSelector, TraceStep } from './ExecutionTrace';
+import { AssertionEmitter } from '../assertions/AssertionEmitter';
+
+export function escapeTsString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+export function locatorExpression(selector: TraceSelector | undefined, receiver = 'page'): string | null {
+  if (!selector) return null;
+
+  if (selector.expression) {
+    const expr = selector.expression.trim();
+    if (expr.startsWith('page.')) return expr.replace(/^page\./, `${receiver}.`);
+    if (expr.startsWith('this.page.')) return expr.replace(/^this\.page\./, `${receiver}.`);
+    return `${receiver}.${expr}`;
+  }
+
+  switch (selector.kind) {
+    case 'role': {
+      const match = selector.value.match(/^([^[]+)(?:\[name='([^']+)'\])?$/);
+      if (!match) return `${receiver}.getByRole('button')`;
+      const role = match[1];
+      const name = match[2];
+      return name
+        ? `${receiver}.getByRole('${escapeTsString(role)}', { name: '${escapeTsString(name)}' })`
+        : `${receiver}.getByRole('${escapeTsString(role)}')`;
+    }
+    case 'label':
+      return `${receiver}.getByLabel('${escapeTsString(selector.value)}')`;
+    case 'placeholder':
+      return `${receiver}.getByPlaceholder('${escapeTsString(selector.value)}')`;
+    case 'testid':
+      return `${receiver}.getByTestId('${escapeTsString(selector.value)}')`;
+    case 'text':
+      return `${receiver}.getByText('${escapeTsString(selector.value)}')`;
+    case 'css':
+    case 'xpath':
+      return `${receiver}.locator('${escapeTsString(selector.value)}')`;
+    default:
+      return `${receiver}.locator('${escapeTsString(selector.value)}')`;
+  }
+}
+
+function selectorMetadataComment(selector: TraceSelector | undefined): string[] {
+  if (!selector) return [];
+  const pieces = [`confidence ${selector.confidence.toFixed(2)}`];
+  if (selector.signals?.length) pieces.push(`signals: ${selector.signals.join(', ')}`);
+  if (selector.risks?.length) pieces.push(`risks: ${selector.risks.join(', ')}`);
+  const comments = [`// selector: ${pieces.join('; ')}`];
+  if (selector.fallbacks?.length) {
+    comments.push(
+      `// fallbacks: ${selector.fallbacks
+        .map((fallback) => `${fallback.expression || fallback.value} (${fallback.confidence.toFixed(2)})`)
+        .join(' | ')}`
+    );
+  }
+  return comments;
+}
+
+export function methodNameFromStep(step: TraceStep, used: Set<string>): string {
+  if (step.action === 'navigate') return ensureUnique('goto', used, step.index);
+
+  const words = step.intent
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  let base =
+    words.length > 0
+      ? words
+          .map((word, index) =>
+            index === 0
+              ? word.toLowerCase()
+              : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join('')
+      : `${step.action}Step`;
+
+  if (step.action === 'click' && !base.toLowerCase().startsWith('click')) {
+    base = `click${base.charAt(0).toUpperCase()}${base.slice(1)}`;
+  }
+  if (step.action === 'fill' && !base.toLowerCase().startsWith('fill')) {
+    base = `fill${base.charAt(0).toUpperCase()}${base.slice(1)}`;
+  }
+  if (step.action === 'assert' && !base.toLowerCase().startsWith('assert')) {
+    base = `assert${base.charAt(0).toUpperCase()}${base.slice(1)}`;
+  }
+
+  base = base.replace(/[^a-zA-Z0-9]/g, '');
+  if (!base) base = `${step.action}Step${step.index}`;
+  return ensureUnique(base, used, step.index);
+}
+
+function ensureUnique(base: string, used: Set<string>, index: number): string {
+  let name = base;
+  let counter = 1;
+  while (used.has(name)) {
+    name = `${base}${counter}`;
+    counter++;
+  }
+  used.add(name);
+  return name;
+}
+
+export function pageMethodBody(step: TraceStep): string[] {
+  const locator = locatorExpression(step.selector, 'this.page');
+  const metadata = selectorMetadataComment(step.selector);
+  const assertionLines = (step.assertions || []).flatMap((assertion) =>
+    AssertionEmitter.typeScriptPlaywright(assertion, 'this.page')
+  );
+  switch (step.action) {
+    case 'navigate':
+      return step.url ? [`await this.navigate('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
+    case 'click':
+      if (!locator) return [`// click: ${step.intent}`];
+      return [...metadata, `await ${locator}.click();`, ...assertionLines];
+    case 'fill':
+      if (!locator) return [`// fill: ${step.intent}`];
+      return [...metadata, `await ${locator}.fill('${escapeTsString(step.value || '')}');`, ...assertionLines];
+    case 'select':
+      if (!locator) return [`// select: ${step.intent}`];
+      return [...metadata, `await ${locator}.selectOption('${escapeTsString(step.value || '')}');`, ...assertionLines];
+    case 'assert':
+      return assertionLines.length > 0 ? assertionLines : locator ? [...metadata, `await expect(${locator}).toBeVisible();`] : [`// assert: ${step.intent}`];
+    case 'wait':
+      return [`await this.page.waitForLoadState('networkidle');`, ...assertionLines];
+    default:
+      return [`// ${step.action}: ${step.intent}`];
+  }
+}
+
+export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
+  const locator = locatorExpression(step.selector, pageVar);
+  const metadata = selectorMetadataComment(step.selector);
+  const assertionLines = (step.assertions || []).flatMap((assertion) =>
+    AssertionEmitter.typeScriptPlaywright(assertion, pageVar)
+  );
+  switch (step.action) {
+    case 'navigate':
+      return step.url ? [`await ${pageVar}.goto('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
+    case 'click':
+      return locator ? [...metadata, `await ${locator}.click();`, ...assertionLines] : [`// click: ${step.intent}`, ...assertionLines];
+    case 'fill':
+      return locator
+        ? [...metadata, `await ${locator}.fill('${escapeTsString(step.value || '')}');`, ...assertionLines]
+        : [`// fill: ${step.intent}`, ...assertionLines];
+    case 'select':
+      return locator
+        ? [...metadata, `await ${locator}.selectOption('${escapeTsString(step.value || '')}');`, ...assertionLines]
+        : [`// select: ${step.intent}`, ...assertionLines];
+    case 'assert':
+      if (assertionLines.length > 0) return assertionLines;
+      if (locator) return [...metadata, `await expect(${locator}).toBeVisible();`];
+      if (step.value) return [`await expect(${pageVar}.getByText('${escapeTsString(step.value)}')).toBeVisible();`];
+      return [`// assert: ${step.intent}`];
+    case 'wait':
+      return [`await ${pageVar}.waitForLoadState('networkidle');`, ...assertionLines];
+    default:
+      return [`// ${step.action}: ${step.intent}`];
+  }
+}
+
+export function relativeImportPath(fromFile: string, targetFile: string): string {
+  const fromDir = fromFile.split('/').slice(0, -1);
+  const targetParts = targetFile.replace(/\.ts$/, '').split('/');
+  let common = 0;
+  while (
+    common < fromDir.length &&
+    common < targetParts.length &&
+    fromDir[common] === targetParts[common]
+  ) {
+    common++;
+  }
+  const up = '../'.repeat(fromDir.length - common);
+  const down = targetParts.slice(common).join('/');
+  return `${up}${down}`;
+}

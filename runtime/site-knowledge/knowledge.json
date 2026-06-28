@@ -1,0 +1,616 @@
+{
+  "schemaVersion": 2,
+  "capabilities": [
+    {
+      "id": "b7a985b3dc8eb9920867",
+      "step": "Navigate to https://www.wikipedia.org/",
+      "stepSignature": "navigate to https://www.wikipedia.org/",
+      "origin": "www.wikipedia.org",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "navigate",
+          "url": "https://www.wikipedia.org/",
+          "newTab": false
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 3,
+      "status": "trusted",
+      "updatedAt": "2026-06-23T08:18:06.576115+00:00"
+    },
+    {
+      "id": "4725c4191a7b6a175818",
+      "step": "Enter \"Browser automation\" in the search input",
+      "stepSignature": "enter \"browser automation\" in the search input",
+      "origin": "www.wikipedia.org",
+      "before": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "input",
+          "locators": [
+            {
+              "kind": "css",
+              "value": "input[id=\"searchInput\"]"
+            },
+            {
+              "kind": "css",
+              "value": "input[name=\"search\"]"
+            }
+          ],
+          "value": "Browser automation",
+          "clear": true
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 3,
+      "status": "trusted",
+      "updatedAt": "2026-06-23T08:18:06.816778+00:00"
+    },
+    {
+      "id": "3c259b275a09921cf895",
+      "step": "Navigate to https://automationexercise.com/",
+      "stepSignature": "navigate to https://automationexercise.com/",
+      "origin": "automationexercise.com",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "navigate",
+          "url": "https://automationexercise.com/",
+          "newTab": false
+        }
+      ],
+      "after": {
+        "urlPattern": "https://automationexercise.com/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "susbscribe_email",
+              "placeholder": "Your email address"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "aria-label": "This site asks for consent to use your data",
+              "role": "dialog"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Learn more",
+              "role": "button"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Consent",
+              "role": "button"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 11,
+      "status": "trusted",
+      "updatedAt": "2026-06-27T23:57:12.359467+00:00"
+    },
+    {
+      "id": "3daa69c93f38a0b5599b",
+      "step": "Click Products in the navigation menu",
+      "stepSignature": "click products in the navigation menu",
+      "origin": "automationexercise.com",
+      "before": {
+        "urlPattern": "https://automationexercise.com/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "susbscribe_email",
+              "placeholder": "Your email address"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "aria-label": "This site asks for consent to use your data",
+              "role": "dialog"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Learn more",
+              "role": "button"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Consent",
+              "role": "button"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "click",
+          "locators": [
+            {
+              "kind": "text",
+              "value": "\ue8f8\n Products",
+              "tag": "a"
+            }
+          ]
+        }
+      ],
+      "after": {
+        "urlPattern": "https://automationexercise.com/products",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "search_product",
+              "name": "search",
+              "placeholder": "Search Product"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "susbscribe_email",
+              "placeholder": "Your email address"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "aria-label": "This site asks for consent to use your data",
+              "role": "dialog"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Learn more",
+              "role": "button"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 10,
+      "status": "trusted",
+      "updatedAt": "2026-06-27T23:57:13.209701+00:00"
+    },
+    {
+      "id": "61e304d71cf42de0a81f",
+      "step": "Add the first product to the cart",
+      "stepSignature": "add the first product to the cart",
+      "origin": "automationexercise.com",
+      "before": {
+        "urlPattern": "https://automationexercise.com/products",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "search_product",
+              "name": "search",
+              "placeholder": "Search Product"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "susbscribe_email",
+              "placeholder": "Your email address"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "aria-label": "This site asks for consent to use your data",
+              "role": "dialog"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Learn more",
+              "role": "button"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "click",
+          "locators": [
+            {
+              "kind": "text",
+              "value": "Add to cart",
+              "tag": "a"
+            }
+          ]
+        }
+      ],
+      "after": {
+        "urlPattern": "https://automationexercise.com/products",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "search_product",
+              "name": "search",
+              "placeholder": "Search Product"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "susbscribe_email",
+              "placeholder": "Your email address"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "aria-label": "This site asks for consent to use your data",
+              "role": "dialog"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Learn more",
+              "role": "button"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 10,
+      "status": "trusted",
+      "updatedAt": "2026-06-27T23:57:15.240974+00:00"
+    },
+    {
+      "id": "395054ecd7e050faa480",
+      "step": "Verify the product appears in the cart",
+      "stepSignature": "verify the product appears in the cart",
+      "origin": "automationexercise.com",
+      "before": {
+        "urlPattern": "https://automationexercise.com/products",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "search_product",
+              "name": "search",
+              "placeholder": "Search Product"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "susbscribe_email",
+              "placeholder": "Your email address"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "aria-label": "This site asks for consent to use your data",
+              "role": "dialog"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Learn more",
+              "role": "button"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "click",
+          "locators": [
+            {
+              "kind": "text",
+              "value": "View Cart",
+              "tag": "a"
+            }
+          ]
+        }
+      ],
+      "after": {
+        "urlPattern": "https://automationexercise.com/view_cart",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "susbscribe_email",
+              "placeholder": "Your email address"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "aria-label": "This site asks for consent to use your data",
+              "role": "dialog"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Learn more",
+              "role": "button"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Consent",
+              "role": "button"
+            }
+          }
+        ],
+        "evidence": [
+          {
+            "tag": "img",
+            "text": "Product Image"
+          }
+        ]
+      },
+      "failureCount": 0,
+      "successCount": 3,
+      "status": "trusted",
+      "updatedAt": "2026-06-27T23:57:16.764735+00:00",
+      "lastFailure": "learned postcondition did not match"
+    },
+    {
+      "id": "a3859abe55c426430a1a",
+      "step": "Verify that the home page is visible successfully",
+      "stepSignature": "verify that the home page is visible successfully",
+      "origin": "automationexercise.com",
+      "before": {
+        "urlPattern": "https://automationexercise.com/",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://automationexercise.com/",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 7,
+      "status": "trusted",
+      "updatedAt": "2026-06-27T23:57:12.367161+00:00"
+    },
+    {
+      "id": "e66a39fc053500e8c4ed",
+      "step": "Navigate to https://www.booking.com/",
+      "stepSignature": "navigate to https://www.booking.com/",
+      "origin": "www.booking.com",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "navigate",
+          "url": "https://www.booking.com/",
+          "newTab": false
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.booking.com/index.en-gb.html",
+        "anchors": [
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "layout-block",
+              "id": "HeaderRegion"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "tracking-wrapper"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "web-shell-header-mfe"
+            }
+          },
+          {
+            "tag": "span",
+            "attrs": {
+              "data-testid": "header-logo"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 1,
+      "successCount": 7,
+      "status": "trusted",
+      "updatedAt": "2026-06-28T00:10:16.810267+00:00",
+      "lastFailure": "learned postcondition did not match"
+    },
+    {
+      "id": "8d3e7bdd6f62d09bff67",
+      "step": "If a cookie consent dialog is visible, accept or dismiss it",
+      "stepSignature": "if a cookie consent dialog is visible, accept or dismiss it",
+      "origin": "www.booking.com",
+      "before": {
+        "urlPattern": "https://www.booking.com/index.en-gb.html",
+        "anchors": [
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "layout-block",
+              "id": "HeaderRegion"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "tracking-wrapper"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "web-shell-header-mfe"
+            }
+          },
+          {
+            "tag": "span",
+            "attrs": {
+              "data-testid": "header-logo"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "click",
+          "locators": [
+            {
+              "kind": "role",
+              "value": "button",
+              "name": "Accept"
+            },
+            {
+              "kind": "css",
+              "value": "button[id=\"onetrust-accept-btn-handler\"]"
+            },
+            {
+              "kind": "text",
+              "value": "Accept",
+              "tag": "button"
+            }
+          ]
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.booking.com/index.en-gb.html",
+        "anchors": [
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "layout-block",
+              "id": "HeaderRegion"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "tracking-wrapper"
+            }
+          },
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "web-shell-header-mfe"
+            }
+          },
+          {
+            "tag": "span",
+            "attrs": {
+              "data-testid": "header-logo"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 8,
+      "status": "trusted",
+      "updatedAt": "2026-06-28T00:10:17.404482+00:00"
+    },
+    {
+      "id": "30d40ae0e8054776ec1a",
+      "step": "Verify the Booking.com logo and accommodation search form are visible",
+      "stepSignature": "verify the booking.com logo and accommodation search form are visible",
+      "origin": "www.booking.com",
+      "before": {
+        "urlPattern": "https://www.booking.com/index.en-gb.html",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.booking.com/index.en-gb.html",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 8,
+      "status": "trusted",
+      "updatedAt": "2026-06-28T00:10:17.412924+00:00"
+    }
+  ]
+}

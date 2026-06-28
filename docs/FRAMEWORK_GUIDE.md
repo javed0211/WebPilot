@@ -8,6 +8,7 @@ This guide covers architecture, test authoring, CLI commands, generated code, re
 
 | Document | Use when you need… |
 |----------|-------------------|
+| [guides/README.md](./guides/README.md) | **Detailed feature guides** (intelligent runner, codegen, healing, CI, …) |
 | [USAGE.md](./USAGE.md) | Quick install and first run |
 | [CONFIGURATION.md](./CONFIGURATION.md) | `webpilot.yaml`, `llm.json`, environments, prompts |
 | [REPORTING.md](./REPORTING.md) | HTML reports, JSON artifacts, CLI, AI analysis, CI |
@@ -39,12 +40,12 @@ This guide covers architecture, test authoring, CLI commands, generated code, re
 | Concept | Description |
 |---------|-------------|
 | **Natural language spec** | A `.txt` file in `tests/web/` or `tests/api/` describing what to test |
-| **Environment** | Target URLs and credentials from `config/environments/<env>.json` (e.g. `qa`, `dev`, `prod`) |
-| **Engine** | Orchestrator in `core/Engine.ts` — routes UI tests to browser-use or the legacy multi-agent path |
-| **browser-use** | Python agent (`core/browser_use_runner.py`) that drives Chrome with an LLM (default UI path) |
-| **Codegen** | After a successful run, WebPilot writes Page Object Models and Playwright specs under `framework/` |
-| **Symbol graph** | AST index of existing page methods (`framework/symbol_graph.json`) so codegen extends rather than duplicates |
-| **Healing cache** | Local map of broken → fixed selectors (`healing-cache/cache.json`) |
+| **Environment** | Target URLs and credentials from `resources/config/environments/<env>.json` (e.g. `qa`, `dev`, `prod`) |
+| **Engine** | Orchestrator in `src/core/Engine.ts` — routes UI tests to browser-use or the legacy multi-agent path |
+| **browser-use** | Vendored engine in `packages/browser-use`, invoked through `src/integrations/browser_use` |
+| **Codegen** | After a successful run, WebPilot writes Page Object Models and Playwright specs under `packages/test-framework/` |
+| **Symbol graph** | AST index of existing page methods (`packages/test-framework/symbol_graph.json`) so codegen extends rather than duplicates |
+| **Healing cache** | Local map of broken → fixed selectors (`runtime/healing-cache/cache.json`) |
 
 **Two test types**
 
@@ -59,14 +60,14 @@ This guide covers architecture, test authoring, CLI commands, generated code, re
 
 ```mermaid
 flowchart TB
-  CLI["CLI (cli/index.ts)"]
+  CLI["CLI (src/cli/index.ts)"]
   CLI --> Run{Test type?}
 
-  Run -->|Web .txt| Engine["Engine (core/Engine.ts)"]
-  Run -->|API .txt / OpenAPI| ApiEngine["ApiEngine (core/ApiEngine.ts)"]
+  Run -->|Web .txt| Engine["Engine (src/core/Engine.ts)"]
+  Run -->|API .txt / OpenAPI| ApiEngine["ApiEngine (src/core/ApiEngine.ts)"]
 
   Engine --> BU{useBrowserUse?}
-  BU -->|true default| BrowserUse["browser_use_runner.py"]
+  BU -->|true default| BrowserUse["src/integrations/browser_use"]
   BU -->|false| Legacy["Legacy multi-agent loop"]
 
   BrowserUse --> Chrome["Chrome + LLM agent"]
@@ -83,21 +84,21 @@ flowchart TB
   Parser --> ApiRunner["ApiRunnerPlaywright"]
   ApiRunner --> ApiCodegen["ApiCodegenService"]
 
-  CodegenWriter --> Framework["framework/pages + framework/tests"]
-  ApiCodegen --> FrameworkApi["framework/apis + framework/tests/api"]
+  CodegenWriter --> Framework["packages/test-framework/pages + packages/test-framework/tests"]
+  ApiCodegen --> FrameworkApi["packages/test-framework/apis + packages/test-framework/tests/api"]
 ```
 
 ### UI execution paths
 
-WebPilot supports two UI execution modes, controlled by `framework.useBrowserUse` in `config/webpilot.yaml`:
+WebPilot supports two UI execution modes, controlled by `framework.useBrowserUse` in `resources/config/webpilot.yaml`:
 
 #### Path A — browser-use (default, recommended)
 
-1. CLI invokes `core/browser_use_runner.py` with the test file and environment name.
-2. Python loads LLM config from `core/llm_config.py` (merges `config/llm.json` + `.env`).
+1. CLI invokes `python -m integrations.browser_use` with the test file and environment name.
+2. The adapter loads LLM config from `src/integrations/browser_use/llm_config.py` (merges `resources/config/llm.json` + `.env`).
 3. The **browser-use** agent opens Chrome (with WebPilot branding overlay) and executes your natural language steps.
-4. Execution history is saved to `reports/<test>_execution_history.json`.
-5. Codegen produces candidate files in `framework/temp_codegen.json`.
+4. Execution history is saved to `runtime/reports/<test>_execution_history.json`.
+5. Codegen produces candidate files in `packages/test-framework/temp_codegen.json`.
 6. **CodegenWriter** merges new methods into existing POMs via AST (`SymbolParser`), validates TypeScript, and auto-fixes up to 2 rounds.
 7. HTML report is generated if `framework.htmlReport: true`.
 
@@ -117,17 +118,17 @@ Interactive mode (`webpilot interactive`) uses the legacy engine with human appr
 
 1. **ApiTestParser** reads the file — regex for structured lines, LLM fallback for free-form prose, or OpenAPI import.
 2. **ApiRunnerPlaywright** runs steps: HTTP requests, variable extraction, assertions.
-3. On success, **ApiCodegenService** generates `framework/apis/<Name>Api.ts` and `framework/tests/api/<slug>.api.spec.ts`.
+3. On success, **ApiCodegenService** generates `packages/test-framework/apis/<Name>Api.ts` and `packages/test-framework/tests/api/<slug>.api.spec.ts`.
 
 ### Agent responsibilities
 
 | Agent | File | Role |
 |-------|------|------|
-| Planner | `agents/PlannerAgent.ts` | NL → atomic step plan (legacy path) |
-| Execution | `agents/ExecutionAgent.ts` | DOM-aware action decisions |
-| Validation | `agents/ValidationAgent.ts` | Assertion verification |
-| Healing | `agents/HealingAgent.ts` | Locator recovery + cache |
-| Codegen | `agents/CodegenAgent.ts` | Playwright TS generation (legacy path) |
+| Planner | `src/agents/PlannerAgent.ts` | NL → atomic step plan (legacy path) |
+| Execution | `src/agents/ExecutionAgent.ts` | DOM-aware action decisions |
+| Validation | `src/agents/ValidationAgent.ts` | Assertion verification |
+| Healing | `src/agents/HealingAgent.ts` | Locator recovery + cache |
+| Codegen | `src/agents/CodegenAgent.ts` | Playwright TS generation (legacy path) |
 
 ---
 
@@ -135,45 +136,41 @@ Interactive mode (`webpilot interactive`) uses the legacy engine with human appr
 
 ```
 WebPilot/
-├── cli/                    # CLI entry (Commander.js)
-├── config/
-│   ├── webpilot.yaml       # Framework, browser, execution settings
-│   ├── llm.json            # LLM providers (placeholders in repo)
-│   └── environments/       # dev.json, qa.json, prod.json
+├── src/                    # WebPilot application source
+│   ├── cli/                # CLI entry (Commander.js)
+│   ├── core/               # Engines, codegen, reporting
+│   ├── agents/             # Legacy TypeScript agent path
+│   ├── integrations/       # External runtime adapters
+│   └── utils/              # Logging, display, pricing
+├── packages/
+│   ├── browser-use/        # Vendored upstream Browser Use engine
+│   └── test-framework/     # Playwright framework and generated code
+│       ├── core/           # BasePage, BaseAPI, fixtures
+│       ├── pages/          # Page Object Models
+│       ├── apis/           # Generated API clients
+│       ├── tests/          # Generated Playwright specs
+│       ├── config/         # Playwright-side ConfigManager
+│       └── playwright.config.ts
+├── resources/
+│   ├── config/             # WebPilot and environment configuration
+│   ├── prompts/            # Editable LLM prompts
+│   └── assets/             # Logos and committed demo media
 ├── tests/
 │   ├── web/                # Natural language UI specs (.txt)
 │   ├── api/                # Natural language API specs (.txt)
 │   └── fixtures/           # Files for upload scenarios (e.g. sample.txt)
-├── core/
-│   ├── Engine.ts           # Main UI orchestrator
-│   ├── ApiEngine.ts        # API orchestrator
-│   ├── browser_use_runner.py # Default UI runner (Python)
-│   ├── llm_config.py       # Shared LLM credential resolution
-│   ├── api/                # API parser, runner, OpenAPI loader, codegen
-│   └── execution_report/   # HTML/Markdown report generation
-├── agents/                 # Multi-agent components (legacy UI path)
-├── framework/              # Generated + canonical Playwright code
-│   ├── core/               # BasePage, BaseAPI, fixtures
-│   ├── pages/              # Page Object Models
-│   ├── apis/               # Generated API client classes
-│   ├── tests/              # Generated .spec.ts files
-│   ├── config/             # Playwright-side ConfigManager
-│   ├── playwright.config.ts
-│   └── symbol_graph.json   # AST index of page methods
-├── prompts/                # Editable LLM prompts (codegen, locators, reports)
-├── reports/                # Run artifacts (gitignored)
-├── healing-cache/          # Self-healing selector cache (gitignored)
-└── scripts/
-    └── setup-python.sh     # Creates .venv with browser-use
+├── runtime/                # Generated reports, artifacts, caches, local state
+├── docs/                   # Architecture and usage documentation
+└── scripts/                # Setup, validation, and demo scripts
 ```
 
 **What gets committed vs generated**
 
 | Committed | Generated locally (gitignored) |
 |-----------|-------------------------------|
-| `tests/**/*.txt` NL specs | `reports/` |
-| `framework/pages/`, `framework/tests/` (after codegen) | `playwright-report/`, `test-results/` |
-| `config/`, `prompts/` | `healing-cache/` |
+| `tests/**/*.txt` NL specs | `runtime/reports/` |
+| `packages/test-framework/pages/`, `packages/test-framework/tests/` (after codegen) | `runtime/playwright-report/`, `runtime/test-results/` |
+| `resources/config/`, `resources/prompts/` | `runtime/healing-cache/` |
 | `.env.example` | `.env` with real keys |
 
 ---
@@ -193,21 +190,23 @@ WebPilot/
 
 ```bash
 npm ci
+npm run build
+npm link
 npx playwright install chromium
-npm run setup          # Python venv + browser-use in .venv/
+webpilot setup         # Python venv + vendored Browser Use in .venv/
 cp .env.example .env   # Add your API keys
 ```
 
 ### Verify
 
 ```bash
-npm run doctor
+webpilot doctor
 ```
 
 Doctor checks:
 
 - Required directories exist
-- LLM environment variables or `config/llm.json` resolve for browser-use
+- LLM environment variables or `resources/config/llm.json` resolve for browser-use
 - Python + `browser_use` import successfully
 
 ### First run
@@ -226,12 +225,12 @@ Full reference: [CONFIGURATION.md](./CONFIGURATION.md).
 
 | File | Purpose |
 |------|---------|
-| `config/webpilot.yaml` | Browser-use toggle, reports, browser, parallel workers |
-| `config/llm.json` | Provider models (placeholders — use `.env` for secrets) |
-| `config/environments/<env>.json` | `baseUrl`, `apiBaseUrl`, credentials |
+| `resources/config/webpilot.yaml` | Browser-use toggle, reports, browser, parallel workers |
+| `resources/config/llm.json` | Provider models (placeholders — use `.env` for secrets) |
+| `resources/config/environments/<env>.json` | `baseUrl`, `apiBaseUrl`, credentials |
 | `.env` | Local secrets (gitignored) |
 
-### Environment example (`config/environments/qa.json`)
+### Environment example (`resources/config/environments/qa.json`)
 
 ```json
 {
@@ -264,7 +263,7 @@ AZURE_OPENAI_DEPLOYMENT=your-deployment
 ```yaml
 framework:
   useBrowserUse: true          # Default UI path (Python browser-use)
-  htmlReport: true             # Write reports/index.html after runs
+  htmlReport: true             # Write runtime/reports/index.html after runs
   apiCodegenEnabled: true      # Generate API clients after API runs
   generatedCodePath: "./framework"
 
@@ -352,7 +351,7 @@ Or inline (demo/public sites only):
 When user logs in with username "Admin" and password "Admin123"
 ```
 
-Environment credentials come from `config/environments/<env>.json` → `${QA_USERNAME}` / `${QA_PASSWORD}`.
+Environment credentials come from `resources/config/environments/<env>.json` → `${QA_USERNAME}` / `${QA_PASSWORD}`.
 
 #### File uploads
 
@@ -443,10 +442,10 @@ Creates:
 
 ## 7. CLI reference
 
-All commands:
+All commands use the installed executable:
 
 ```bash
-npm run webpilot -- <command> [options]
+webpilot <command> [options]
 ```
 
 Shortcuts in `package.json`:
@@ -456,14 +455,14 @@ Shortcuts in `package.json`:
 | `npm run doctor` | `webpilot doctor` |
 | `npm run init` | `webpilot init` |
 | `npm run report` | `webpilot report` |
-| `npm run setup` | `bash scripts/setup-python.sh` |
+| `npm run setup` | Development-repository setup helper |
 
 ### `init`
 
-Scaffold directories, `BasePage`, `BaseAPI`, fixtures, and `framework/playwright.config.ts`.
+Scaffold directories, `BasePage`, `BaseAPI`, fixtures, and `packages/test-framework/playwright.config.ts`.
 
 ```bash
-npm run webpilot -- init
+webpilot init
 ```
 
 ### `doctor`
@@ -509,13 +508,20 @@ npm run webpilot -- run tests/web --env qa --report
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-e, --env <env>` | `qa` | Environment from `config/environments/` |
+| `-e, --env <env>` | `qa` | Environment from `resources/config/environments/` |
 | `--headed` | off | Visible browser |
 | `--architecture <arch>` | `pom` | Generated code style: `flat`, `pom`, `bdd`, `pom-bdd` |
 | `--parallel <n>` | `1` | Concurrent test workers |
 | `--report` | off | Generate HTML report after run |
 
-**Smart re-run behavior:** If `framework/tests/<name>.spec.ts` already exists, WebPilot runs the Playwright spec first. On failure, it falls back to AI execution/healing.
+`webpilot run` always executes the natural-language source through WebPilot's execution engine. Existing generated specs are never selected implicitly.
+
+Use `webpilot replay [paths...]` when you want deterministic Playwright execution without Browser Use or an LLM:
+
+```bash
+webpilot replay
+webpilot replay packages/test-framework/tests/login.spec.ts --headed
+```
 
 ### `interactive <file>`
 
@@ -560,7 +566,7 @@ npm run webpilot -- report --html --test automationexercise_add_to_cart
 
 | Option | Description |
 |--------|-------------|
-| `--html` | Generate `reports/index.html` and per-test HTML |
+| `--html` | Generate `runtime/reports/index.html` and per-test HTML |
 | `--no-ai` | Skip LLM quality analysis section |
 | `--test <slug>` | Limit to one test |
 | `-e, --env <env>` | Environment label in report header |
@@ -596,7 +602,7 @@ sequenceDiagram
   participant User
   participant CLI
   participant Engine
-  participant Python as browser_use_runner.py
+  participant Python as integrations.browser_use.runner
   participant Chrome
   participant Writer as CodegenWriter
 
@@ -609,7 +615,7 @@ sequenceDiagram
   Python->>Python: Write execution_history.json
   Python->>Python: Codegen → temp_codegen.json
   Engine->>Writer: merge + validate TS
-  Writer->>Writer: framework/pages + framework/tests
+  Writer->>Writer: packages/test-framework/pages + packages/test-framework/tests
   Engine-->>CLI: success + step count
   CLI-->>User: Job summary + token usage
 ```
@@ -635,7 +641,7 @@ sequenceDiagram
   ApiEngine->>Runner: runPipeline(steps)
   Runner-->>ApiEngine: result
   ApiEngine->>Codegen: generate (if enabled)
-  Codegen-->>ApiEngine: framework/apis + tests/api
+  Codegen-->>ApiEngine: packages/test-framework/apis + tests/api
 ```
 
 ### 8.3 Running generated Playwright tests directly
@@ -644,17 +650,17 @@ After codegen, run deterministic tests without the LLM:
 
 ```bash
 # All UI specs
-npx playwright test --config=framework/playwright.config.ts --project=chromium
+npx playwright test --config=packages/test-framework/playwright.config.ts --project=chromium
 
 # All API specs
-npx playwright test --config=framework/playwright.config.ts --project=api
+npx playwright test --config=packages/test-framework/playwright.config.ts --project=api
 
 # Single file
-npx playwright test framework/tests/demoApplitools-login.spec.ts \
-  --config=framework/playwright.config.ts
+npx playwright test packages/test-framework/tests/demoApplitools-login.spec.ts \
+  --config=packages/test-framework/playwright.config.ts
 ```
 
-Set `ENV=qa` (or `dev` / `prod`) so `framework/config/ConfigManager.ts` loads the right environment.
+Set `ENV=qa` (or `dev` / `prod`) so `packages/test-framework/config/ConfigManager.ts` loads the right environment.
 
 ---
 
@@ -664,17 +670,17 @@ Set `ENV=qa` (or `dev` / `prod`) so `framework/config/ConfigManager.ts` loads th
 
 | Path | Contents |
 |------|----------|
-| `framework/pages/<site>/` | Page Object Models extending `BasePage` |
-| `framework/tests/*.spec.ts` | UI Playwright specs |
-| `framework/apis/*Api.ts` | API client classes extending `BaseAPI` |
-| `framework/tests/api/*.api.spec.ts` | API Playwright specs |
-| `framework/core/BasePage.ts` | Shared navigate, click, fill, assert helpers |
-| `framework/core/BaseAPI.ts` | Shared GET/POST, status/body/schema assertions |
-| `framework/core/fixtures.ts` | Playwright fixtures (`apiClient`, etc.) |
+| `packages/test-framework/pages/<site>/` | Page Object Models extending `BasePage` |
+| `packages/test-framework/tests/*.spec.ts` | UI Playwright specs |
+| `packages/test-framework/apis/*Api.ts` | API client classes extending `BaseAPI` |
+| `packages/test-framework/tests/api/*.api.spec.ts` | API Playwright specs |
+| `packages/test-framework/core/BasePage.ts` | Shared navigate, click, fill, assert helpers |
+| `packages/test-framework/core/BaseAPI.ts` | Shared GET/POST, status/body/schema assertions |
+| `packages/test-framework/core/fixtures.ts` | Playwright fixtures (`apiClient`, etc.) |
 
 ### Code quality guarantees
 
-WebPilot codegen follows rules in `prompts/shared/`:
+WebPilot codegen follows rules in `resources/prompts/shared/`:
 
 - **Strict semantic locators** — scope regions, use `.filter()` when multiple matches
 - **BasePage reuse** — generated POMs call shared helpers, not raw Playwright everywhere
@@ -687,7 +693,7 @@ WebPilot codegen follows rules in `prompts/shared/`:
 After running `tests/api/login_api.txt`:
 
 ```typescript
-import { test } from '@core/fixtures';
+import { test } from '@src/core/fixtures';
 import { ApiAuthenticatedTokenChainingApi } from '../../apis/ApiAuthenticatedTokenChainingApi';
 
 test.describe('API: API Authenticated Token Chaining', () => {
@@ -707,7 +713,7 @@ When a locator fails during legacy engine execution:
 
 1. **HealingAgent** captures the DOM and finds a candidate replacement selector.
 2. The healed selector is tried immediately.
-3. On success, the mapping is saved to `healing-cache/cache.json`.
+3. On success, the mapping is saved to `runtime/healing-cache/cache.json`.
 4. Future runs load the cache first — no LLM call needed for known fixes.
 
 ```bash
@@ -718,7 +724,7 @@ npm run webpilot -- self-heal
 npm run webpilot -- self-heal --clean
 ```
 
-Configure in `config/webpilot.yaml`:
+Configure in `resources/config/webpilot.yaml`:
 
 ```yaml
 execution:
@@ -738,12 +744,12 @@ Full guide: **[REPORTING.md](./REPORTING.md)** — HTML dashboards, JSON files, 
 
 | Artifact | Path |
 |----------|------|
-| HTML suite report | `reports/index.html` |
-| Per-test HTML report | `reports/<test>-report.html` |
-| Summary JSON | `reports/<test>_summary.json` |
-| LLM usage | `reports/<test>_llm_usage.json` |
-| Execution history | `reports/<test>_execution_history.json` |
-| Videos / traces / screenshots | `reports/videos/`, `reports/traces/`, `reports/screenshots/` |
+| HTML suite report | `runtime/reports/index.html` |
+| Per-test HTML report | `runtime/reports/<test>-report.html` |
+| Summary JSON | `runtime/reports/<test>_summary.json` |
+| LLM usage | `runtime/reports/<test>_llm_usage.json` |
+| Execution history | `runtime/reports/<test>_execution_history.json` |
+| Videos / traces / screenshots | `runtime/reports/videos/`, `runtime/reports/traces/`, `runtime/reports/screenshots/` |
 
 ```bash
 npm run report
@@ -770,25 +776,27 @@ Pass secrets via environment variables in `docker-compose.yml` or a local `.env`
 ```yaml
 - run: npm ci
 - run: npx playwright install chromium
-- run: npm run setup
-- run: npm run doctor
+- run: npm run build
+- run: npm link
+- run: webpilot setup
+- run: webpilot doctor
   env:
     AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
     AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
     AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
-- run: npm run webpilot -- run tests/web --env qa --report
+- run: webpilot run tests/web --env qa --report
 - uses: actions/upload-artifact@v4
   if: always()
   with:
     name: webpilot-reports
-    path: reports/
+    path: runtime/reports/
 ```
 
 ### CI strategy
 
 1. **Author** NL specs in `tests/` (committed).
-2. **Generate** Playwright code via `webpilot run` (optional in CI if specs already committed under `framework/`).
-3. **Run deterministic tests** with `npx playwright test --config=framework/playwright.config.ts` for fast, LLM-free CI.
+2. **Generate** Playwright code via `webpilot run` (optional in CI if specs already committed under `packages/test-framework/`).
+3. **Run deterministic tests** with `npx playwright test --config=packages/test-framework/playwright.config.ts` for fast, LLM-free CI.
 4. **Re-run with AI** on failure for self-healing in nightly or manual workflows.
 
 ---
@@ -805,19 +813,19 @@ Pass secrets via environment variables in `docker-compose.yml` or a local `.env`
 
 ### Managing generated code
 
-- Review and commit stable POMs under `framework/pages/` — they improve symbol graph reuse.
+- Review and commit stable POMs under `packages/test-framework/pages/` — they improve symbol graph reuse.
 - Re-run `webpilot run` after UI changes; WebPilot merges new methods instead of duplicating files.
 - Run `npx playwright test` locally before pushing generated specs.
 
 ### Cost control
 
-- Monitor token usage in the CLI job summary and `reports/<test>_llm_usage.json`.
+- Monitor token usage in the CLI job summary and `runtime/reports/<test>_llm_usage.json`.
 - Use `--headed` only when debugging.
 - Prefer re-running committed Playwright specs over full AI runs in CI.
 
 ### Security
 
-- Never commit `.env` or real keys in `config/llm.json`.
+- Never commit `.env` or real keys in `resources/config/llm.json`.
 - Use `.env.example` as the template for teammates and CI secret names.
 - Demo credentials (e.g. DummyJSON `emilys`/`emilyspass`) are fine for public examples.
 
@@ -827,22 +835,22 @@ Pass secrets via environment variables in `docker-compose.yml` or a local `.env`
 
 | Issue | Solution |
 |-------|----------|
-| `browser_use not found` | Run `npm run setup`. Set `WEBPILOT_PYTHON` to your venv Python if needed. |
-| Azure / LLM errors | Check `AZURE_OPENAI_*` in `.env`. Run `npm run doctor`. |
+| `browser_use not found` | Run `webpilot setup`. Set `WEBPILOT_PYTHON` to your venv Python if needed. |
+| Azure / LLM errors | Check `AZURE_OPENAI_*` in `.env`. Run `webpilot doctor`. |
 | Browser does not open | Use `--headed` or set `browser.headless: false` in `webpilot.yaml`. |
-| Codegen TypeScript errors | Check terminal — validators auto-retry. Inspect `framework/temp_codegen.json` if present. |
-| Empty reports | Run a test first; `reports/` is created per run. |
-| Playwright spec fails, AI fallback slow | Fix generated spec or delete it to force fresh codegen. |
-| Wrong environment URL | Verify `--env` flag matches `config/environments/<env>.json`. |
+| Codegen TypeScript errors | Check terminal — validators auto-retry. Inspect `packages/test-framework/temp_codegen.json` if present. |
+| Empty reports | Run a test first; `runtime/reports/` is created per run. |
+| Playwright replay fails | Fix the generated spec or run `webpilot run` on the source scenario to regenerate it. |
+| Wrong environment URL | Verify `--env` flag matches `resources/config/environments/<env>.json`. |
 | API variable not substituted | Use `{{apiBaseUrl}}` syntax; set `apiBaseUrl` in environment config. |
 
 ### Useful debug commands
 
 ```bash
-npm run doctor
-npm run webpilot -- self-heal
-npm run webpilot -- report --html --test <slug>
-ENV=qa npx playwright test --config=framework/playwright.config.ts --debug
+webpilot doctor
+webpilot self-heal
+webpilot report --html --test <slug>
+webpilot replay --headed
 ```
 
 ---
@@ -851,10 +859,10 @@ ENV=qa npx playwright test --config=framework/playwright.config.ts --debug
 
 ```bash
 # Setup
-npm ci && npm run setup && cp .env.example .env
+npm ci && npm run build && npm link && webpilot setup && cp .env.example .env
 
 # Health check
-npm run doctor
+webpilot doctor
 
 # Create + run UI test
 npm run webpilot -- create test my_flow
@@ -867,8 +875,8 @@ npm run webpilot -- run tests/api/my_api.txt --env qa
 # Import OpenAPI
 npm run webpilot -- import-api https://example.com/openapi.json -o tests/api/smoke.txt
 
-# Run generated Playwright (no LLM)
-npx playwright test --config=framework/playwright.config.ts
+# Run generated Playwright (no Browser Use or LLM)
+webpilot replay
 
 # Reports
 npm run report

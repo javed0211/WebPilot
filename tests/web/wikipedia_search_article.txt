@@ -1,0 +1,13 @@
+@smoke @wikipedia @search
+Test: Search for an Article on Wikipedia
+
+1. Navigate to https://www.wikipedia.org/
+2. Verify the Wikipedia logo and search input are visible
+3. Enter "Software testing" in the search input
+4. Select English as the search language if it is not already selected
+5. Submit the search
+6. Verify the Software testing article page is displayed
+7. Verify the page heading contains "Software testing"
+8. Verify the article introduction is visible
+9. Verify the Contents section or article navigation is visible
+

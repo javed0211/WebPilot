@@ -1,0 +1,14 @@
+@smoke @amazon @search
+Test: Search for a Product on Amazon
+
+1. Navigate to https://www.amazon.com/
+2. If a location, cookie, or sign-in dialog blocks the page, dismiss it
+3. Verify the Amazon logo and main search input are visible
+4. Enter "wireless mouse" in the main search input
+5. Submit the search
+6. Verify the search results page is displayed
+7. Verify the results heading or summary contains "wireless mouse"
+8. Verify at least one product result is visible
+9. Verify the first visible product result shows a product title
+10. Verify the first visible product result shows a price or purchasing option
+

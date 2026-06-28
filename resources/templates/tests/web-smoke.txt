@@ -1,0 +1,12 @@
+@smoke
+target: web
+baseUrl: https://automationexercise.com
+codegen: true
+report: true
+
+Test: AutomationExercise smoke
+
+1. Navigate to https://automationexercise.com/
+2. Verify that the home page is visible successfully
+3. Click Products in the navigation menu
+4. Verify that the products page is visible

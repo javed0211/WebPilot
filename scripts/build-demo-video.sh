@@ -2,9 +2,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$ROOT/scripts/demo-cli.webm"
-BROWSER="$ROOT/reports/videos/automationexercise_add_to_cart.mp4"
-OUT="$ROOT/assets/demo.webpilot.mp4"
-GIF="$ROOT/assets/demo.webpilot.gif"
+BROWSER="$ROOT/runtime/reports/videos/automationexercise_add_to_cart.mp4"
+OUT="$ROOT/resources/assets/demo.webpilot.mp4"
+GIF="$ROOT/resources/assets/demo.webpilot.gif"
 
 cd "$ROOT/scripts"
 vhs demo-cli.tape
@@ -20,6 +20,6 @@ ffmpeg -y \
   -map "[v]" -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p -movflags +faststart "$OUT"
 
 ffmpeg -y -i "$OUT" -t 24 -vf "fps=8,scale=640:-1:flags=lanczos" "$GIF"
-ffmpeg -y -i "$OUT" -vframes 1 -update 1 "$ROOT/assets/demo.webpilot.poster.png"
+ffmpeg -y -i "$OUT" -vframes 1 -update 1 "$ROOT/resources/assets/demo.webpilot.poster.png"
 
 echo "Built $OUT ($(ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "$OUT"))"

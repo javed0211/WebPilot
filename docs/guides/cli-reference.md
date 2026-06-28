@@ -1,0 +1,242 @@
+# CLI Reference
+
+Complete reference for WebPilot CLI commands, flags, and environment variables.
+
+---
+
+## Command summary
+
+| Command | Purpose |
+|---------|---------|
+| `webpilot init` | Scaffold project, config, starter tests |
+| `webpilot setup` | Python venv + vendored browser-use |
+| `webpilot doctor` | Validate environment and credentials |
+| `webpilot run` | Execute `.txt` scenarios (web or API) |
+| `webpilot replay` | Run generated Playwright specs (no LLM) |
+| `webpilot generate` | Codegen from saved execution trace |
+| `webpilot report` | HTML/JSON reports and terminal dashboard |
+| `webpilot analyze` | Markdown roll-up / flake analysis |
+| `webpilot self-heal` | Selector healing proposals and apply |
+| `webpilot graph` | Build repository knowledge graph |
+| `webpilot create` | Create test from template |
+| `webpilot import-api` | OpenAPI → API scenario |
+| `webpilot interactive` | Human-in-the-loop headed run |
+| `webpilot ci` | CI init, doctor, run |
+| `webpilot reports-tidy` | Migrate legacy report paths |
+
+---
+
+## `webpilot run`
+
+Primary execution command.
+
+```bash
+webpilot run <file|directory> [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-e, --env <name>` | Environment: `dev`, `qa`, `prod`, `azure` (default: `qa`) |
+| `--headed` | Visible browser |
+| `--architecture <mode>` | `flat`, `pom`, `bdd`, `pom-bdd` |
+| `--parallel <n>` | Concurrent tests |
+| `--provider <name>` | `browser-use`, `local-playwright`, `testmu` |
+| `--report` | Generate HTML report after suite |
+| `--codegen` | Generate Playwright code after successful run |
+| `--knowledge-only` | Replay learned steps only; fail on unknown |
+| `--force-discovery` | Skip knowledge; re-explore all steps |
+
+**Sets env vars:** `WEBPILOT_KNOWLEDGE_ONLY`, `WEBPILOT_DISABLE_SITE_KNOWLEDGE`, `WEBPILOT_CODEGEN`, `WEBPILOT_CODEGEN_MODE`, `WEBPILOT_BROWSER_PROVIDER`
+
+---
+
+## `webpilot replay`
+
+```bash
+webpilot replay [paths...] [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `[paths...]` | Spec files (default: `packages/test-framework/tests`) |
+| `--project <name>` | Playwright project |
+| `--headed` | Visible browser |
+| `--grep <pattern>` | Filter tests |
+
+No LLM. No browser-use. Pure Playwright.
+
+---
+
+## `webpilot generate`
+
+```bash
+webpilot generate --from <slug|latest> [--no-validate]
+```
+
+Regenerate Playwright files from `runtime/codegen/traces/` without re-running the browser.
+
+> There is no `webpilot codegen` command — use `generate` or `run --codegen`.
+
+---
+
+## `webpilot report`
+
+```bash
+webpilot report [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--html` | Generate HTML suite + per-test reports |
+| `--json` | JSON suite report + artifact manifest |
+| `--no-ai` | Skip LLM analysis section in HTML |
+| `--test <slug>` | Single test report |
+| `-e, --env <name>` | Environment filter |
+| `--file <path>` | Report from specific summary file |
+
+---
+
+## `webpilot doctor`
+
+```bash
+webpilot doctor [--provider <name>] [--json]
+```
+
+Checks Node, Playwright, Python, browser-use, LLM credentials, provider config, writable `runtime/`.
+
+---
+
+## `webpilot init`
+
+```bash
+webpilot init [directory] [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `-f, --force` | Overwrite WebPilot-owned files |
+| `-y, --yes` | Non-interactive defaults |
+| `--language`, `--tool`, `--pattern`, `--target` | Project profile |
+| `--llm-provider`, `--llm-model` | LLM defaults |
+
+---
+
+## `webpilot self-heal`
+
+```bash
+webpilot self-heal [--clean]
+webpilot self-heal --proposals
+webpilot self-heal --apply <proposal.json> --file <target.ts>
+```
+
+Manual-review healing workflow. Does not auto-patch without `--apply`.
+
+---
+
+## `webpilot graph`
+
+```bash
+webpilot graph [--summary] [--json] [--out <path>]
+```
+
+---
+
+## `webpilot create`
+
+```bash
+webpilot create test <name> [--template <name>] [--base-url <url>]
+webpilot create api <name> [--template api-smoke]
+```
+
+---
+
+## `webpilot ci`
+
+```bash
+webpilot ci init      # Write .github/workflows/webpilot.yml
+webpilot ci doctor    # CI environment checks
+webpilot ci run       # CI wrapper for webpilot run
+```
+
+---
+
+## Environment variables
+
+### WebPilot core
+
+| Variable | Purpose |
+|----------|---------|
+| `WEBPILOT_PROJECT_ROOT` | Project root (set by CLI) |
+| `WEBPILOT_INSTALL_ROOT` | Install / vendored packages root |
+| `WEBPILOT_PYTHON` | Override Python binary |
+| `WEBPILOT_SKIP_PYTHON_SETUP` | Skip venv setup |
+| `WEBPILOT_BROWSER_PROVIDER` | Override active browser provider |
+| `WEBPILOT_CI` | CI mode behavior |
+
+### Intelligent runner
+
+| Variable | Purpose |
+|----------|---------|
+| `WEBPILOT_KNOWLEDGE_ONLY` | `1` = knowledge-only replay |
+| `WEBPILOT_DISABLE_SITE_KNOWLEDGE` | `1` = force discovery |
+| `WEBPILOT_JUDGE_MODE` | `verification`, `always`, `off` |
+| `WEBPILOT_FLASH_MODE` | `1` = fast low-quality mode |
+
+### Codegen
+
+| Variable | Purpose |
+|----------|---------|
+| `WEBPILOT_CODEGEN` | `1` = enable post-run codegen |
+| `WEBPILOT_CODEGEN_MODE` | `deterministic`, `llm`, `auto` |
+
+### LLM providers
+
+| Variable | Purpose |
+|----------|---------|
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI |
+| `AZURE_OPENAI_ENDPOINT` | Azure endpoint URL |
+| `AZURE_OPENAI_DEPLOYMENT` | Deployment name |
+| `OPENAI_API_KEY` | OpenAI |
+| `ANTHROPIC_API_KEY` | Anthropic |
+| `GEMINI_API_KEY` | Google Gemini |
+| `WEBPILOT_LLM_PROVIDER` | Override provider in Python runner |
+
+### Test credentials
+
+| Variable | Purpose |
+|----------|---------|
+| `QA_USERNAME`, `QA_PASSWORD` | From `environments/*.json` interpolation |
+
+### Remote browsers
+
+| Variable | Purpose |
+|----------|---------|
+| `TESTMU_USERNAME`, `TESTMU_ACCESS_KEY` | TestMu / LambdaTest |
+| `REMOTE_CDP_URL` | Remote CDP endpoint |
+| `SELENIUM_GRID_URL` | Selenium Grid |
+
+### Other
+
+| Variable | Purpose |
+|----------|---------|
+| `WEBPILOT_VIEWPORT_SCALE` | Viewport scaling factor |
+| `WEBPILOT_NODE`, `WEBPILOT_REPORT_CLI` | Python → Node report bridge |
+
+---
+
+## npm scripts (development)
+
+```bash
+npm run webpilot -- run tests/web/foo.txt --env qa
+npm run build
+npm run test:web
+```
+
+---
+
+## See also
+
+- [USAGE.md](../USAGE.md)
+- [CONFIGURATION.md](../CONFIGURATION.md)
+- [FRAMEWORK_GUIDE.md](../FRAMEWORK_GUIDE.md)
+- [guides/README.md](./README.md)

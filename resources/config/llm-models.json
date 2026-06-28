@@ -1,0 +1,26 @@
+{
+  "families": [
+    {
+      "match": "gpt-5",
+      "tokenLimitField": "max_completion_tokens",
+      "notes": "Azure/OpenAI gpt-5.x rejects max_tokens"
+    },
+    {
+      "match": "o1",
+      "tokenLimitField": "max_completion_tokens",
+      "notes": "Reasoning models use max_completion_tokens"
+    },
+    {
+      "match": "o3",
+      "tokenLimitField": "max_completion_tokens"
+    },
+    {
+      "match": "o4",
+      "tokenLimitField": "max_completion_tokens"
+    }
+  ],
+  "defaults": {
+    "tokenLimitField": "max_tokens"
+  },
+  "overrides": {}
+}

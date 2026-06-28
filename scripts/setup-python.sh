@@ -38,5 +38,5 @@ rm -rf .venv
 "$PYTHON" -m venv .venv
 .venv/bin/python3 -m pip install -U pip
 .venv/bin/python3 -m pip install -r requirements.txt
-echo "Done. browser-use is installed in .venv"
-.venv/bin/python3 -c "import browser_use; print('browser_use ok')"
+echo "Done. WebPilot's Browser Use engine source is installed editable in .venv"
+.venv/bin/python3 -c "import browser_use; print(f'browser_use source: {browser_use.__file__}')"

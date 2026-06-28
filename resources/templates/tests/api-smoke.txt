@@ -1,0 +1,8 @@
+@api @smoke
+target: api
+report: true
+
+Test: Petstore smoke
+
+Send GET request to https://petstore.swagger.io/v2/pet/1
+Assert status is 200

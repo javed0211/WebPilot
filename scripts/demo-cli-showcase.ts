@@ -3,9 +3,9 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { CliDisplay } from '../utils/CliDisplay';
-import { UsageTracker } from '../utils/UsageTracker';
-import { Logger } from '../utils/Logger';
+import { CliDisplay } from '../src/utils/CliDisplay';
+import { UsageTracker } from '../src/utils/UsageTracker';
+import { Logger } from '../src/utils/Logger';
 
 const ROOT = path.join(__dirname, '..');
 const testPath = 'tests/web/automationexercise_add_to_cart.txt';
@@ -17,9 +17,18 @@ function sleep(ms: number): Promise<void> {
 }
 
 function loadNlSteps(): string[] {
-  const historyPath = path.join(ROOT, 'reports', `${testName}_execution_history.json`);
-  if (fs.existsSync(historyPath)) {
-    const data = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+  const historyPath = path.join(
+    ROOT,
+    'runtime',
+    'reports',
+    'data',
+    'execution-history',
+    `${testName}_execution_history.json`
+  );
+  const legacyPath = path.join(ROOT, 'runtime', 'reports', `${testName}_execution_history.json`);
+  const resolved = fs.existsSync(historyPath) ? historyPath : legacyPath;
+  if (fs.existsSync(resolved)) {
+    const data = JSON.parse(fs.readFileSync(resolved, 'utf8'));
     if (Array.isArray(data.nlSteps) && data.nlSteps.length > 0) {
       return data.nlSteps as string[];
     }
@@ -81,9 +90,18 @@ async function main(): Promise<void> {
   Logger.success('Generated Playwright spec and page objects');
   await sleep(600);
 
-  const usagePath = path.join(ROOT, 'reports', `${testName}_llm_usage.json`);
-  if (fs.existsSync(usagePath)) {
-    UsageTracker.loadFromFile(usagePath);
+  const usagePath = path.join(
+    ROOT,
+    'runtime',
+    'reports',
+    'data',
+    'llm-usage',
+    `${testName}_llm_usage.json`
+  );
+  const legacyUsage = path.join(ROOT, 'runtime', 'reports', `${testName}_llm_usage.json`);
+  const resolvedUsage = fs.existsSync(usagePath) ? usagePath : legacyUsage;
+  if (fs.existsSync(resolvedUsage)) {
+    UsageTracker.loadFromFile(resolvedUsage);
   } else {
     UsageTracker.record({ promptTokens: 166671, completionTokens: 5431, cost: 0.28975 });
   }

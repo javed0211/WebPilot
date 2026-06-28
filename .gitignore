@@ -33,21 +33,27 @@ Thumbs.db
 # Cursor / local agent state
 .cursor/
 
-# Nested local repo (not part of WebPilot)
-project/
+# Local agent/session state (not part of WebPilot)
+runtime/workspace/
 
 # Playwright & browser-use run artifacts (regenerated every run)
-playwright-report/
-test-results/
-reports/
-artifacts/*
-!artifacts/.gitkeep
-healing-cache/*
-!healing-cache/.gitkeep
+runtime/playwright-report/
+runtime/test-results/
+runtime/reports/
+runtime/artifacts/*
+!runtime/artifacts/.gitkeep
+runtime/healing-cache/*
+!runtime/healing-cache/.gitkeep
+runtime/selectors/
+
+# Repository knowledge graph (regenerated before codegen)
+runtime/knowledge/
+
+# Codegen traces, plans, and metadata (regenerated per run)
+runtime/codegen/
 
 # Codegen / validation scratch (local only)
-framework/temp_codegen.json
-scratch/
+packages/test-framework/temp_codegen.json
 
 # Logs & temp files
 *.log
@@ -58,4 +64,4 @@ yarn-error.log*
 temp/
 tmp/
 
-# Optional: keep a committed logo at repo root (assets/webpilot-logo.png), not under reports/
+# Committed visual assets live under resources/assets/.

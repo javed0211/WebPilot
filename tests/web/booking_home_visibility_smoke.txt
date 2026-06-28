@@ -1,0 +1,12 @@
+@smoke @booking @homepage
+target: web
+baseUrl: https://www.booking.com
+codegen: true
+report: true
+
+Test: Booking.com Home Visibility Smoke
+
+1. Navigate to https://www.booking.com/
+2. If a cookie consent dialog is visible, accept or dismiss it
+3. Verify the Booking.com logo and accommodation search form are visible
+4. Enter "London" in the destination field

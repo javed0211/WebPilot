@@ -33,12 +33,12 @@ WebPilot produces execution reports at multiple levels: **terminal summaries**, 
 | **Terminal dashboard** | CLI text | Quick pass/fail after one or more runs |
 | **Per-test summary** | JSON | Machine-readable result + token/cost data |
 | **Execution history** | JSON | Step-by-step agent/browser actions |
-| **HTML suite report** | `reports/index.html` | Executive overview across all recent tests |
-| **HTML per-test report** | `reports/<slug>-report.html` | Deep dive: NL steps, execution log, artifacts, AI analysis |
-| **Markdown analysis** | `reports/execution_analysis_report.md` | Consolidated table for docs or PRs |
+| **HTML suite report** | `runtime/reports/index.html` | Executive overview across all recent tests |
+| **HTML per-test report** | `runtime/reports/<slug>-report.html` | Deep dive: NL steps, execution log, artifacts, AI analysis |
+| **Markdown analysis** | `runtime/reports/execution_analysis_report.md` | Consolidated table for docs or PRs |
 | **API run log** | JSON | Timestamped API pipeline results |
 
-All paths under `reports/` are **gitignored** — generated locally on each run.
+All paths under `runtime/reports/` are **gitignored** — generated locally on each run.
 
 ---
 
@@ -48,16 +48,16 @@ All paths under `reports/` are **gitignored** — generated locally on each run.
 
 After a successful or failed browser-use run (`framework.useBrowserUse: true`):
 
-1. Python runner writes `reports/<test>_summary.json` and `reports/<test>_execution_history.json`.
-2. Videos, traces, and step screenshots are finalized under `reports/`.
-3. `reports/<test>_llm_usage.json` is written with token/cost totals.
-4. **HTML reports are generated automatically** via `core/execution_report/run-cli.ts` (suite + per-test pages).
+1. Python runner writes `runtime/reports/<test>_summary.json` and `runtime/reports/<test>_execution_history.json`.
+2. Videos, traces, and step screenshots are finalized under `runtime/reports/`.
+3. `runtime/reports/<test>_llm_usage.json` is written with token/cost totals.
+4. **HTML reports are generated automatically** via `src/core/execution_report/run-cli.ts` (suite + per-test pages).
 
 ### Web UI (legacy TypeScript engine)
 
-When `framework.useBrowserUse: false`, the legacy engine in `core/Engine.ts`:
+When `framework.useBrowserUse: false`, the legacy engine in `src/core/Engine.ts`:
 
-1. Writes `reports/<test>_summary.json` after codegen.
+1. Writes `runtime/reports/<test>_summary.json` after codegen.
 2. Calls `generateExecutionReports()` to produce HTML (with AI analysis unless disabled).
 
 ### CLI `run --report`
@@ -70,10 +70,10 @@ npm run webpilot -- run tests/web --env qa --report
 
 ### API tests
 
-`core/ApiEngine.ts` writes a timestamped JSON file per run:
+`src/core/ApiEngine.ts` writes a timestamped JSON file per run:
 
 ```
-reports/api-<test-name>-<timestamp>.json
+runtime/reports/api-<test-name>-<timestamp>.json
 ```
 
 API runs do **not** currently produce HTML suite reports or `_summary.json` in the same format as UI tests.
@@ -83,7 +83,7 @@ API runs do **not** currently produce HTML suite reports or `_summary.json` in t
 ## 3. Output locations
 
 ```
-reports/
+runtime/reports/
 ├── index.html                              # Suite dashboard (all tests with _summary.json)
 ├── <test-slug>-report.html                 # Per-test detailed HTML report
 ├── <test-slug>_summary.json                # Core result + pricing + codegen notes
@@ -128,7 +128,7 @@ npm run report:html
 
 | Option | Description |
 |--------|-------------|
-| `--html` | Generate `reports/index.html` and `reports/<slug>-report.html` |
+| `--html` | Generate `runtime/reports/index.html` and `runtime/reports/<slug>-report.html` |
 | `--no-ai` | Skip LLM quality analysis sections |
 | `--test <slug>` | Limit to one test (e.g. `automationexercise_add_to_cart`) |
 | `-e, --env <env>` | Environment label in report header (default: `qa`) |
@@ -146,7 +146,7 @@ npm run webpilot -- report --html --test automationexercise_add_to_cart --env qa
 npm run webpilot -- analyze
 ```
 
-Writes `reports/execution_analysis_report.md` — executive summary table, token/cost totals, and embedded AI analysis excerpts from `_summary.json` files.
+Writes `runtime/reports/execution_analysis_report.md` — executive summary table, token/cost totals, and embedded AI analysis excerpts from `_summary.json` files.
 
 ### Generate HTML after a run
 
@@ -160,9 +160,9 @@ Runs the test(s), then invokes the HTML report generator.
 
 ## 5. HTML reports
 
-### Suite report (`reports/index.html`)
+### Suite report (`runtime/reports/index.html`)
 
-Aggregates every test that has a `reports/<slug>_summary.json` file.
+Aggregates every test that has a `runtime/reports/<slug>_summary.json` file.
 
 **Includes:**
 
@@ -172,7 +172,7 @@ Aggregates every test that has a `reports/<slug>_summary.json` file.
 - Links to each per-test report
 - Optional **suite-level AI analysis** when multiple tests are present
 
-### Per-test report (`reports/<slug>-report.html`)
+### Per-test report (`runtime/reports/<slug>-report.html`)
 
 **Includes:**
 
@@ -191,15 +191,15 @@ Aggregates every test that has a `reports/<slug>_summary.json` file.
 Open in any browser:
 
 ```bash
-open reports/index.html
-open reports/automationexercise_add_to_cart-report.html
+open runtime/reports/index.html
+open runtime/reports/automationexercise_add_to_cart-report.html
 ```
 
 ---
 
 ## 6. JSON report files
 
-### `reports/<slug>_summary.json`
+### `runtime/reports/<slug>_summary.json`
 
 Primary record for HTML report collection. Example fields:
 
@@ -220,7 +220,7 @@ Primary record for HTML report collection. Example fields:
 | `aiAnalysis` | Markdown AI review (after HTML generation with AI enabled) |
 | `browser` | Browser target, headless, viewport, recording flags |
 
-### `reports/<slug>_execution_history.json`
+### `runtime/reports/<slug>_execution_history.json`
 
 | Field | Description |
 |-------|-------------|
@@ -232,7 +232,7 @@ Primary record for HTML report collection. Example fields:
 
 Used by HTML reports and codegen; also input for demo/replay tooling.
 
-### `reports/<slug>_llm_usage.json`
+### `runtime/reports/<slug>_llm_usage.json`
 
 Standalone token/cost snapshot:
 
@@ -249,7 +249,7 @@ Standalone token/cost snapshot:
 
 ## 7. Artifacts (video, trace, screenshots)
 
-Controlled by `config/webpilot.yaml` → `browser` section:
+Controlled by `resources/config/webpilot.yaml` → `browser` section:
 
 ```yaml
 browser:
@@ -260,9 +260,9 @@ browser:
 
 | Artifact | Typical path | View |
 |----------|--------------|------|
-| **Video** | `reports/videos/<slug>.mp4` | Linked from HTML report or open directly |
-| **Trace** | `reports/traces/<slug>_trace.zip` | `npx playwright show-trace reports/traces/<slug>_trace.zip` |
-| **Screenshots** | `reports/screenshots/<slug>/step_*.png` | Linked in per-test HTML report |
+| **Video** | `runtime/reports/videos/<slug>.mp4` | Linked from HTML report or open directly |
+| **Trace** | `runtime/reports/traces/<slug>_trace.zip` | `npx playwright show-trace runtime/reports/traces/<slug>_trace.zip` |
+| **Screenshots** | `runtime/reports/screenshots/<slug>/step_*.png` | Linked in per-test HTML report |
 
 Artifacts are attached to `_summary.json` under the `artifacts` key after the run finalizes.
 
@@ -270,7 +270,7 @@ Artifacts are attached to `_summary.json` under the `artifacts` key after the ru
 
 ## 8. Configuration
 
-In `config/webpilot.yaml`:
+In `resources/config/webpilot.yaml`:
 
 ```yaml
 framework:
@@ -289,7 +289,7 @@ browser:
 | `framework.htmlReportAiAnalysis` | When `true`, HTML generation includes AI analysis (disable with `--no-ai`) |
 | `browser.video` / `trace` / `screenshots` | Which artifacts are captured during UI runs |
 
-Environment URLs shown in reports come from `config/environments/<env>.json`.
+Environment URLs shown in reports come from `resources/config/environments/<env>.json`.
 
 ---
 
@@ -298,7 +298,7 @@ Environment URLs shown in reports come from `config/environments/<env>.json`.
 When AI analysis is enabled (default), `ExecutionReportService`:
 
 1. Loads each test’s execution data (NL steps, log sample, codegen summary, pricing).
-2. Calls the configured LLM with prompts from `prompts/reports/`:
+2. Calls the configured LLM with prompts from `resources/prompts/reports/`:
    - `ai-analysis-system.md`
    - `ai-analysis-user.md` (per test)
    - `ai-analysis-suite-user.md` (suite overview)
@@ -311,7 +311,7 @@ When AI analysis is enabled (default), `ExecutionReportService`:
 npm run webpilot -- report --html --no-ai
 ```
 
-Or set `framework.htmlReportAiAnalysis: false` in `config/webpilot.yaml`.
+Or set `framework.htmlReportAiAnalysis: false` in `resources/config/webpilot.yaml`.
 
 AI analysis covers topics such as:
 
@@ -329,7 +329,7 @@ AI analysis covers topics such as:
 npm run webpilot -- analyze
 ```
 
-Produces `reports/execution_analysis_report.md` containing:
+Produces `runtime/reports/execution_analysis_report.md` containing:
 
 - Executive summary table (test name, status, steps, tokens, cost)
 - Aggregate totals
@@ -345,7 +345,7 @@ Useful for attaching to PRs, wikis, or sprint reviews without opening HTML.
 API runs write JSON only:
 
 ```
-reports/api-login_api-1780056640985.json
+runtime/reports/api-login_api-1780056640985.json
 ```
 
 Structure:
@@ -369,28 +369,32 @@ There is no `_summary.json` or HTML report for API tests today. Use the JSON fil
 When running generated Playwright specs directly:
 
 ```bash
-npx playwright test --config=framework/playwright.config.ts
+npx playwright test --config=packages/test-framework/playwright.config.ts
 ```
 
 Additional outputs:
 
 | Output | Path |
 |--------|------|
-| Playwright HTML report | `playwright-report/` |
-| JUnit XML | `reports/junit-results.xml` |
+| Playwright HTML report | `runtime/playwright-report/` |
+| JUnit XML | `runtime/reports/junit-results.xml` |
+| Artifact manifest | `runtime/reports/artifact-manifest.json` |
 
 These are separate from WebPilot’s AI execution reports but useful for CI pipelines.
 
 **CI example — archive WebPilot reports:**
 
 ```yaml
-- run: npm run webpilot -- run tests/web --env qa --report
+- run: npm run webpilot -- ci doctor --provider browser-use
+- run: npm run webpilot -- ci run tests/web --provider browser-use
 - uses: actions/upload-artifact@v4
   if: always()
   with:
     name: webpilot-reports
-    path: reports/
+    path: runtime/reports/
 ```
+
+`webpilot ci init` writes a complete GitHub Actions workflow to `.github/workflows/webpilot.yml`. `webpilot report --json` prints the suite report and artifact manifest as machine-readable JSON for custom CI steps.
 
 ---
 
@@ -418,11 +422,11 @@ npm run webpilot -- analyze
 
 | Issue | What to try |
 |-------|-------------|
-| Empty `reports/` | Run a test first: `npm run webpilot -- run tests/web/login.txt --env qa` |
+| Empty `runtime/reports/` | Run a test first: `npm run webpilot -- run tests/web/login.txt --env qa` |
 | No HTML generated | Run `npm run webpilot -- report --html` manually; check terminal for `[ExecutionReport]` errors |
 | AI analysis missing | Ensure LLM credentials in `.env`; or use `--no-ai` if credentials unavailable |
-| No video/trace | Set `browser.video: on` and `browser.trace: on` in `config/webpilot.yaml` |
-| Broken links in HTML | Open reports via `file://` from repo root; artifact paths are relative to `reports/` |
+| No video/trace | Set `browser.video: on` and `browser.trace: on` in `resources/config/webpilot.yaml` |
+| Broken links in HTML | Open reports via `file://` from repo root; artifact paths are relative to `runtime/reports/` |
 | API test has no HTML | Expected — API reporting is JSON-only today |
 
 ---
@@ -443,5 +447,5 @@ npm run webpilot -- report --html
 npm run webpilot -- analyze
 
 # Open suite report
-open reports/index.html
+open runtime/reports/index.html
 ```

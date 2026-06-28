@@ -1,0 +1,167 @@
+import { AssertionCandidate, AssertionStrength, AssertionSummary } from './AssertionCandidate';
+import { TraceSelector, TraceStep } from '../codegen/ExecutionTrace';
+
+const SUCCESS_WORDS = [
+  'added',
+  'success',
+  'submitted',
+  'created',
+  'saved',
+  'updated',
+  'deleted',
+  'confirmed',
+  'complete',
+  'completed',
+];
+
+const VERIFY_WORDS = ['verify', 'assert', 'check', 'see', 'visible', 'shown', 'displayed', 'loaded'];
+
+function clamp(value: number): number {
+  return Math.max(0, Math.min(0.99, Number(value.toFixed(2))));
+}
+
+function strengthForScore(score: number): AssertionStrength {
+  if (score >= 0.78) return 'strong';
+  if (score >= 0.55) return 'medium';
+  return 'weak';
+}
+
+function lastPathSegment(url?: string): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const segment = parsed.pathname.split('/').filter(Boolean).pop();
+    return segment || null;
+  } catch {
+    return null;
+  }
+}
+
+function routeAssertion(step: TraceStep, previous?: TraceStep): AssertionCandidate | null {
+  if (!step.url) return null;
+  const segment = lastPathSegment(step.url);
+  if (!segment) return null;
+  if (previous?.url === step.url && step.action !== 'navigate') return null;
+  const score = step.action === 'navigate' ? 0.68 : 0.6;
+  return {
+    kind: 'url_contains',
+    strength: strengthForScore(score),
+    confidence: clamp(score),
+    description: `URL contains "${segment}"`,
+    expected: segment,
+    source: 'url-change',
+    signals: ['route-change', 'stable-url-fragment'],
+    risks: [],
+  };
+}
+
+function selectorAssertion(step: TraceStep): AssertionCandidate | null {
+  const selector = step.selector;
+  if (!selector) return null;
+  const intent = step.intent.toLowerCase();
+  if (step.action !== 'assert' && !VERIFY_WORDS.some((word) => intent.includes(word))) {
+    return null;
+  }
+  let score = selector.confidence || 0.5;
+  if (selector.kind === 'role' || selector.kind === 'testid') score += 0.08;
+  if (VERIFY_WORDS.some((word) => intent.includes(word))) score += 0.12;
+  if (selector.kind === 'css' || selector.kind === 'xpath') score -= 0.14;
+
+  const kind = selector.kind === 'role' ? 'role_visible' : selector.kind === 'text' ? 'text_visible' : 'element_visible';
+  return {
+    kind,
+    strength: strengthForScore(score),
+    confidence: clamp(score),
+    description: `${selector.kind} selector is visible`,
+    selector,
+    source: 'selector',
+    signals: ['selector-backed', ...(selector.signals || [])],
+    risks: selector.risks || [],
+  };
+}
+
+function valueAssertion(step: TraceStep): AssertionCandidate | null {
+  if (step.action !== 'fill' || !step.selector || !step.value) return null;
+  const score = 0.72 + Math.min(0.12, step.selector.confidence / 10);
+  return {
+    kind: 'value_equals',
+    strength: strengthForScore(score),
+    confidence: clamp(score),
+    description: 'Form value equals entered value',
+    selector: step.selector,
+    expected: step.value,
+    source: 'value',
+    signals: ['form-state', 'entered-value'],
+    risks: [],
+  };
+}
+
+function successTextAssertion(step: TraceStep): AssertionCandidate | null {
+  const intent = step.intent.toLowerCase();
+  const found = SUCCESS_WORDS.find((word) => intent.includes(word));
+  if (!found) return null;
+  const display = found.charAt(0).toUpperCase() + found.slice(1);
+  return {
+    kind: 'text_visible',
+    strength: 'strong',
+    confidence: 0.82,
+    description: `Success text "${display}" is visible`,
+    expected: display,
+    source: 'intent',
+    signals: ['success-outcome', 'intent-derived'],
+    risks: [],
+  };
+}
+
+function explicitAssert(step: TraceStep): AssertionCandidate | null {
+  if (step.action !== 'assert') return null;
+  return selectorAssertion(step) || routeAssertion(step) || successTextAssertion(step);
+}
+
+export class AssertionRanker {
+  public static candidatesForStep(step: TraceStep, previous?: TraceStep): AssertionCandidate[] {
+    const candidates = [
+      explicitAssert(step),
+      successTextAssertion(step),
+      valueAssertion(step),
+      selectorAssertion(step),
+      routeAssertion(step, previous),
+    ].filter((candidate): candidate is AssertionCandidate => Boolean(candidate));
+
+    const byKey = new Map<string, AssertionCandidate>();
+    for (const candidate of candidates) {
+      const key = `${candidate.kind}:${candidate.expected ?? candidate.selector?.expression ?? candidate.selector?.value}`;
+      const existing = byKey.get(key);
+      if (!existing || existing.confidence < candidate.confidence) {
+        byKey.set(key, candidate);
+      }
+    }
+    return [...byKey.values()].sort((a, b) => b.confidence - a.confidence);
+  }
+
+  public static primaryForStep(step: TraceStep, previous?: TraceStep): AssertionCandidate | undefined {
+    return AssertionRanker.candidatesForStep(step, previous)[0];
+  }
+
+  public static summarize(steps: TraceStep[]): AssertionSummary {
+    const assertions = steps.flatMap((step) => step.assertions || []);
+    const summary: AssertionSummary = {
+      total: assertions.length,
+      strong: assertions.filter((assertion) => assertion.strength === 'strong').length,
+      medium: assertions.filter((assertion) => assertion.strength === 'medium').length,
+      weak: assertions.filter((assertion) => assertion.strength === 'weak').length,
+      warnings: [],
+    };
+
+    if (summary.total === 0) {
+      summary.warnings.push('No meaningful assertions were generated for this scenario.');
+    }
+    if (summary.strong === 0) {
+      summary.warnings.push('No strong user-visible outcome assertion was generated.');
+    }
+    if (summary.weak > 0) {
+      summary.warnings.push(`${summary.weak} weak assertion(s) should be reviewed.`);
+    }
+    return summary;
+  }
+}

@@ -1,0 +1,13 @@
+@smoke @checkout
+target: web
+baseUrl: https://automationexercise.com
+codegen: true
+report: true
+
+Test: Webpilot Live Checkout 2341
+
+1. Navigate to https://automationexercise.com/
+2. Verify that the home page is visible successfully
+3. Click Products in the navigation menu
+4. Add the first product to the cart
+5. Verify the product appears in the cart

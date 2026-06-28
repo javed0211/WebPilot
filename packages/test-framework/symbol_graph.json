@@ -1,0 +1,616 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-06-28T09:32:07.680Z",
+  "classes": [
+    {
+      "name": "BookingBasePage",
+      "extendsClass": "BasePage",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/BookingBasePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "cookieAcceptButton",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "signInInfoDismissButton",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "dismissCookieConsentIfPresent",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "dismissSignInInfoIfPresent",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "handleInitialOverlays",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "BookingHomePage",
+      "extendsClass": "BookingBasePage",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/BookingHomePage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/https:\\/\\/www\\.booking\\.com\\/(\\?.*)?$/"
+        }
+      ],
+      "methods": [
+        {
+          "name": "headerLogo",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "searchForm",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "destinationInput",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "autocompleteList",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "autocompleteOptionForDestination",
+          "parameters": [
+            {
+              "name": "destination",
+              "type": "string"
+            }
+          ],
+          "returnType": "Locator"
+        },
+        {
+          "name": "dateCell",
+          "parameters": [
+            {
+              "name": "date",
+              "type": "string"
+            }
+          ],
+          "returnType": "Locator"
+        },
+        {
+          "name": "searchButton",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "searchHotels",
+          "parameters": [
+            {
+              "name": "destination",
+              "type": "string"
+            },
+            {
+              "name": "checkIn",
+              "type": "string"
+            },
+            {
+              "name": "checkOut",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<BookingSearchResultsPage>"
+        }
+      ]
+    },
+    {
+      "name": "BookingSearchResultsPage",
+      "extendsClass": "BookingBasePage",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/BookingSearchResultsPage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/https:\\/\\/www\\.booking\\.com\\/searchresults\\.html/"
+        }
+      ],
+      "methods": [
+        {
+          "name": "destinationField",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "resultsTitle",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "propertyCards",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "waitForLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertDestinationIsLondon",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertAccommodationResultsVisible",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "DemoApplitoolsAppPage",
+      "extendsClass": "BasePage",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/DemoApplitoolsAppPage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/https:\\/\\/demo\\.applitools\\.com\\/app\\.html$/"
+        }
+      ],
+      "methods": [
+        {
+          "name": "pageShell",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "sidebar",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "topBar",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "loggedInUserName",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "topBarIcons",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "settingsIcon",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "assertLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertUsernameVisible",
+          "parameters": [
+            {
+              "name": "username",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertLoggedInUserVisible",
+          "parameters": [
+            {
+              "name": "username",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertSettingsIconVisible",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertNoSettingsIconInTopBar",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "DemoApplitoolsLoginPage",
+      "extendsClass": "BasePage",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/DemoApplitoolsLoginPage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/https:\\/\\/demo\\.applitools\\.com\\/?$/"
+        }
+      ],
+      "methods": [
+        {
+          "name": "loginForm",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "usernameInput",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "passwordInput",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "signInButton",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "login",
+          "parameters": [
+            {
+              "name": "username",
+              "type": "string"
+            },
+            {
+              "name": "password",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<DemoApplitoolsAppPage>"
+        },
+        {
+          "name": "assertOnLoginPage",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "AutomationExerciseBasePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "AutomationExerciseBasePage\nShared Automation Exercise helpers (cookie banner, global nav).",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseBasePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "dismissCookieConsentIfPresent",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "openProductsFromNav",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "AutomationExerciseCartPage",
+      "extendsClass": "AutomationExerciseBasePage",
+      "pageIdentity": "AutomationExerciseCartPage",
+      "urlPattern": "https://automationexercise.com/view_cart",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseCartPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertOnCartPage",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCartPageLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCartProducts",
+          "parameters": [
+            {
+              "name": "expected",
+              "type": "CartLineItem[]"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertProductsInCart",
+          "parameters": [
+            {
+              "name": "expected",
+              "type": "Array<{ name: string; price: string; quantity: string; total: string; description?: string }>"
+            }
+          ],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "AutomationExerciseContactUsPage",
+      "extendsClass": "AutomationExerciseBasePage",
+      "pageIdentity": "AutomationExerciseContactUsPage",
+      "urlPattern": "https://automationexercise.com/contact_us",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseContactUsPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "contactForm",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "openFromNav",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertContactPageLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "fillContactForm",
+          "parameters": [
+            {
+              "name": "data",
+              "type": "{\n    name: string;\n    email: string;\n    subject: string;\n    message: string;\n  }"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "uploadFile",
+          "parameters": [
+            {
+              "name": "filePath",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "submitAndAcceptAlert",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertSubmissionSuccess",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickHome",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "AutomationExerciseHomePage",
+      "extendsClass": "AutomationExerciseBasePage",
+      "pageIdentity": "AutomationExerciseHomePage",
+      "urlPattern": "https://automationexercise.com/?",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertFeaturedItemsVisible",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "goToProductsPage",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickProductsNav",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "AutomationExerciseProductDetailPage",
+      "extendsClass": "AutomationExerciseBasePage",
+      "pageIdentity": "AutomationExerciseProductDetailPage",
+      "urlPattern": "https://automationexercise.com/product_details/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseProductDetailPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertProductNameVisible",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCategoryVisible",
+          "parameters": [
+            {
+              "name": "category",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertPriceVisible",
+          "parameters": [
+            {
+              "name": "price",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertAvailabilityVisible",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertConditionVisible",
+          "parameters": [
+            {
+              "name": "condition",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertBrandVisible",
+          "parameters": [
+            {
+              "name": "brand",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "AutomationExerciseProductsPage",
+      "extendsClass": "AutomationExerciseBasePage",
+      "pageIdentity": "AutomationExerciseProductsPage",
+      "urlPattern": "https://automationexercise.com/products",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseProductsPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "productCards",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertAllProductsVisible",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertAllProductsPageLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "hoverProductAt",
+          "parameters": [
+            {
+              "name": "index",
+              "type": "number"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "hoverProductCard",
+          "parameters": [
+            {
+              "name": "index",
+              "type": "number"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "hoverProductByIndex",
+          "parameters": [
+            {
+              "name": "index",
+              "type": "number"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "addToCartProductAt",
+          "parameters": [
+            {
+              "name": "index",
+              "type": "number"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickAddToCartByIndex",
+          "parameters": [
+            {
+              "name": "index",
+              "type": "number"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "handleCartModal",
+          "parameters": [
+            {
+              "name": "action",
+              "type": "'continue' | 'view'"
+            }
+          ],
+          "returnType": "Promise<void>"
+        }
+      ]
+    }
+  ]
+}
