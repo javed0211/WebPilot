@@ -37,6 +37,19 @@
   - Update WebPilot CLI/doctor/setup copy to say "WebPilot engine" instead of
     "Browser Use".
 
+## Windows-friendly browser launch defaults
+
+- Upstream integration: `integrations/browser_use/runner.py`,
+  `integrations/browser_use/branding.py`
+- Reason: first browser launch on Windows often exceeded browser-use's 30s
+  `BrowserStartEvent` timeout while default extensions (uBlock, cookie
+  blockers) were downloaded and extracted.
+- Changes:
+  - Disable default browser-use extensions for WebPilot runs
+    (`BROWSER_USE_DISABLE_EXTENSIONS=true`, `enable_default_extensions=false`).
+  - Raise browser launch event timeouts to 120s by default.
+  - Users can still override via environment variables when needed.
+
 The initial integration vendors Browser Use `0.12.9` and makes it the editable
 runtime dependency. WebPilot continues to provide its existing runner,
 TestMu/CDP configuration, branding hooks, execution-history export, and

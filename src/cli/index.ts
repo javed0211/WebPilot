@@ -571,6 +571,14 @@ program
     try {
       const projectRoot = path.resolve(process.cwd(), directory);
       const installRoot = findCliInstallRoot();
+      const cliPackageVersion = (() => {
+        try {
+          const pkg = JSON.parse(fs.readFileSync(path.join(installRoot, 'package.json'), 'utf8'));
+          return typeof pkg.version === 'string' ? pkg.version : '1.0.3';
+        } catch {
+          return '1.0.3';
+        }
+      })();
       const dirs = [
         'resources/config/environments',
         'resources/prompts',
@@ -671,7 +679,7 @@ playwright-report/
     "report": "webpilot report --html"
   },
   "devDependencies": {
-    "webpilot": "^1.0.0"
+    "@qubiqlabs/webpilot": "^${cliPackageVersion}"
   }
 }`);
 

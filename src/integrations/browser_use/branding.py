@@ -327,6 +327,7 @@ def build_browser_kwargs(
     kwargs: dict[str, Any] = {
         'headless': headless,
         'disable_security': False, # Changed to False to prevent the "invalid argument" infobar in Chromium
+        'enable_default_extensions': False,
         'channel': resolve_browser_channel(browser_cfg.get('target')),
         'args': ['--start-maximized'],
         # Drop flags Chrome now warns about or that show automation infobars.

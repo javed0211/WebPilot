@@ -5,6 +5,11 @@ import os
 os.environ.setdefault('ANONYMIZED_TELEMETRY', 'false')
 os.environ.setdefault('BROWSER_USE_VERSION_CHECK', 'false')
 os.environ.setdefault('BROWSER_USE_CLOUD_SYNC', 'false')
+# First browser launch on Windows often exceeds browser-use's 30s event timeout while
+# default extensions download; disable them and allow a longer launch handshake.
+os.environ.setdefault('BROWSER_USE_DISABLE_EXTENSIONS', 'true')
+os.environ.setdefault('TIMEOUT_BrowserStartEvent', '120')
+os.environ.setdefault('TIMEOUT_BrowserLaunchEvent', '120')
 
 import json
 import asyncio

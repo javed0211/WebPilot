@@ -1,0 +1,20 @@
+@smoke @bupa @insurance @quote
+Test: Start a Bupa Health Insurance Quote and Select an Address
+
+1. Navigate to https://www.bupa.co.uk/
+2. If a cookie consent dialog is visible, accept or dismiss it
+3. Verify the Bupa home page is loaded and the main navigation is visible
+4. Click the "Get a health insurance quote" button
+5. Wait for the health insurance quote form to be displayed
+6. If an intro or "who is this quote for" step is shown, choose the option to get a quote for yourself and continue
+7. Enter a title (for example "Mr") if a title field is shown
+8. Enter the first name "Alex" in the first name field
+9. Enter the last name "Taylor" in the last name field
+10. Enter the date of birth "01/01/1990" (or day 01, month 01, year 1990) in the date of birth fields
+11. Enter the email address "alex.taylor@example.com" if an email field is shown
+12. Enter the phone number "07700900123" if a phone number field is shown
+13. Locate the address section and enter the postcode "SW1A 1AA" in the postcode field
+14. Click the "Find address" (or "Find") button to look up addresses for the postcode
+15. Wait for the list of matching addresses to appear
+16. Select the first available address from the address suggestions/dropdown
+17. Verify that an address has been selected and the address fields are populated

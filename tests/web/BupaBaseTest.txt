@@ -1,0 +1,12 @@
+@smoke @bupa @base
+target: web
+baseUrl: https://www.bupa.co.uk
+codegen: false
+report: true
+
+Test: Bupa home page smoke
+
+1. Navigate to https://www.bupa.co.uk/
+2. If a cookie consent dialog is visible, accept or dismiss it
+3. Verify the Bupa home page is loaded and the main navigation is visible
+4. Verify the page title or header contains "Bupa"
