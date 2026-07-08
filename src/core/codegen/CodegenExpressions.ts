@@ -160,9 +160,38 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
   }
 }
 
+function normalizeProjectRelativePath(filePath: string): string {
+  let normalized = filePath.replace(/\\/g, '/').replace(/^\.\//, '');
+  const cwd = process.cwd().replace(/\\/g, '/').replace(/\/$/, '');
+  if (normalized.startsWith(`${cwd}/`)) {
+    normalized = normalized.slice(cwd.length + 1);
+  }
+  return normalized;
+}
+
+/** Import path for generated specs — prefers stable ../pages/ from test-framework/tests. */
+export function specImportPath(fromFile: string, targetFile: string): string {
+  const from = normalizeProjectRelativePath(fromFile);
+  const target = normalizeProjectRelativePath(targetFile).replace(/\.tsx?$/, '');
+
+  const frameworkPagesPrefix = 'packages/test-framework/pages/';
+  if (target.startsWith(frameworkPagesPrefix)) {
+    const suffix = target.slice(frameworkPagesPrefix.length);
+    if (from.startsWith('packages/test-framework/tests/')) {
+      return `../pages/${suffix}`;
+    }
+    return `@pages/${suffix}`;
+  }
+
+  return relativeImportPath(from, `${target}.ts`);
+}
+
 export function relativeImportPath(fromFile: string, targetFile: string): string {
-  const fromDir = fromFile.split('/').slice(0, -1);
-  const targetParts = targetFile.replace(/\.ts$/, '').split('/');
+  const from = normalizeProjectRelativePath(fromFile);
+  const target = normalizeProjectRelativePath(targetFile).replace(/\.tsx?$/, '');
+
+  const fromDir = from.split('/').slice(0, -1);
+  const targetParts = target.split('/');
   let common = 0;
   while (
     common < fromDir.length &&

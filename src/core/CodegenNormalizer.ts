@@ -79,16 +79,16 @@ export class CodegenNormalizer {
     return normalized;
   }
 
-  /** Specs must use path aliases, not relative imports into packages/test-framework/pages. */
+  /** Specs under test-framework/tests must import pages via ../pages/ (one level up). */
   public static normalizeSpecImports(content: string): string {
     return content
       .replace(
-        /from\s+['"]\.\.\/pages\/automationexercise\/([^'"]+)['"]/g,
-        "from '@pages/automationexercise/$1'"
+        /from\s+['"](?:\.\.\/)+pages\/([^'"]+)['"]/g,
+        "from '../pages/$1'"
       )
       .replace(
-        /from\s+['"]\.\/pages\/automationexercise\/([^'"]+)['"]/g,
-        "from '@pages/automationexercise/$1'"
+        /from\s+['"]\.\/pages\/([^'"]+)['"]/g,
+        "from '../pages/$1'"
       )
       .replace(/toHaveCountGreaterThan/g, 'assertCountAtLeast');
   }

@@ -1,7 +1,7 @@
 import { PageObjectArtifact } from './DeterministicPageObjectWriter';
 import { ExecutionTrace, TraceStep } from './ExecutionTrace';
 import { GenerationPlan, PlannedFile } from './GenerationPlan';
-import { escapeTsString, relativeImportPath, specStepBody } from './CodegenExpressions';
+import { escapeTsString, specImportPath, specStepBody } from './CodegenExpressions';
 
 function pageVarName(className: string): string {
   return className.charAt(0).toLowerCase() + className.slice(1);
@@ -42,7 +42,7 @@ export class DeterministicSpecWriter {
     for (const page of plan.pageObjects) {
       if (!page.className) continue;
       if (page.operation === 'create' && !artifactByClass.has(page.className)) continue;
-      const importFrom = relativeImportPath(plan.specPath, page.path);
+      const importFrom = specImportPath(plan.specPath, page.path);
       imports.add(`import { ${page.className} } from '${importFrom}';`);
     }
 
