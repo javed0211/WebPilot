@@ -141,7 +141,8 @@ export class DeterministicCodegenPipeline {
     execSync(command, {
       cwd: process.cwd(),
       stdio: 'inherit',
-      shell: '/bin/sh',
+      // Hardcoding /bin/sh breaks Windows with spawnSync ENOENT.
+      shell: process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : '/bin/sh',
       env: process.env,
     });
   }

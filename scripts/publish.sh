@@ -76,6 +76,12 @@ step "Checking preconditions"
 command -v node >/dev/null 2>&1 || die "node is not installed"
 command -v npm  >/dev/null 2>&1 || die "npm is not installed"
 
+# Remove inline credential values before inspecting the tree. The sanitizer
+# deliberately exits non-zero after a repair so the release cannot continue
+# until the placeholder-only change has been reviewed and committed.
+node scripts/sanitize-publish-secrets.cjs --fix \
+  || die "Inline credentials were removed. Review and commit resources/config/llm.json, then retry."
+
 if [[ "$DRY_RUN" -eq 0 ]]; then
   if ! npm whoami >/dev/null 2>&1; then
     die "Not logged in to npm. Run: npm login --registry=https://registry.npmjs.org/"
@@ -149,13 +155,11 @@ echo "$PACK_OUTPUT" | grep -E '(\.env$|/runtime/|node_modules/|\.pem$|\.key$|sec
   && die "Refusing to publish: package would include sensitive or unexpected files (see above)." \
   || ok "No obviously sensitive files in the tarball"
 
-# Guard against real secrets accidentally committed into llm.json.
-if [[ -f resources/config/llm.json ]]; then
-  if grep -Eq '"(apiKey|secretKey)"\s*:\s*"(sk-|AKIA|AIza)[A-Za-z0-9_-]{8,}' resources/config/llm.json; then
-    die "resources/config/llm.json appears to contain a real API key. Replace with \${ENV} placeholders before publishing."
-  fi
-  ok "resources/config/llm.json contains no obvious real secrets"
-fi
+# Structured validation catches credential formats without relying on vendor
+# prefixes and never prints the credential value.
+node scripts/sanitize-publish-secrets.cjs --check \
+  || die "Credential validation failed. Run npm run security:secrets:fix."
+ok "resources/config/llm.json contains environment placeholders only"
 
 # ----- 5. version bump -------------------------------------------------------
 if [[ "$BUMP" == "$CURRENT_VERSION" ]]; then

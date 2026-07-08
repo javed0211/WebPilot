@@ -38,7 +38,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepack": "npm run build",
+    "prepack": "npm run security:secrets:fix && npm run build",
     "webpilot": "node dist/src/cli/index.js",
     "webpilot:dev": "ts-node src/cli/index.ts",
     "doctor": "node dist/src/cli/index.js doctor",
@@ -48,7 +48,10 @@
     "init": "node dist/src/cli/index.js init",
     "report": "node dist/src/cli/index.js report",
     "report:html": "node dist/src/cli/index.js report --html",
-    "check:architecture": "node scripts/check-browser-use-boundary.js"
+    "check:architecture": "node scripts/check-browser-use-boundary.js",
+    "security:secrets:check": "node scripts/sanitize-publish-secrets.cjs --check",
+    "security:secrets:fix": "node scripts/sanitize-publish-secrets.cjs --fix",
+    "test:publish-security": "node scripts/test-publish-secret-sanitizer.cjs"
   },
   "keywords": [
     "web-automation",
