@@ -30,7 +30,7 @@ import { writeGithubActionsWorkflow } from '../core/ci/CiWorkflow';
 import { ScenarioMetadataParser } from '../core/authoring/ScenarioMetadata';
 import { AuthoringOutput } from '../core/authoring/NextSteps';
 import { TestTemplateRegistry, TestTemplateKind } from '../core/authoring/TestTemplates';
-import { resolveFrameworkBasePageContent } from '../core/FrameworkTemplates';
+import { resolveFrameworkBasePageContent, buildFrameworkTsConfigJson, readFrameworkDependencyVersions } from '../core/FrameworkTemplates';
 
 process.env.DOTENV_CONFIG_QUIET = process.env.DOTENV_CONFIG_QUIET || 'true';
 dotenv.config({ quiet: true });
@@ -383,6 +383,33 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
   const nodeMajor = Number(process.versions.node.split('.')[0]);
   if (nodeMajor >= 20) pass(`Node ${process.versions.node}`);
   else fail(`Node ${process.versions.node} is too old`, 'Install Node 20 or newer.');
+  if (
+    !projectProfile.language ||
+    (projectProfile.language === 'typescript' && projectProfile.automationTool === 'playwright')
+  ) {
+    if (exists('tsconfig.json')) pass('tsconfig.json found');
+    else {
+      fail(
+        'tsconfig.json missing',
+        `Add path aliases for @core and @config, or re-run ${chalk.bold('webpilot init --force')}.`
+      );
+    }
+    try {
+      require.resolve('@playwright/test/package.json', { paths: [process.cwd()] });
+      pass('@playwright/test installed in project');
+    } catch {
+      fail(
+        '@playwright/test not installed in project',
+        'Run: npm install --save-dev @playwright/test typescript @types/node'
+      );
+    }
+    try {
+      require.resolve('typescript/package.json', { paths: [process.cwd()] });
+      pass('typescript installed in project');
+    } catch {
+      warn('typescript not installed in project', 'Run: npm install --save-dev typescript @types/node');
+    }
+  }
   try {
     const npmVersion = execSync('npm --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     pass(`npm ${npmVersion}`);
@@ -591,6 +618,7 @@ program
           return '1.0.3';
         }
       })();
+      const frameworkDeps = readFrameworkDependencyVersions(installRoot);
       const dirs = [
         'resources/config/environments',
         'resources/prompts',
@@ -690,8 +718,15 @@ playwright-report/
     ${packageScripts}
     "report": "webpilot report --html"
   },
+  "dependencies": {
+    "ajv": "${frameworkDeps.ajv}",
+    "chalk": "${frameworkDeps.chalk}"
+  },
   "devDependencies": {
-    "@qubiqlabs/webpilot": "^${cliPackageVersion}"
+    "@playwright/test": "${frameworkDeps.playwright}",
+    "@qubiqlabs/webpilot": "^${cliPackageVersion}",
+    "@types/node": "${frameworkDeps.typesNode}",
+    "typescript": "${frameworkDeps.typescript}"
   }
 }`);
 
@@ -885,6 +920,8 @@ Starter templates for this combination are not fully implemented yet. WebPilot c
         console.log(`  ${projectRoot !== process.cwd() ? '6' : '5'}. ${chalk.bold('npm run webpilot:run')}\n`);
         return;
       }
+
+      writeProjectFile('tsconfig.json', buildFrameworkTsConfigJson());
 
       // Define path helper
       const writeFrameworkFile = (subdir: string, filename: string, content: string) => {

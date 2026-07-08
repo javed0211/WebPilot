@@ -4,7 +4,11 @@ import {
   CANONICAL_PAGE_CONTENT,
   CANONICAL_SPEC_BY_SLUG,
 } from './CodegenCanonicalPages';
-import { FRAMEWORK_BASE_PAGE_REL_PATH, resolveFrameworkBasePageContent } from './FrameworkTemplates';
+import {
+  FRAMEWORK_BASE_PAGE_REL_PATH,
+  ensureFrameworkTsConfig,
+  resolveFrameworkBasePageContent,
+} from './FrameworkTemplates';
 
 export interface NormalizeOptions {
   testSlug?: string;
@@ -36,6 +40,10 @@ export class CodegenNormalizer {
 
     const pathsPresent = new Set(files.map((f) => f.path.replace(/\\/g, '/')));
     const normalized: GeneratedFile[] = [];
+
+    if (ensureFrameworkTsConfig()) {
+      console.log('\x1b[32m[CodegenNormalizer] Wrote tsconfig.json with @core/@config path aliases.\x1b[0m');
+    }
 
     normalized.push({
       path: FRAMEWORK_BASE_PAGE_REL_PATH,

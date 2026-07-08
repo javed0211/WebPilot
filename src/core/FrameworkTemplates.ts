@@ -2,6 +2,98 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export const FRAMEWORK_BASE_PAGE_REL_PATH = 'packages/test-framework/core/BasePage.ts';
+export const FRAMEWORK_TSCONFIG_REL_PATH = 'tsconfig.json';
+
+export const FRAMEWORK_PATH_ALIASES: Record<string, string[]> = {
+  '@core/*': ['packages/test-framework/core/*'],
+  '@pages/*': ['packages/test-framework/pages/*'],
+  '@tests/*': ['packages/test-framework/tests/*'],
+  '@config/*': ['packages/test-framework/config/*'],
+  '@utils/*': ['packages/test-framework/utils/*'],
+  '@data/*': ['packages/test-framework/data/*'],
+  '@apis/*': ['packages/test-framework/apis/*'],
+};
+
+export function buildFrameworkTsConfigJson(): string {
+  return `${JSON.stringify(
+    {
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'CommonJS',
+        lib: ['ES2022'],
+        strict: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+        forceConsistentCasingInFileNames: true,
+        resolveJsonModule: true,
+        moduleResolution: 'node',
+        types: ['node'],
+        baseUrl: '.',
+        paths: FRAMEWORK_PATH_ALIASES,
+      },
+      include: ['packages/test-framework/**/*'],
+    },
+    null,
+    2
+  )}\n`;
+}
+
+/** Write root tsconfig.json when missing or when path aliases were never configured. */
+export function ensureFrameworkTsConfig(cwd = process.cwd()): boolean {
+  const tsconfigPath = path.join(cwd, FRAMEWORK_TSCONFIG_REL_PATH);
+  if (fs.existsSync(tsconfigPath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as {
+        compilerOptions?: { paths?: Record<string, string[]> };
+      };
+      if (existing.compilerOptions?.paths?.['@core/*']) {
+        return false;
+      }
+    } catch {
+      // fall through and rewrite a broken tsconfig
+    }
+  }
+  fs.writeFileSync(tsconfigPath, buildFrameworkTsConfigJson(), 'utf8');
+  return true;
+}
+
+export interface FrameworkDependencyVersions {
+  playwright: string;
+  typescript: string;
+  typesNode: string;
+  ajv: string;
+  chalk: string;
+}
+
+export function readFrameworkDependencyVersions(installRoot?: string | null): FrameworkDependencyVersions {
+  const defaults: FrameworkDependencyVersions = {
+    playwright: '^1.60.0',
+    typescript: '^6.0.3',
+    typesNode: '^25.9.0',
+    ajv: '^8.20.0',
+    chalk: '^4.1.2',
+  };
+  const root = installRoot ?? resolveInstallRoot();
+  if (!root) {
+    return defaults;
+  }
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    return {
+      playwright: deps['@playwright/test'] ?? defaults.playwright,
+      typescript: deps.typescript ?? defaults.typescript,
+      typesNode: deps['@types/node'] ?? defaults.typesNode,
+      ajv: deps.ajv ?? defaults.ajv,
+      chalk: deps.chalk ?? defaults.chalk,
+    };
+  } catch {
+    return defaults;
+  }
+}
 
 /** Minimal BasePage for init when the full template is unavailable (older installs). */
 export const MINIMAL_BASE_PAGE_FALLBACK = `import { Page, Locator, expect } from '@playwright/test';

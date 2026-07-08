@@ -9,6 +9,7 @@ import { CodegenNormalizer, NormalizeOptions } from './CodegenNormalizer';
 import { CodegenPlaywrightValidator } from './CodegenPlaywrightValidator';
 import { CodegenSanitizer } from './CodegenSanitizer';
 import { AUTOMATION_EXERCISE_BASE_PAGE } from './CodegenCanonicalPages';
+import { ensureFrameworkTsConfig } from './FrameworkTemplates';
 
 const MONOLITHIC_PAGE_DENYLIST = ['AutomationExercisePage.ts'];
 
@@ -134,6 +135,9 @@ export class CodegenWriter {
     normalizeOptions?: NormalizeOptions
   ): Promise<{ ok: boolean; paths: string[] }> {
     UsageTracker.setPhase('codegen');
+    if (ensureFrameworkTsConfig()) {
+      console.log('\x1b[32m[CodegenWriter] Wrote tsconfig.json with @core/@config path aliases.\x1b[0m');
+    }
     const normalized = CodegenNormalizer.normalize(files, normalizeOptions);
     CodegenWriter.ensureSiteScaffolds(normalized);
     const paths = CodegenWriter.writeFiles(normalized);
