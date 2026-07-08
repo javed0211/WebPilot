@@ -32,7 +32,12 @@ export default defineConfig({
       name: 'chromium',
       testMatch: '**/*.spec.ts',
       testIgnore: '**/*.api.spec.ts',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Use installed Google Chrome (same as browser-use) so codegen validation
+        // works on Windows without `npx playwright install chromium`.
+        channel: 'chrome',
+      },
     },
     {
       name: 'api',

@@ -30,6 +30,7 @@ import { writeGithubActionsWorkflow } from '../core/ci/CiWorkflow';
 import { ScenarioMetadataParser } from '../core/authoring/ScenarioMetadata';
 import { AuthoringOutput } from '../core/authoring/NextSteps';
 import { TestTemplateRegistry, TestTemplateKind } from '../core/authoring/TestTemplates';
+import { resolveFrameworkBasePageContent } from '../core/FrameworkTemplates';
 
 process.env.DOTENV_CONFIG_QUIET = process.env.DOTENV_CONFIG_QUIET || 'true';
 dotenv.config({ quiet: true });
@@ -895,88 +896,8 @@ Starter templates for this combination are not fully implemented yet. WebPilot c
         }
       };
 
-      // 1. Scaffold BasePage.ts
-      writeFrameworkFile('core', 'BasePage.ts', `import { Page, expect } from '@playwright/test';
-
-export class BasePage {
-  protected page: Page;
-
-  constructor(page: Page) {
-    this.page = page;
-  }
-
-  public async navigate(url: string): Promise<void> {
-    console.log(\`[BasePage] Navigating to URL: \${url}\`);
-    await this.page.goto(url, { waitUntil: 'load' });
-  }
-
-  public async click(selector: string, timeout = 10000): Promise<void> {
-    console.log(\`[BasePage] Action: Click element matching "\${selector}"\`);
-    const locator = this.page.locator(selector);
-    await locator.waitFor({ state: 'visible', timeout });
-    await locator.click();
-  }
-
-  public async fill(selector: string, value: string, timeout = 10000): Promise<void> {
-    console.log(\`[BasePage] Action: Fill field "\${selector}" with value: "\${value}"\`);
-    const locator = this.page.locator(selector);
-    await locator.waitFor({ state: 'visible', timeout });
-    await locator.fill(value);
-  }
-
-  public async getText(selector: string, timeout = 10000): Promise<string> {
-    const locator = this.page.locator(selector);
-    await locator.waitFor({ state: 'visible', timeout });
-    const text = await locator.innerText();
-    return text.trim();
-  }
-
-  public async isVisible(selector: string, timeout = 5000): Promise<boolean> {
-    try {
-      const locator = this.page.locator(selector);
-      await locator.waitFor({ state: 'visible', timeout });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  public async scrollIntoView(selector: string, timeout = 10000): Promise<void> {
-    console.log(\`[BasePage] Action: Scroll into view: "\${selector}"\`);
-    const locator = this.page.locator(selector);
-    await locator.waitFor({ state: 'attached', timeout });
-    await locator.scrollIntoViewIfNeeded();
-  }
-
-  public async selectOption(selector: string, value: string | string[], timeout = 10000): Promise<void> {
-    console.log(\`[BasePage] Action: Select option: "\${value}" from "\${selector}"\`);
-    const locator = this.page.locator(selector);
-    await locator.waitFor({ state: 'visible', timeout });
-    await locator.selectOption(value);
-  }
-
-  public async assertTitle(expectedTitle: string): Promise<void> {
-    console.log(\`[BasePage] Assertion: Verify page title equals "\${expectedTitle}"\`);
-    await expect(this.page).toHaveTitle(expectedTitle);
-  }
-
-  public async assertUrl(expectedUrl: string | RegExp): Promise<void> {
-    console.log(\`[BasePage] Assertion: Verify page URL matches "\${expectedUrl}"\`);
-    await expect(this.page).toHaveURL(expectedUrl);
-  }
-
-  public async assertTextPresent(selector: string, text: string, timeout = 10000): Promise<void> {
-    console.log(\`[BasePage] Assertion: Verify text "\${text}" is present within selector "\${selector}"\`);
-    const locator = this.page.locator(selector);
-    await expect(locator).toContainText(text, { timeout });
-  }
-
-  public async assertElementVisible(selector: string, timeout = 10000): Promise<void> {
-    console.log(\`[BasePage] Assertion: Verify element visibility matching "\${selector}"\`);
-    const locator = this.page.locator(selector);
-    await expect(locator).toBeVisible({ timeout });
-  }
-}`);
+      // 1. Scaffold BasePage.ts (full framework template when available)
+      writeFrameworkFile('core', 'BasePage.ts', resolveFrameworkBasePageContent());
 
       // 2. Scaffold BaseAPI.ts
       writeFrameworkFile('core', 'BaseAPI.ts', `import { APIRequestContext, APIResponse, expect } from '@playwright/test';
@@ -1359,7 +1280,10 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+      },
     },
   ],
 });

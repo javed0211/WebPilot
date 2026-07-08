@@ -432,6 +432,42 @@ def _resolve_use_vision(use_vision: str):
     return use_vision in ('always', 'true', 'on', '1')
 
 
+async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> None:
+    """Force-close the browser after a run.
+
+    keep_alive=True is required during multi-step discovery so agent.run() does not
+    kill Chrome between steps, but the window must be closed when the job finishes.
+    """
+    profile = getattr(browser, 'browser_profile', None)
+    if profile is not None:
+        profile.keep_alive = False
+
+    try:
+        if scoped_agent is not None:
+            await scoped_agent.close()
+        else:
+            await asyncio.wait_for(browser.kill(), timeout=25)
+        return
+    except Exception as kill_error:
+        print(f"Warning: browser shutdown did not finish cleanly: {kill_error}")
+
+    try:
+        await asyncio.wait_for(browser.kill(), timeout=25)
+        return
+    except Exception as retry_error:
+        print(f"Warning: browser.kill() retry failed: {retry_error}")
+
+    watchdog = getattr(browser, '_local_browser_watchdog', None)
+    subprocess = getattr(watchdog, '_subprocess', None) if watchdog is not None else None
+    if watchdog is not None and subprocess is not None:
+        try:
+            await watchdog._cleanup_process(subprocess)
+            watchdog._subprocess = None
+            print('[WebPilot] Forced local browser process cleanup after kill() failure.')
+        except Exception as force_error:
+            print(f"Warning: forced browser process cleanup failed: {force_error}")
+
+
 async def run_intelligent_steps(
     *,
     browser: Any,
@@ -443,7 +479,7 @@ async def run_intelligent_steps(
     upload_paths: list[str],
     llm_usage_totals: dict,
     perf: dict | None = None,
-) -> tuple[bool, dict]:
+) -> tuple[bool, dict, Any | None]:
     """Execute known steps deterministically and delegate only missing steps to WebPilot discovery."""
     perf = perf or dict(PERFORMANCE_DEFAULTS)
     judge_mode = perf.get('judgeMode', 'verification')
@@ -535,7 +571,7 @@ async def run_intelligent_steps(
                 "urlSequence": url_sequence,
                 "reusedSteps": reused,
                 "learnedSteps": learned,
-            }
+            }, scoped_agent
 
         print(f"[Discovery] Step {step_index}/{len(steps)} WebPilot: {step}")
         before = await compact_page_state(browser)
@@ -601,7 +637,7 @@ async def run_intelligent_steps(
                 "urlSequence": url_sequence,
                 "reusedSteps": reused,
                 "learnedSteps": learned,
-            }
+            }, scoped_agent
 
         after = await compact_page_state(browser)
         capability = capability_from_step(step, before, after, captured_actions)
@@ -651,7 +687,7 @@ async def run_intelligent_steps(
         "reusedSteps": reused,
         "learnedSteps": learned,
     }
-    return True, context
+    return True, context, scoped_agent
 
 
 def load_browser_artifact_config():
@@ -972,7 +1008,7 @@ async def main():
     ):
         if perf.get(perf_key) is not None:
             browser_kwargs[kwarg_key] = perf[perf_key]
-    browser_kwargs['keep_alive'] = True
+    browser_kwargs['keep_alive'] = True  # Required between scoped discovery steps; shutdown_browser() closes at end.
     browser = Browser(**browser_kwargs)
     print(
         f"[WebPilot] Performance: judge={perf.get('judgeMode')} "
@@ -1002,8 +1038,9 @@ async def main():
             f"headless={browser_cfg['headless']}, "
             f"video={browser_cfg['record_video']}, trace={browser_cfg['record_trace']})..."
         )
+    scoped_agent = None
     try:
-        agent_ok, execution_context = await run_intelligent_steps(
+        agent_ok, execution_context, scoped_agent = await run_intelligent_steps(
             browser=browser,
             llm=llm,
             llm_cfg=llm_cfg,
@@ -1235,7 +1272,7 @@ async def main():
             with open(report_path, 'w', encoding='utf-8') as f_rep:
                 json.dump(report_summary, f_rep, indent=2)
         try:
-            await asyncio.wait_for(browser.kill(), timeout=20)
+            await shutdown_browser(browser, scoped_agent)
         except Exception as close_error:
             print(f"Warning: browser cleanup did not finish cleanly: {close_error}")
         trigger_html_reports(base_file_name, env_name, test_file_path, skip_ai=True)

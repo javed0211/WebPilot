@@ -15,6 +15,12 @@ export interface PlaywrightRunResult {
 
 const MAX_PLAYWRIGHT_FIX_ROUNDS = 2;
 
+function isMissingPlaywrightBrowserError(output: string): boolean {
+  return /Executable doesn't exist|Please run the following command to download new browsers|npx playwright install/i.test(
+    output
+  );
+}
+
 /** Playwright CLI args are regex patterns — use project-relative forward-slash paths on Windows. */
 function toPlaywrightSpecArg(relativePath: string): string {
   return relativePath.replace(/\\/g, '/');
@@ -85,6 +91,15 @@ export class CodegenPlaywrightValidator {
       console.warn(
         `\x1b[33m[CodegenPlaywrightValidator] Playwright run failed (round ${round + 1}).\x1b[0m`
       );
+
+      if (isMissingPlaywrightBrowserError(result.output)) {
+        console.error(
+          '\x1b[31m[CodegenPlaywrightValidator] Playwright browser is not installed.\x1b[0m\n' +
+            '  Fix: npx playwright install chromium\n' +
+            '  Or set channel: "chrome" in packages/test-framework/playwright.config.ts to use installed Google Chrome.'
+        );
+        return { passed: false, files: currentFiles, output: result.output };
+      }
 
       if (round === MAX_PLAYWRIGHT_FIX_ROUNDS) {
         console.error(result.output.slice(-2000));

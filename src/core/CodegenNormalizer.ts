@@ -4,6 +4,7 @@ import {
   CANONICAL_PAGE_CONTENT,
   CANONICAL_SPEC_BY_SLUG,
 } from './CodegenCanonicalPages';
+import { FRAMEWORK_BASE_PAGE_REL_PATH, resolveFrameworkBasePageContent } from './FrameworkTemplates';
 
 export interface NormalizeOptions {
   testSlug?: string;
@@ -35,6 +36,12 @@ export class CodegenNormalizer {
 
     const pathsPresent = new Set(files.map((f) => f.path.replace(/\\/g, '/')));
     const normalized: GeneratedFile[] = [];
+
+    normalized.push({
+      path: FRAMEWORK_BASE_PAGE_REL_PATH,
+      content: resolveFrameworkBasePageContent(),
+    });
+    pathsPresent.add(FRAMEWORK_BASE_PAGE_REL_PATH);
 
     for (const [canonicalPath, content] of Object.entries(CANONICAL_PAGE_CONTENT)) {
       normalized.push({ path: canonicalPath, content });

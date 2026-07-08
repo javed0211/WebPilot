@@ -27,6 +27,7 @@
     "resources/assets/webpilot-logo.png",
     "resources/assets/webpilot-logo-light.png",
     "resources/assets/webpilot-logo-dark.png",
+    "packages/test-framework/core/BasePage.ts",
     ".env.example",
     "requirements.txt",
     "scripts/setup-python.sh",

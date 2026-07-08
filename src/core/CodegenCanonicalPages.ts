@@ -11,7 +11,10 @@ export const AUTOMATION_EXERCISE_CANONICAL_PATHS = new Set([
 ]);
 
 export const AUTOMATION_EXERCISE_BASE_PAGE = `import { BasePage } from '@core/BasePage';
-import { Page } from '@playwright/test';
+import { Page, expect, Locator } from '@playwright/test';
+
+type Role = Parameters<Page['getByRole']>[0];
+type RoleOptions = Parameters<Page['getByRole']>[1];
 
 /**
  * @pageIdentity AutomationExerciseBasePage
@@ -20,6 +23,20 @@ import { Page } from '@playwright/test';
 export abstract class AutomationExerciseBasePage extends BasePage {
   constructor(page: Page) {
     super(page);
+  }
+
+  /** Provided here so canonical POMs work with minimal init-scaffolded BasePage. */
+  public async assertCountAtLeast(locator: Locator, minimum: number): Promise<void> {
+    const n = await locator.count();
+    expect(n).toBeGreaterThanOrEqual(minimum);
+  }
+
+  public async assertHeadingVisible(text: string | RegExp): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: text })).toBeVisible();
+  }
+
+  public async clickByRole(role: Role, options?: RoleOptions): Promise<void> {
+    await this.page.getByRole(role, options).click();
   }
 
   async dismissCookieConsentIfPresent(): Promise<void> {
