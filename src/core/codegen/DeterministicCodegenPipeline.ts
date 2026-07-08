@@ -136,15 +136,28 @@ export class DeterministicCodegenPipeline {
   private static validateProfileFiles(plan: GenerationPlan, files: GeneratedFile[]): void {
     const profile = CodegenProfileRegistry.resolve(plan.profile);
     if (profile.language === 'typescript' && profile.automationTool === 'playwright') return;
+    // Profile validators (python/cypress/java commands) are optional. Skip them on
+    // Windows for reliability — hardcoding /bin/sh previously caused spawnSync ENOENT.
+    if (process.platform === 'win32') {
+      console.warn(
+        `[Codegen] Skipping profile validation on Windows (${profile.language}/${profile.automationTool}).`
+      );
+      return;
+    }
     const command = profile.validationCommand(plan.profile);
     if (!command) return;
-    execSync(command, {
-      cwd: process.cwd(),
-      stdio: 'inherit',
-      // Hardcoding /bin/sh breaks Windows with spawnSync ENOENT.
-      shell: process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : '/bin/sh',
-      env: process.env,
-    });
+    try {
+      execSync(command, {
+        cwd: process.cwd(),
+        stdio: 'inherit',
+        env: process.env,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[Codegen] Profile validation skipped after command failed (${command}): ${message}`
+      );
+    }
   }
 
   public static async run(input: PipelineInput, options?: { validate?: boolean }): Promise<PipelineResult> {

@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { GeneratedFile } from '../agents/CodegenAgent';
@@ -14,6 +14,11 @@ export interface PlaywrightRunResult {
 
 const MAX_PLAYWRIGHT_FIX_ROUNDS = 2;
 
+/** Playwright CLI args are regex patterns — use project-relative forward-slash paths on Windows. */
+function toPlaywrightSpecArg(relativePath: string): string {
+  return relativePath.replace(/\\/g, '/');
+}
+
 /**
  * Runs generated Playwright specs and optionally auto-fixes via LLM from failure output.
  */
@@ -26,27 +31,31 @@ export class CodegenPlaywrightValidator {
       return { passed: true, output: 'No spec files to run.', specPaths: [] };
     }
 
-    const args = existing
-      .map((p) => path.join(process.cwd(), p))
-      .join(' ');
+    const playwrightCli = require.resolve('@playwright/test/cli');
+    const args = [
+      playwrightCli,
+      'test',
+      ...existing.map(toPlaywrightSpecArg),
+      '--config=packages/test-framework/playwright.config.ts',
+      '--retries=0',
+    ];
 
-    try {
-      execSync(
-        `npx playwright test ${args} -c packages/test-framework/playwright.config.ts --retries=0`,
-        {
-          cwd: process.cwd(),
-          encoding: 'utf8',
-          stdio: ['pipe', 'pipe', 'pipe'],
-          timeout: 180_000,
-          env: { ...process.env, FORCE_COLOR: '0' },
-        }
-      );
-      return { passed: true, output: 'All specs passed.', specPaths: existing };
-    } catch (err: unknown) {
-      const e = err as { stdout?: string; stderr?: string; message?: string };
-      const output = [e.stdout, e.stderr, e.message].filter(Boolean).join('\n');
-      return { passed: false, output: output.slice(-12000), specPaths: existing };
+    const result = spawnSync(process.execPath, args, {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, FORCE_COLOR: '0' },
+    });
+
+    const output = [result.stdout, result.stderr, result.error?.message]
+      .filter(Boolean)
+      .join('\n');
+
+    if (result.status === 0) {
+      return { passed: true, output: output || 'All specs passed.', specPaths: existing };
     }
+
+    return { passed: false, output: output.slice(-12000), specPaths: existing };
   }
 
   public static async validateAndFix(
