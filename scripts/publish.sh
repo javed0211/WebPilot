@@ -151,7 +151,8 @@ ok "Build succeeded"
 # ----- 4. secrets / artifact sanity -----------------------------------------
 step "Inspecting package contents (npm pack --dry-run)"
 PACK_OUTPUT="$(npm pack --dry-run 2>&1)"
-echo "$PACK_OUTPUT" | grep -E '(\.env$|/runtime/|node_modules/|\.pem$|\.key$|secrets)' \
+# Only inspect tarball file lines — prepack logs mention "security:secrets:fix".
+echo "$PACK_OUTPUT" | grep '^npm notice [0-9]' | grep -E '(\.env$|/runtime/|node_modules/|\.pem$|\.key$|/secrets/)' \
   && die "Refusing to publish: package would include sensitive or unexpected files (see above)." \
   || ok "No obviously sensitive files in the tarball"
 
