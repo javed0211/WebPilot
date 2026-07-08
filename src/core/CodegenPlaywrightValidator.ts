@@ -4,6 +4,7 @@ import * as path from 'path';
 import { GeneratedFile } from '../agents/CodegenAgent';
 import { LLMClient, LLMMessage } from './LLMClient';
 import { CodegenContext } from './CodegenContext';
+import { CodegenNormalizer } from './CodegenNormalizer';
 import { PromptLoader } from './PromptLoader';
 
 export interface PlaywrightRunResult {
@@ -66,6 +67,7 @@ export class CodegenPlaywrightValidator {
     let currentFiles = [...files];
 
     for (let round = 0; round <= MAX_PLAYWRIGHT_FIX_ROUNDS; round++) {
+      currentFiles = CodegenNormalizer.sanitizeGeneratedFiles(currentFiles);
       for (const file of currentFiles) {
         const fullPath = path.join(process.cwd(), file.path);
         fs.mkdirSync(path.dirname(fullPath), { recursive: true });

@@ -169,17 +169,20 @@ function normalizeProjectRelativePath(filePath: string): string {
   return normalized;
 }
 
-/** Import path for generated specs — prefers stable ../pages/ from test-framework/tests. */
+/** Import path for generated specs — always one level up from tests/ to pages/. */
 export function specImportPath(fromFile: string, targetFile: string): string {
   const from = normalizeProjectRelativePath(fromFile);
   const target = normalizeProjectRelativePath(targetFile).replace(/\.tsx?$/, '');
 
+  const pagesMarker = '/pages/';
+  const pagesIdx = target.lastIndexOf(pagesMarker);
+  if (pagesIdx >= 0 && from.includes('/tests/')) {
+    return `..${target.slice(pagesIdx)}`;
+  }
+
   const frameworkPagesPrefix = 'packages/test-framework/pages/';
   if (target.startsWith(frameworkPagesPrefix)) {
     const suffix = target.slice(frameworkPagesPrefix.length);
-    if (from.startsWith('packages/test-framework/tests/')) {
-      return `../pages/${suffix}`;
-    }
     return `@pages/${suffix}`;
   }
 

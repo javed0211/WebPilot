@@ -20,6 +20,7 @@ import { collectTestCaseReport } from './execution_report/collector';
 import { BrowserProviderRegistry } from './browserProviders/BrowserProviderRegistry';
 import { Logger } from '../utils/Logger';
 import { UsageTracker } from '../utils/UsageTracker';
+import { persistJobUsage } from '../utils/UsagePersistence';
 import { PROJECT_ROOT } from './ProjectPaths';
 import {
   ensureReportDirs,
@@ -117,6 +118,24 @@ export class Engine {
     fs.writeFileSync(summaryPath(testSlug), JSON.stringify(report, null, 2), 'utf8');
   }
 
+  private finalizeJobUsage(testSlug: string): void {
+    const snapshot = UsageTracker.getSnapshot();
+    persistJobUsage(testSlug, snapshot);
+    const executionTokens =
+      (snapshot.phases.execution?.promptTokens ?? 0) +
+      (snapshot.phases.execution?.completionTokens ?? 0);
+    const codegenTokens =
+      (snapshot.phases.codegen?.promptTokens ?? 0) +
+      (snapshot.phases.codegen?.completionTokens ?? 0);
+    const phaseNote =
+      codegenTokens > 0
+        ? ` (execution ${executionTokens.toLocaleString()} · codegen ${codegenTokens.toLocaleString()})`
+        : '';
+    Logger.detail(
+      `Final LLM usage: ${snapshot.totalTokens.toLocaleString()} tokens across ${snapshot.llmCalls} call(s), ~$${snapshot.estimatedCostUsd.toFixed(4)}${phaseNote}`
+    );
+  }
+
   /**
    * Main execution trigger
    */
@@ -186,10 +205,13 @@ export class Engine {
 
         const testName = path.basename(this.testFilePath, path.extname(this.testFilePath));
         const usagePath = resolveLlmUsagePath(testName);
-        if (UsageTracker.loadFromFile(usagePath)) {
+        if (UsageTracker.loadExecutionFromFile(usagePath)) {
           const u = UsageTracker.getSnapshot();
+          const execution = u.phases.execution;
+          const executionTotal =
+            (execution?.promptTokens ?? 0) + (execution?.completionTokens ?? 0);
           Logger.detail(
-            `Loaded browser-use LLM usage: ${u.totalTokens.toLocaleString()} tokens, ~$${u.estimatedCostUsd.toFixed(4)}`
+            `Loaded execution LLM usage: ${executionTotal.toLocaleString()} tokens, ~$${(execution?.estimatedCostUsd ?? u.estimatedCostUsd).toFixed(4)}`
           );
         }
 
@@ -198,6 +220,7 @@ export class Engine {
         const baseName = path.basename(this.testFilePath, path.extname(this.testFilePath));
         if (fs.existsSync(tempCodegenPath)) {
           Logger.info('Post-processing generated POMs and specs');
+          UsageTracker.setPhase('codegen');
           const codegenData = JSON.parse(fs.readFileSync(tempCodegenPath, 'utf8'));
 
           if (codegenData?.deterministic) {
@@ -220,6 +243,7 @@ export class Engine {
             if (!codegenResult.success) {
               Logger.error(codegenResult.summary);
               fs.unlinkSync(tempCodegenPath);
+              this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: 0 };
             }
             Logger.success(codegenResult.summary);
@@ -234,6 +258,7 @@ export class Engine {
             if (!ok) {
               Logger.error('Generated code failed validation');
               fs.unlinkSync(tempCodegenPath);
+              this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: 0 };
             }
           }
@@ -261,9 +286,14 @@ export class Engine {
           ? (JSON.parse(fs.readFileSync(historyPath, 'utf8')).executionHistory?.length ?? 0)
           : 0;
 
+        this.finalizeJobUsage(baseName);
         return { success: true, stepsExecuted };
       } catch (err: any) {
         Logger.error(`browser-use execution failed: ${err.message}`);
+        const failedSlug = path.basename(this.testFilePath, path.extname(this.testFilePath));
+        if (UsageTracker.getSnapshot().totalTokens > 0) {
+          this.finalizeJobUsage(failedSlug);
+        }
         return { success: false, stepsExecuted: 0 };
       }
     }
@@ -470,6 +500,7 @@ export class Engine {
       let codegenSummary = 'Codegen skipped';
       let reportCodegen: Record<string, unknown> | undefined;
       try {
+        UsageTracker.setPhase('codegen');
         const codegenResult = await runPostExecutionCodegen({
           testName,
           testFilePath: this.testFilePath,
@@ -530,6 +561,7 @@ export class Engine {
         JSON.stringify(reportSummary, null, 2),
         'utf8'
       );
+      persistJobUsage(testName, usage);
 
       if (!success) {
         const testReport = collectTestCaseReport(testName);

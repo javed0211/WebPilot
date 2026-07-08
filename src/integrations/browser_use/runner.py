@@ -268,11 +268,18 @@ def save_llm_usage_file(test_file_path: str, totals: dict) -> str:
     base_file_name = os.path.splitext(os.path.basename(test_file_path))[0]
     ensure_report_dirs()
     out_path = llm_usage_path(base_file_name)
-    payload = {
+    execution_phase = {
         'promptTokens': totals['promptTokens'],
         'completionTokens': totals['completionTokens'],
         'estimatedCostUsd': round(totals['estimatedCostUsd'], 6),
         'llmCalls': totals['llmCalls'],
+    }
+    payload = {
+        **execution_phase,
+        'phases': {
+            'execution': execution_phase,
+        },
+        'sources': ['browser-use'],
     }
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(payload, f, indent=2)
@@ -1125,9 +1132,10 @@ async def main():
             save_llm_usage_file(test_file_path, llm_usage_totals)
             total_tokens = llm_usage_totals['promptTokens'] + llm_usage_totals['completionTokens']
             print(
-                f"[LLM] Total job usage: {total_tokens:,} tokens across "
+                f"[LLM] Execution usage (browser agent): {total_tokens:,} tokens across "
                 f"{llm_usage_totals['llmCalls']} call(s), "
-                f"~${llm_usage_totals['estimatedCostUsd']:.4f} USD"
+                f"~${llm_usage_totals['estimatedCostUsd']:.4f} USD "
+                f"(codegen validation totals are added after post-processing)"
             )
             
             report_summary = {

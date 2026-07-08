@@ -6,6 +6,7 @@ import { CodegenContext } from '../core/CodegenContext';
 import { PromptLoader } from '../core/PromptLoader';
 import { GeneratedFile } from './CodegenAgent';
 import { CodegenSanitizer } from '../core/CodegenSanitizer';
+import { CodegenNormalizer } from '../core/CodegenNormalizer';
 
 export interface ValidationIssue {
   file: string;
@@ -117,6 +118,7 @@ export class CodegenValidator {
         return { valid: false, files: currentFiles, issues: result.issues };
       }
       currentFiles = CodegenSanitizer.applyDeterministicFixes(fixed);
+      currentFiles = CodegenNormalizer.sanitizeGeneratedFiles(currentFiles);
       for (const file of currentFiles) {
         const fullPath = path.join(process.cwd(), file.path);
         fs.mkdirSync(path.dirname(fullPath), { recursive: true });

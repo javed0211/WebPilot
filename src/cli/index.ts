@@ -50,12 +50,23 @@ const PROJECTLESS_COMMANDS = new Set([
 
 const requestedCommand = process.argv[2];
 initializeProjectContext(requestedCommand !== undefined && !PROJECTLESS_COMMANDS.has(requestedCommand));
+
+function readCliPackageVersion(): string {
+  try {
+    const pkgPath = path.join(findCliInstallRoot(), 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')) as { version?: string };
+    return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 const program = new Command();
 
 program
   .name('webpilot')
   .description('WebPilot: Production-Grade AI-Native Quality Engineering Platform')
-  .version('1.0.0');
+  .version(readCliPackageVersion());
 
 interface DoctorCheck {
   ok: boolean;
@@ -1856,7 +1867,7 @@ program
       
       try {
         if (isUI) {
-          UsageTracker.setPhase('design');
+          UsageTracker.setPhase('execution');
           const engine = new Engine({
             testFilePath: nlFile,
             env: runEnv,

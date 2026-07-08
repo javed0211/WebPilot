@@ -305,6 +305,21 @@ test.describe('Automation Exercise - Contact Us Form', () => {
 });
 `;
 
+export const CANONICAL_AUTOMATIONEXERCISE_SMOKE_SPEC = `import { test } from '@playwright/test';
+import { AutomationExerciseHomePage } from '../pages/automationexercise/AutomationExerciseHomePage';
+import { AutomationExerciseProductsPage } from '../pages/automationexercise/AutomationExerciseProductsPage';
+
+test('AutomationExercise Smoke', async ({ page }) => {
+  const homePage = new AutomationExerciseHomePage(page);
+  const productsPage = new AutomationExerciseProductsPage(page);
+
+  await homePage.goto();
+  await homePage.assertFeaturedItemsVisible();
+  await homePage.goToProductsPage();
+  await productsPage.assertAllProductsPageLoaded();
+});
+`;
+
 export const CANONICAL_PAGE_CONTENT: Record<string, string> = {
   'packages/test-framework/pages/automationexercise/AutomationExerciseBasePage.ts': AUTOMATION_EXERCISE_BASE_PAGE,
   'packages/test-framework/pages/automationexercise/AutomationExerciseHomePage.ts': AUTOMATION_EXERCISE_HOME_PAGE,
@@ -314,6 +329,10 @@ export const CANONICAL_PAGE_CONTENT: Record<string, string> = {
 };
 
 export const CANONICAL_SPEC_BY_SLUG: Record<string, { path: string; content: string }> = {
+  automationexercise_smoke: {
+    path: 'packages/test-framework/tests/automationexercise_smoke.spec.ts',
+    content: CANONICAL_AUTOMATIONEXERCISE_SMOKE_SPEC,
+  },
   automationexercise_contact_us: {
     path: 'packages/test-framework/tests/contact-us-form.spec.ts',
     content: CANONICAL_CONTACT_US_SPEC,

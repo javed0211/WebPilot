@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-export type UsagePhase = 'design' | 'execution' | 'healing';
+export type UsagePhase = 'design' | 'execution' | 'healing' | 'codegen';
 
 export interface PhaseUsage {
   promptTokens: number;
@@ -27,6 +27,10 @@ export interface UsageFilePayload {
   phases?: Record<string, PhaseUsage>;
 }
 
+function emptyPhase(): PhaseUsage {
+  return { promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0, llmCalls: 0 };
+}
+
 /**
  * Accumulates token usage and estimated cost across all LLM calls in a job.
  */
@@ -38,13 +42,41 @@ export class UsageTracker {
 
   private static currentPhase: UsagePhase = 'design';
   private static phaseData: Record<string, PhaseUsage> = {
-    design: { promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0, llmCalls: 0 },
-    execution: { promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0, llmCalls: 0 },
-    healing: { promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0, llmCalls: 0 }
+    design: emptyPhase(),
+    execution: emptyPhase(),
+    healing: emptyPhase(),
+    codegen: emptyPhase(),
   };
+
+  private static ensurePhase(phase: string): PhaseUsage {
+    if (!this.phaseData[phase]) {
+      this.phaseData[phase] = emptyPhase();
+    }
+    return this.phaseData[phase];
+  }
+
+  private static addToTotals(
+    prompt: number,
+    completion: number,
+    cost: number,
+    calls: number,
+    phase: string
+  ): void {
+    this.promptTokens += prompt;
+    this.completionTokens += completion;
+    this.estimatedCostUsd += cost;
+    this.llmCalls += calls;
+
+    const bucket = this.ensurePhase(phase);
+    bucket.promptTokens += prompt;
+    bucket.completionTokens += completion;
+    bucket.estimatedCostUsd += cost;
+    bucket.llmCalls += calls;
+  }
 
   public static setPhase(phase: UsagePhase): void {
     this.currentPhase = phase;
+    this.ensurePhase(phase);
   }
 
   public static getPhase(): UsagePhase {
@@ -58,9 +90,10 @@ export class UsageTracker {
     this.llmCalls = 0;
     this.currentPhase = 'design';
     this.phaseData = {
-      design: { promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0, llmCalls: 0 },
-      execution: { promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0, llmCalls: 0 },
-      healing: { promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0, llmCalls: 0 }
+      design: emptyPhase(),
+      execution: emptyPhase(),
+      healing: emptyPhase(),
+      codegen: emptyPhase(),
     };
   }
 
@@ -71,46 +104,39 @@ export class UsageTracker {
   }): void {
     const prompt = Math.max(0, usage.promptTokens);
     const completion = Math.max(0, usage.completionTokens);
-    
-    this.promptTokens += prompt;
-    this.completionTokens += completion;
-    this.estimatedCostUsd += usage.cost;
-    this.llmCalls += 1;
-
-    // Track by phase
-    this.phaseData[this.currentPhase].promptTokens += prompt;
-    this.phaseData[this.currentPhase].completionTokens += completion;
-    this.phaseData[this.currentPhase].estimatedCostUsd += usage.cost;
-    this.phaseData[this.currentPhase].llmCalls += 1;
+    this.addToTotals(prompt, completion, usage.cost, 1, this.currentPhase);
   }
 
   public static ingest(snapshot: UsageFilePayload): void {
-    this.promptTokens += snapshot.promptTokens ?? 0;
-    this.completionTokens += snapshot.completionTokens ?? 0;
-    this.estimatedCostUsd += snapshot.estimatedCostUsd ?? 0;
-    this.llmCalls += snapshot.llmCalls ?? 0;
+    this.loadExecutionFromFile(snapshot);
+  }
 
-    if (snapshot.phases) {
-      for (const [phase, data] of Object.entries(snapshot.phases)) {
-        if (this.phaseData[phase as UsagePhase]) {
-          this.phaseData[phase as UsagePhase].promptTokens += data.promptTokens ?? 0;
-          this.phaseData[phase as UsagePhase].completionTokens += data.completionTokens ?? 0;
-          this.phaseData[phase as UsagePhase].estimatedCostUsd += data.estimatedCostUsd ?? 0;
-          this.phaseData[phase as UsagePhase].llmCalls += data.llmCalls ?? 0;
-        }
+  /** Load browser-use execution usage without double-counting codegen phases. */
+  public static loadExecutionFromFile(filePathOrPayload: string | UsageFilePayload): boolean {
+    let data: UsageFilePayload;
+    if (typeof filePathOrPayload === 'string') {
+      if (!fs.existsSync(filePathOrPayload)) return false;
+      try {
+        data = JSON.parse(fs.readFileSync(filePathOrPayload, 'utf8')) as UsageFilePayload;
+      } catch {
+        return false;
       }
+    } else {
+      data = filePathOrPayload;
     }
+
+    const executionPhase = data.phases?.execution;
+    const prompt = executionPhase?.promptTokens ?? data.promptTokens ?? 0;
+    const completion = executionPhase?.completionTokens ?? data.completionTokens ?? 0;
+    const cost = executionPhase?.estimatedCostUsd ?? data.estimatedCostUsd ?? 0;
+    const calls = executionPhase?.llmCalls ?? data.llmCalls ?? 0;
+
+    this.addToTotals(prompt, completion, cost, calls, 'execution');
+    return true;
   }
 
   public static loadFromFile(filePath: string): boolean {
-    if (!fs.existsSync(filePath)) return false;
-    try {
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf8')) as UsageFilePayload;
-      this.ingest(data);
-      return true;
-    } catch {
-      return false;
-    }
+    return UsageTracker.loadExecutionFromFile(filePath);
   }
 
   public static getSnapshot(): UsageSnapshot {
@@ -120,7 +146,7 @@ export class UsageTracker {
       totalTokens: this.promptTokens + this.completionTokens,
       estimatedCostUsd: this.estimatedCostUsd,
       llmCalls: this.llmCalls,
-      phases: { ...this.phaseData }
+      phases: { ...this.phaseData },
     };
   }
 }

@@ -73,7 +73,7 @@ export class CodegenNormalizer {
     const pomCount = Object.keys(CANONICAL_PAGE_CONTENT).length;
     console.log(
       `\x1b[32m[CodegenNormalizer] Applied canonical automationexercise POMs (${pomCount} files)` +
-        (canonicalSpec ? ' + contact-us spec' : '') +
+        (canonicalSpec ? ` + canonical spec (${options?.testSlug})` : '') +
         '.\x1b[0m'
     );
     return normalized;
@@ -87,10 +87,27 @@ export class CodegenNormalizer {
         "from '../pages/$1'"
       )
       .replace(
+        /from\s+['"]@pages\/([^'"]+)['"]/g,
+        "from '../pages/$1'"
+      )
+      .replace(
         /from\s+['"]\.\/pages\/([^'"]+)['"]/g,
         "from '../pages/$1'"
       )
       .replace(/toHaveCountGreaterThan/g, 'assertCountAtLeast');
+  }
+
+  public static sanitizeGeneratedFiles(files: GeneratedFile[]): GeneratedFile[] {
+    return files.map((file) => {
+      const normalizedPath = file.path.replace(/\\/g, '/');
+      if (!normalizedPath.endsWith('.spec.ts')) {
+        return file;
+      }
+      return {
+        ...file,
+        content: CodegenNormalizer.normalizeSpecImports(file.content),
+      };
+    });
   }
 
   public static isCanonicalPagePath(filePath: string): boolean {

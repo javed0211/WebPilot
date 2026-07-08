@@ -4,6 +4,7 @@ import { GeneratedFile } from '../agents/CodegenAgent';
 import { CodegenValidator } from '../agents/CodegenValidator';
 import { ASTMerger } from './SymbolParser';
 import { LLMClient } from './LLMClient';
+import { UsageTracker } from '../utils/UsageTracker';
 import { CodegenNormalizer, NormalizeOptions } from './CodegenNormalizer';
 import { CodegenPlaywrightValidator } from './CodegenPlaywrightValidator';
 import { CodegenSanitizer } from './CodegenSanitizer';
@@ -132,6 +133,7 @@ export class CodegenWriter {
     llm: LLMClient,
     normalizeOptions?: NormalizeOptions
   ): Promise<{ ok: boolean; paths: string[] }> {
+    UsageTracker.setPhase('codegen');
     const normalized = CodegenNormalizer.normalize(files, normalizeOptions);
     CodegenWriter.ensureSiteScaffolds(normalized);
     const paths = CodegenWriter.writeFiles(normalized);

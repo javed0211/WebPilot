@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { UsageSnapshot } from './UsageTracker';
+import { PhaseUsage, UsageSnapshot } from './UsageTracker';
 
 const BOX_WIDTH = 52;
 
@@ -113,6 +113,21 @@ export class CliDisplay {
         chalk.dim(`  (in ${formatTokens(usage.promptTokens)} · out ${formatTokens(usage.completionTokens)})`)
     );
     console.log(`  ${chalk.dim('Est. cost'.padEnd(10))} ${formatCost(usage.estimatedCostUsd)}`);
+
+    const phaseRows: Array<[string, PhaseUsage]> = Object.entries(usage.phases).filter(
+      ([, phase]) => phase.promptTokens + phase.completionTokens > 0
+    ) as Array<[string, PhaseUsage]>;
+    if (phaseRows.length > 1) {
+      console.log('');
+      console.log(chalk.dim('  By phase'));
+      for (const [phase, data] of phaseRows) {
+        const phaseTotal = data.promptTokens + data.completionTokens;
+        console.log(
+          `  ${chalk.dim(phase.padEnd(10))} ${formatTokens(phaseTotal)}` +
+            chalk.dim(`  (${data.llmCalls} call${data.llmCalls === 1 ? '' : 's'})`)
+        );
+      }
+    }
     console.log('');
   }
 }
