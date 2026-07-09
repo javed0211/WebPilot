@@ -442,11 +442,18 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
     if profile is not None:
         profile.keep_alive = False
 
-    try:
-        if scoped_agent is not None:
+    if scoped_agent is not None:
+        session = getattr(scoped_agent, 'browser_session', None)
+        session_profile = getattr(session, 'browser_profile', None) if session is not None else None
+        if session_profile is not None:
+            session_profile.keep_alive = False
+        try:
             await scoped_agent.close()
-        else:
-            await asyncio.wait_for(browser.kill(), timeout=25)
+        except Exception as close_error:
+            print(f"Warning: agent close did not finish cleanly: {close_error}")
+
+    try:
+        await asyncio.wait_for(browser.kill(), timeout=25)
         return
     except Exception as kill_error:
         print(f"Warning: browser shutdown did not finish cleanly: {kill_error}")
