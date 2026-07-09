@@ -138,22 +138,24 @@ Exit criteria:
 - Reports are shareable as static artifacts from GitHub Actions.
 - Report UI source can be maintained like a normal frontend package.
 
-### 5. Deterministic Playwright Output
+### 5. Deterministic Generated Test Output
 
-Goal: generated tests should be readable, reviewable, and CI-friendly.
+Goal: generated tests should be readable, reviewable, and CI-friendly across supported frameworks.
+
+**Shipped:** profile-aware deterministic codegen for TypeScript Playwright, Python Playwright, Java Selenium, Cypress, WebdriverIO, C# Selenium, and C# Playwright (see [guides/multi-language-codegen.md](./guides/multi-language-codegen.md)).
 
 Planned improvements:
 
 - Prefer semantic locators and role-based selectors.
 - Generate page objects only when they reduce duplication.
 - Preserve existing page object methods when extending a suite.
-- Add post-generation TypeScript validation.
+- Add post-generation TypeScript validation (Playwright); compile/build validation for other profiles.
 - Add replay mode that runs without an LLM.
 - Keep generated code stable between runs when behavior has not changed.
 
 Exit criteria:
 
-- Generated code looks like code an experienced Playwright user would accept in review.
+- Generated code looks like code an experienced automation engineer would accept in review.
 - Replay can run in CI without provider credentials.
 
 ### 6. Knowledge Reuse and Healing

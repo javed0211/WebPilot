@@ -1,6 +1,8 @@
 # Deterministic Codegen
 
-Turn a successful natural-language browser run into **reviewable, CI-ready Playwright code** — without LLM calls during generation.
+Turn a successful natural-language browser run into **reviewable, CI-ready test code** — without LLM calls during generation.
+
+The output language and framework depend on your `webpilot init` profile (TypeScript Playwright, Python Playwright, Java Selenium, Cypress, WebdriverIO, C# Selenium, C# Playwright). See [Multi-Language Codegen](./multi-language-codegen.md).
 
 ---
 
@@ -9,10 +11,10 @@ Turn a successful natural-language browser run into **reviewable, CI-ready Playw
 Codegen is the **promotion step** in the SDET workflow:
 
 ```text
-.txt exploration (live)  →  execution trace  →  generation plan  →  Playwright POM + spec
+.txt exploration (live)  →  execution trace  →  generation plan  →  spec + page objects (profile-aware)
 ```
 
-Generated tests run with `npx playwright test` or `webpilot replay` — no LLM credentials required.
+Generated tests run with the profile's replay command (`webpilot replay` for TypeScript Playwright, `pytest`, `mvn test`, `wdio run`, `dotnet test`, etc.) — no LLM credentials required for replay.
 
 ---
 
@@ -68,25 +70,50 @@ WebPilot consults the repository knowledge graph to decide:
 
 ### 3. Deterministic writer
 
-Emits TypeScript (or profile-specific code) without LLM:
+Emits code for the active profile without LLM:
 
 - Page object methods with ranked selectors
 - Spec file calling page objects
-- Import management and AST merge for existing files
+- Import management and merge for existing files
 - Selector confidence comments in generated code
 
-**Source files:** `DeterministicSpecWriter.ts`, `DeterministicPageObjectWriter.ts`, `DeterministicCodegenPipeline.ts`
+**Source files:** profile modules under `src/core/codegen/profiles/`, `DeterministicCodegenPipeline.ts`
 
-**Output:** `packages/test-framework/pages/`, `packages/test-framework/tests/`
+**Output (varies by profile):**
+
+| Profile | Typical paths |
+|---------|----------------|
+| TypeScript Playwright | `packages/test-framework/pages/`, `packages/test-framework/tests/` |
+| Python Playwright | `tests/generated/pages/`, `tests/generated/` |
+| Java Selenium | `src/test/java/webpilot/generated/` |
+| Cypress | `cypress/support/pages/`, `cypress/e2e/generated/` |
+| WebdriverIO | `test/pageobjects/`, `test/specs/generated/` |
+| C# Selenium / Playwright | `tests/WebPilot.Tests/Generated/` or `tests/WebPilot.Playwright.Tests/Generated/` |
 
 ### 4. Validation
 
+Validation is **profile-aware**. Examples:
+
 ```bash
+# TypeScript Playwright
 npm run build
 npx playwright test <generated-spec> --reporter=line
+
+# Python Playwright
+python -m compileall -q tests/generated
+
+# Java Selenium
+mvn -q test-compile
+
+# Cypress / WebdriverIO
+npx tsc --noEmit
+
+# C# Selenium / Playwright
+dotnet build tests/WebPilot.Tests/WebPilot.Tests.csproj
+dotnet build tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj
 ```
 
-On failure with `codegenMode: auto`, WebPilot may fall back to LLM codegen (`CodegenAgent`).
+TypeScript Playwright may fall back to LLM codegen (`CodegenAgent`) on validation failure when `codegenMode: auto`. Other profiles run the profile validation command and surface errors in the terminal.
 
 ---
 
@@ -130,8 +157,13 @@ webpilot generate --from booking_search_hotels
 # Skip Playwright validation during generate
 webpilot generate --from latest --no-validate
 
-# Run generated spec in CI
+# Run generated spec in CI (TypeScript Playwright)
 webpilot replay packages/test-framework/tests/checkout.spec.ts
+
+# Profile-specific replay is also recorded in codegen metadata, e.g.:
+# pytest tests/generated/test_checkout.py
+# npx wdio run wdio.conf.ts --spec test/specs/generated/checkout.spec.ts
+# dotnet test tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj
 ```
 
 ---
@@ -188,9 +220,14 @@ runtime/codegen/
   history/<slug>.json     # Metadata + replay command
   latest.json             # Pointer to most recent run
 
-packages/test-framework/
-  pages/                  # Page objects
-  tests/                  # Playwright specs
+# Generated test output (profile-dependent), e.g.:
+packages/test-framework/   # TypeScript Playwright
+tests/generated/           # Python Playwright
+src/test/java/webpilot/    # Java Selenium
+cypress/e2e/generated/     # Cypress
+test/specs/generated/      # WebdriverIO
+tests/WebPilot.Tests/      # C# Selenium
+tests/WebPilot.Playwright.Tests/  # C# Playwright
 ```
 
 ---
@@ -199,9 +236,9 @@ packages/test-framework/
 
 1. **Run live first, codegen second** — let the intelligent runner learn locators before promoting to CI scripts.
 2. **Review generated diffs** — treat output like a PR from a junior SDET; edit naming and assertions as needed.
-3. **Commit POMs, not runtime/** — `runtime/` is local learned state; `packages/test-framework/` is what CI runs.
+3. **Commit generated framework code, not `runtime/`** — `runtime/` is local learned state; profile output directories are what CI runs.
 4. **Re-generate when trace changes** — if you `--force-discovery` and steps change, run `--codegen` again.
-5. **Use `webpilot replay` in CI** — faster and more deterministic than live `.txt` runs in pipelines.
+5. **Use the profile replay command in CI** — faster and more deterministic than live `.txt` runs in pipelines.
 
 ---
 
@@ -209,8 +246,9 @@ packages/test-framework/
 
 | Limitation | Workaround |
 |------------|------------|
-| Full scaffold only for TypeScript Playwright | Other profiles emit code; see [Multi-Language Codegen](./multi-language-codegen.md) |
+| Richest framework scaffold is TypeScript Playwright (`packages/test-framework/`) | Other profiles have full runnable scaffolds; see [Multi-Language Codegen](./multi-language-codegen.md) |
 | Codegen skipped by default on `run` | Pass `--codegen` or set `codegen: true` in scenario |
+| LLM fallback validation loop is TypeScript Playwright only | Other profiles use compile/build validation |
 | Unchanged re-runs still queue codegen with `--codegen` | Roadmap: skip when trace unchanged |
 
 ---
@@ -229,6 +267,7 @@ packages/test-framework/
 
 ## See also
 
+- [Multi-Language Codegen](./multi-language-codegen.md)
 - [Execution & Replay](./execution-and-replay.md)
 - [Repository Knowledge Graph](./repository-knowledge-graph.md)
 - [Assertion Engine](./assertion-engine.md)

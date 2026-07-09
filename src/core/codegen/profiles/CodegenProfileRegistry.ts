@@ -4,12 +4,18 @@ import { JavaSeleniumProfile } from './JavaSeleniumProfile';
 import { PythonPlaywrightProfile } from './PythonPlaywrightProfile';
 import { TypeScriptCypressProfile } from './TypeScriptCypressProfile';
 import { TypeScriptPlaywrightProfile } from './TypeScriptPlaywrightProfile';
+import { CsharpSeleniumProfile } from './CsharpSeleniumProfile';
+import { CsharpPlaywrightProfile } from './CsharpPlaywrightProfile';
+import { TypeScriptWebdriverIOProfile } from './TypeScriptWebdriverIOProfile';
 
 const PROFILES: CodegenProfile[] = [
   new TypeScriptPlaywrightProfile(),
   new PythonPlaywrightProfile(),
   new JavaSeleniumProfile(),
   new TypeScriptCypressProfile(),
+  new CsharpSeleniumProfile(),
+  new CsharpPlaywrightProfile(),
+  new TypeScriptWebdriverIOProfile(),
 ];
 
 export class CodegenProfileRegistry {

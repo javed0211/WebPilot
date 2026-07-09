@@ -31,6 +31,32 @@ import { ScenarioMetadataParser } from '../core/authoring/ScenarioMetadata';
 import { AuthoringOutput } from '../core/authoring/NextSteps';
 import { TestTemplateRegistry, TestTemplateKind } from '../core/authoring/TestTemplates';
 import { resolveFrameworkBasePageContent, buildFrameworkTsConfigJson, readFrameworkDependencyVersions } from '../core/FrameworkTemplates';
+import {
+  ensurePythonPlaywrightFramework,
+  isFullPythonPlaywright,
+  pythonFrameworkFiles,
+} from '../core/PythonFrameworkTemplates';
+import {
+  ensureJavaSeleniumFramework,
+  isFullJavaSelenium,
+  javaFrameworkFiles,
+} from '../core/JavaFrameworkTemplates';
+import {
+  cypressFrameworkFiles,
+  isFullTypeScriptCypress,
+  readCypressDependencyVersions,
+} from '../core/CypressFrameworkTemplates';
+import {
+  csharpPlaywrightFrameworkFiles,
+  csharpSeleniumFrameworkFiles,
+  isFullCsharpPlaywright,
+  isFullCsharpSelenium,
+} from '../core/CsharpFrameworkTemplates';
+import {
+  isFullTypeScriptWebdriverIO,
+  readWdioDependencyVersions,
+  webdriverIOFrameworkFiles,
+} from '../core/WebdriverIOFrameworkTemplates';
 
 process.env.DOTENV_CONFIG_QUIET = process.env.DOTENV_CONFIG_QUIET || 'true';
 dotenv.config({ quiet: true });
@@ -120,11 +146,36 @@ function inferDefaultRunner(language: InitLanguage, tool: InitTool): string {
   if (language === 'python' && tool === 'playwright') return 'pytest';
   if (language === 'java' && tool === 'selenium') return 'junit';
   if (language === 'csharp' && tool === 'selenium') return 'nunit';
+  if (language === 'csharp' && tool === 'playwright') return 'nunit';
   return `${language}-${tool}`;
 }
 
 function isFullTypeScriptPlaywright(profile: InitProfile): boolean {
   return profile.language === 'typescript' && profile.automationTool === 'playwright';
+}
+
+function isPythonPlaywrightProfile(profile: InitProfile): boolean {
+  return isFullPythonPlaywright(profile);
+}
+
+function isJavaSeleniumProfile(profile: InitProfile): boolean {
+  return isFullJavaSelenium(profile);
+}
+
+function isTypeScriptCypressProfile(profile: InitProfile): boolean {
+  return isFullTypeScriptCypress(profile);
+}
+
+function isCsharpSeleniumProfile(profile: InitProfile): boolean {
+  return isFullCsharpSelenium(profile);
+}
+
+function isCsharpPlaywrightProfile(profile: InitProfile): boolean {
+  return isFullCsharpPlaywright(profile);
+}
+
+function isTypeScriptWebdriverIOProfile(profile: InitProfile): boolean {
+  return isFullTypeScriptWebdriverIO(profile);
 }
 
 async function resolveInitProfile(
@@ -349,16 +400,48 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
     'resources/prompts',
     'tests',
     ...(projectProfile.language === 'python' && projectProfile.automationTool === 'playwright'
-      ? ['pyproject.toml', 'tests/generated']
+      ? ['pyproject.toml', 'tests/conftest.py', 'tests/generated/pages/base_page.py', 'tests/generated']
       : []),
     ...(projectProfile.language === 'java' && projectProfile.automationTool === 'selenium'
-      ? ['pom.xml', 'src/test/java']
+      ? [
+          'pom.xml',
+          'src/test/java/webpilot/generated/pages/BasePage.java',
+          'src/test/java/webpilot/support/BaseTest.java',
+          'src/test/java/webpilot/generated',
+        ]
       : []),
     ...(projectProfile.language === 'typescript' && projectProfile.automationTool === 'cypress'
-      ? ['cypress.config.ts', 'cypress/e2e']
+      ? [
+          'cypress.config.ts',
+          'tsconfig.json',
+          'cypress/support/e2e.ts',
+          'cypress/support/pages/BasePage.ts',
+          'cypress/e2e',
+        ]
       : []),
     ...(projectProfile.language === 'typescript' && projectProfile.automationTool === 'webdriverio'
-      ? ['wdio.conf.ts', 'test/specs']
+      ? [
+          'wdio.conf.ts',
+          'tsconfig.json',
+          'test/support/config.ts',
+          'test/pageobjects/BasePage.ts',
+          'test/specs',
+          'test/specs/generated',
+        ]
+      : []),
+    ...(projectProfile.language === 'csharp' && projectProfile.automationTool === 'selenium'
+      ? [
+          'tests/WebPilot.Tests/WebPilot.Tests.csproj',
+          'tests/WebPilot.Tests/Generated/Pages/BasePage.cs',
+          'tests/WebPilot.Tests/Support/BaseTest.cs',
+        ]
+      : []),
+    ...(projectProfile.language === 'csharp' && projectProfile.automationTool === 'playwright'
+      ? [
+          'tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj',
+          'tests/WebPilot.Playwright.Tests/Generated/Pages/BasePage.cs',
+          'tests/WebPilot.Playwright.Tests/Support/ConfigManager.cs',
+        ]
       : []),
     ...(!projectProfile.language ||
     (projectProfile.language === 'typescript' && projectProfile.automationTool === 'playwright')
@@ -410,23 +493,237 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
       warn('typescript not installed in project', 'Run: npm install --save-dev typescript @types/node');
     }
   }
+  if (projectProfile.language === 'python' && projectProfile.automationTool === 'playwright') {
+    console.log(`\n${chalk.blue('Python generated tests')}`);
+    if (exists('pyproject.toml')) pass('pyproject.toml found');
+    else fail('pyproject.toml missing', `Re-run ${chalk.bold('webpilot init --force')} with python/playwright.`);
+    if (exists('tests/conftest.py')) pass('tests/conftest.py found');
+    else fail('tests/conftest.py missing', 'Codegen/init should scaffold pytest-playwright fixtures.');
+    if (exists('tests/generated/pages/base_page.py')) pass('tests/generated/pages/base_page.py found');
+    else fail('base_page.py missing', 'Codegen/init should scaffold tests/generated/pages/base_page.py.');
+    try {
+      const { resolvePythonPath } = require('../integrations/browser_use/PythonRuntime');
+      const py = resolvePythonPath();
+      execSync(`"${py}" -c "import pytest, playwright"`, {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass('pytest and playwright Python packages importable');
+    } catch {
+      fail(
+        'pytest/playwright Python packages missing',
+        'Run: pip install -e . && playwright install chromium'
+      );
+    }
+  }
+  if (projectProfile.language === 'java' && projectProfile.automationTool === 'selenium') {
+    console.log(`\n${chalk.blue('Java generated tests')}`);
+    if (exists('pom.xml')) pass('pom.xml found');
+    else fail('pom.xml missing', `Re-run ${chalk.bold('webpilot init --force')} with java/selenium.`);
+    if (exists('src/test/java/webpilot/generated/pages/BasePage.java')) {
+      pass('webpilot.generated.pages.BasePage found');
+    } else {
+      fail('BasePage.java missing', 'Codegen/init should scaffold src/test/java/webpilot/generated/pages/BasePage.java.');
+    }
+    if (exists('src/test/java/webpilot/support/BaseTest.java')) pass('webpilot.support.BaseTest found');
+    else fail('BaseTest.java missing', 'Codegen/init should scaffold src/test/java/webpilot/support/BaseTest.java.');
+    try {
+      const javaVersion = execSync('java -version', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass(`Java runtime available (${javaVersion.split('\n')[0] || 'java -version'})`);
+    } catch {
+      fail('Java runtime not found', 'Install JDK 17+ and ensure java is on PATH.');
+    }
+    try {
+      const mavenVersion = execSync('mvn -version', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      pass(`Maven available (${mavenVersion.split('\n')[0]})`);
+    } catch {
+      fail('Maven not found', 'Install Apache Maven 3.9+ and ensure mvn is on PATH.');
+    }
+    try {
+      execSync('mvn -q test-compile', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass('Maven test-compile succeeded');
+    } catch {
+      warn('Maven test-compile failed', 'Run: mvn test-compile (check JDK, Chrome, and Selenium deps).');
+    }
+  }
+  if (projectProfile.language === 'typescript' && projectProfile.automationTool === 'cypress') {
+    console.log(`\n${chalk.blue('Cypress generated tests')}`);
+    if (exists('cypress.config.ts')) pass('cypress.config.ts found');
+    else fail('cypress.config.ts missing', `Re-run ${chalk.bold('webpilot init --force')} with typescript/cypress.`);
+    if (exists('tsconfig.json')) pass('tsconfig.json found');
+    else fail('tsconfig.json missing', 'Init/codegen should scaffold Cypress TypeScript config.');
+    if (exists('cypress/support/pages/BasePage.ts')) pass('cypress/support/pages/BasePage.ts found');
+    else fail('BasePage.ts missing', 'Codegen/init should scaffold cypress/support/pages/BasePage.ts.');
+    try {
+      require.resolve('cypress/package.json', { paths: [process.cwd()] });
+      pass('cypress installed in project');
+    } catch {
+      fail('cypress not installed in project', 'Run: npm install --save-dev cypress typescript @types/node');
+    }
+    try {
+      require.resolve('typescript/package.json', { paths: [process.cwd()] });
+      pass('typescript installed in project');
+    } catch {
+      warn('typescript not installed in project', 'Run: npm install --save-dev typescript @types/node');
+    }
+    try {
+      execSync('npx tsc --noEmit', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass('Cypress TypeScript compile check passed (tsc --noEmit)');
+    } catch {
+      warn('Cypress TypeScript compile check failed', 'Run: npx tsc --noEmit');
+    }
+    try {
+      execSync('npx cypress verify', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass('Cypress binary verified');
+    } catch {
+      warn('Cypress binary not verified', 'Run: npx cypress install && npx cypress verify');
+    }
+  }
+  if (projectProfile.language === 'typescript' && projectProfile.automationTool === 'webdriverio') {
+    console.log(`\n${chalk.blue('WebdriverIO generated tests')}`);
+    if (exists('wdio.conf.ts')) pass('wdio.conf.ts found');
+    else fail('wdio.conf.ts missing', `Re-run ${chalk.bold('webpilot init --force')} with typescript/webdriverio.`);
+    if (exists('tsconfig.json')) pass('tsconfig.json found');
+    else fail('tsconfig.json missing', 'Init/codegen should scaffold WebdriverIO TypeScript config.');
+    if (exists('test/pageobjects/BasePage.ts')) pass('test/pageobjects/BasePage.ts found');
+    else fail('BasePage.ts missing', 'Codegen/init should scaffold test/pageobjects/BasePage.ts.');
+    try {
+      require.resolve('@wdio/cli/package.json', { paths: [process.cwd()] });
+      pass('@wdio/cli installed in project');
+    } catch {
+      fail(
+        '@wdio/cli not installed in project',
+        'Run: npm install --save-dev @wdio/cli @wdio/local-runner @wdio/mocha-framework @wdio/spec-reporter @wdio/globals webdriverio chromedriver typescript @types/node'
+      );
+    }
+    try {
+      require.resolve('typescript/package.json', { paths: [process.cwd()] });
+      pass('typescript installed in project');
+    } catch {
+      warn('typescript not installed in project', 'Run: npm install --save-dev typescript @types/node');
+    }
+    try {
+      execSync('npx tsc --noEmit', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass('WebdriverIO TypeScript compile check passed (tsc --noEmit)');
+    } catch {
+      warn('WebdriverIO TypeScript compile check failed', 'Run: npx tsc --noEmit');
+    }
+  }
+  if (projectProfile.language === 'csharp' && projectProfile.automationTool === 'selenium') {
+    console.log(`\n${chalk.blue('C# Selenium generated tests')}`);
+    if (exists('tests/WebPilot.Tests/WebPilot.Tests.csproj')) pass('WebPilot.Tests.csproj found');
+    else fail('WebPilot.Tests.csproj missing', `Re-run ${chalk.bold('webpilot init --force')} with csharp/selenium.`);
+    if (exists('tests/WebPilot.Tests/Generated/Pages/BasePage.cs')) pass('BasePage.cs found');
+    else fail('BasePage.cs missing', 'Codegen/init should scaffold tests/WebPilot.Tests/Generated/Pages/BasePage.cs.');
+    if (exists('tests/WebPilot.Tests/Support/BaseTest.cs')) pass('BaseTest.cs found');
+    else fail('BaseTest.cs missing', 'Codegen/init should scaffold tests/WebPilot.Tests/Support/BaseTest.cs.');
+    try {
+      const dotnetVersion = execSync('dotnet --version', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      pass(`.NET SDK ${dotnetVersion}`);
+    } catch {
+      fail('.NET SDK not found', 'Install .NET 8 SDK from https://dotnet.microsoft.com/download.');
+    }
+    try {
+      execSync('dotnet build tests/WebPilot.Tests/WebPilot.Tests.csproj', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass('dotnet build succeeded for WebPilot.Tests');
+    } catch {
+      warn('dotnet build failed', 'Run: dotnet build tests/WebPilot.Tests/WebPilot.Tests.csproj');
+    }
+  }
+  if (projectProfile.language === 'csharp' && projectProfile.automationTool === 'playwright') {
+    console.log(`\n${chalk.blue('C# Playwright generated tests')}`);
+    if (exists('tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj')) {
+      pass('WebPilot.Playwright.Tests.csproj found');
+    } else {
+      fail(
+        'WebPilot.Playwright.Tests.csproj missing',
+        `Re-run ${chalk.bold('webpilot init --force')} with csharp/playwright.`
+      );
+    }
+    if (exists('tests/WebPilot.Playwright.Tests/Generated/Pages/BasePage.cs')) {
+      pass('Playwright BasePage.cs found');
+    } else {
+      fail(
+        'Playwright BasePage.cs missing',
+        'Codegen/init should scaffold tests/WebPilot.Playwright.Tests/Generated/Pages/BasePage.cs.'
+      );
+    }
+    if (exists('tests/WebPilot.Playwright.Tests/Support/ConfigManager.cs')) {
+      pass('Playwright ConfigManager.cs found');
+    } else {
+      fail(
+        'Playwright ConfigManager.cs missing',
+        'Codegen/init should scaffold tests/WebPilot.Playwright.Tests/Support/ConfigManager.cs.'
+      );
+    }
+    try {
+      const dotnetVersion = execSync('dotnet --version', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      pass(`.NET SDK ${dotnetVersion}`);
+    } catch {
+      fail('.NET SDK not found', 'Install .NET 8 SDK from https://dotnet.microsoft.com/download.');
+    }
+    try {
+      execSync('dotnet build tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      pass('dotnet build succeeded for WebPilot.Playwright.Tests');
+    } catch {
+      warn(
+        'dotnet build failed',
+        'Run: dotnet build tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj && playwright install'
+      );
+    }
+  }
   try {
     const npmVersion = execSync('npm --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     pass(`npm ${npmVersion}`);
   } catch {
     fail('npm is not available', 'Install Node.js from https://nodejs.org/.');
   }
-  try {
-    const playwrightVersion = execSync('npx playwright --version', {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
-    pass(playwrightVersion);
-    const chromiumPath = require('playwright').chromium.executablePath();
-    if (fs.existsSync(chromiumPath)) pass('Playwright Chromium browser installed');
-    else warn('Playwright Chromium browser not installed', 'Run: npx playwright install chromium');
-  } catch {
-    fail('Playwright is not ready', 'Run: npm install && npx playwright install chromium');
+  const needsNodePlaywright =
+    !projectProfile.language ||
+    (projectProfile.language === 'typescript' && projectProfile.automationTool === 'playwright');
+  if (needsNodePlaywright) {
+    try {
+      const playwrightVersion = execSync('npx playwright --version', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      pass(playwrightVersion);
+      const chromiumPath = require('playwright').chromium.executablePath();
+      if (fs.existsSync(chromiumPath)) pass('Playwright Chromium browser installed');
+      else warn('Playwright Chromium browser not installed', 'Run: npx playwright install chromium');
+    } catch {
+      fail('Playwright is not ready', 'Run: npm install && npx playwright install chromium');
+    }
   }
 
   console.log(`\n${chalk.blue('Python and WebPilot engine')}`);
@@ -619,6 +916,8 @@ program
         }
       })();
       const frameworkDeps = readFrameworkDependencyVersions(installRoot);
+      const cypressDeps = readCypressDependencyVersions(installRoot);
+      const wdioDeps = readWdioDependencyVersions(installRoot);
       const dirs = [
         'resources/config/environments',
         'resources/prompts',
@@ -646,6 +945,52 @@ program
               'packages/test-framework/data',
               'packages/test-framework/pages',
               'packages/test-framework/tests',
+            ]
+          : []),
+        ...(isPythonPlaywrightProfile(profile)
+          ? [
+              'tests/generated',
+              'tests/generated/pages',
+              'tests/support',
+            ]
+          : []),
+        ...(isJavaSeleniumProfile(profile)
+          ? [
+              'src/test/java/webpilot/generated',
+              'src/test/java/webpilot/generated/pages',
+              'src/test/java/webpilot/support',
+            ]
+          : []),
+        ...(isTypeScriptCypressProfile(profile)
+          ? [
+              'cypress/e2e',
+              'cypress/e2e/generated',
+              'cypress/support',
+              'cypress/support/pages',
+            ]
+          : []),
+        ...(isTypeScriptWebdriverIOProfile(profile)
+          ? [
+              'test/specs',
+              'test/specs/generated',
+              'test/pageobjects',
+              'test/support',
+            ]
+          : []),
+        ...(isCsharpSeleniumProfile(profile)
+          ? [
+              'tests/WebPilot.Tests',
+              'tests/WebPilot.Tests/Generated',
+              'tests/WebPilot.Tests/Generated/Pages',
+              'tests/WebPilot.Tests/Support',
+            ]
+          : []),
+        ...(isCsharpPlaywrightProfile(profile)
+          ? [
+              'tests/WebPilot.Playwright.Tests',
+              'tests/WebPilot.Playwright.Tests/Generated',
+              'tests/WebPilot.Playwright.Tests/Generated/Pages',
+              'tests/WebPilot.Playwright.Tests/Support',
             ]
           : [])
       ];
@@ -701,13 +1046,71 @@ program
 runtime/
 test-results/
 playwright-report/
+bin/
+obj/
 *.log
 `);
 
       const packageScripts = isFullTypeScriptPlaywright(profile)
         ? `"test:web": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",`
-        : `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
+        : isPythonPlaywrightProfile(profile)
+          ? `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
+    "test:generated": "pytest tests/generated",
+    "test:generated:install": "pip install -e . && playwright install chromium",`
+          : isJavaSeleniumProfile(profile)
+            ? `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
+    "test:generated": "mvn test",
+    "test:generated:compile": "mvn -q test-compile",`
+            : isTypeScriptCypressProfile(profile)
+              ? `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
+    "test:generated": "cypress run --spec cypress/e2e/**/*.cy.ts",
+    "test:generated:open": "cypress open",
+    "test:generated:verify": "cypress verify",`
+              : isTypeScriptWebdriverIOProfile(profile)
+                ? `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
+    "test:generated": "wdio run wdio.conf.ts",
+    "test:generated:verify": "npx tsc --noEmit",`
+                : isCsharpSeleniumProfile(profile)
+                ? `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
+    "test:generated": "dotnet test tests/WebPilot.Tests/WebPilot.Tests.csproj",
+    "test:generated:build": "dotnet build tests/WebPilot.Tests/WebPilot.Tests.csproj",`
+                : isCsharpPlaywrightProfile(profile)
+                  ? `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
+    "test:generated": "dotnet test tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj",
+    "test:generated:build": "dotnet build tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj",
+    "test:generated:install": "pwsh tests/WebPilot.Playwright.Tests/bin/Debug/net8.0/playwright.ps1 install",`
+                  : `"webpilot:run": "webpilot run tests/web/automationexercise_smoke.txt --env qa --headed --report",
     "test:generated": "echo \\"Generated-code runner for ${profile.language}/${profile.automationTool} is scaffolded; install its dependencies before running.\\"",`;
+
+      const packageDevDependencies = isFullTypeScriptPlaywright(profile)
+        ? `"@playwright/test": "${frameworkDeps.playwright}",
+    "@qubiqlabs/webpilot": "^${cliPackageVersion}",
+    "@types/node": "${frameworkDeps.typesNode}",
+    "typescript": "${frameworkDeps.typescript}"`
+        : isTypeScriptCypressProfile(profile)
+          ? `"@qubiqlabs/webpilot": "^${cliPackageVersion}",
+    "@types/node": "${cypressDeps.typesNode}",
+    "cypress": "${cypressDeps.cypress}",
+    "typescript": "${cypressDeps.typescript}"`
+          : isTypeScriptWebdriverIOProfile(profile)
+            ? `"@qubiqlabs/webpilot": "^${cliPackageVersion}",
+    "@types/node": "${wdioDeps.typesNode}",
+    "@wdio/cli": "${wdioDeps.wdio}",
+    "@wdio/globals": "${wdioDeps.wdio}",
+    "@wdio/local-runner": "${wdioDeps.wdio}",
+    "@wdio/mocha-framework": "${wdioDeps.wdio}",
+    "@wdio/spec-reporter": "${wdioDeps.wdio}",
+    "chromedriver": "${wdioDeps.chromedriver}",
+    "typescript": "${wdioDeps.typescript}",
+    "webdriverio": "${wdioDeps.wdio}"`
+            : isPythonPlaywrightProfile(profile)
+            ? `"@qubiqlabs/webpilot": "^${cliPackageVersion}"`
+            : `"@qubiqlabs/webpilot": "^${cliPackageVersion}"`;
+
+      const packageDependencies = isFullTypeScriptPlaywright(profile)
+        ? `"ajv": "${frameworkDeps.ajv}",
+    "chalk": "${frameworkDeps.chalk}"`
+        : '';
 
       writeProjectFile('package.json', `{
   "name": "${profile.projectName}",
@@ -717,16 +1120,12 @@ playwright-report/
     "doctor": "webpilot doctor",
     ${packageScripts}
     "report": "webpilot report --html"
-  },
+  },${packageDependencies ? `
   "dependencies": {
-    "ajv": "${frameworkDeps.ajv}",
-    "chalk": "${frameworkDeps.chalk}"
-  },
+    ${packageDependencies}
+  },` : ''}
   "devDependencies": {
-    "@playwright/test": "${frameworkDeps.playwright}",
-    "@qubiqlabs/webpilot": "^${cliPackageVersion}",
-    "@types/node": "${frameworkDeps.typesNode}",
-    "typescript": "${frameworkDeps.typescript}"
+    ${packageDevDependencies}
   }
 }`);
 
@@ -745,7 +1144,9 @@ playwright-report/
         TestTemplateRegistry.render('api-smoke', { name: 'Petstore smoke' })
       );
 
-      const runScript = isFullTypeScriptPlaywright(profile) ? 'npm run test:web' : 'npm run webpilot:run';
+      const runScript = isFullTypeScriptPlaywright(profile)
+        ? 'npm run test:web'
+        : 'npm run webpilot:run';
 
       writeProjectFile('README.md', `# ${profile.projectName}
 
@@ -782,7 +1183,7 @@ ${runScript}
 open runtime/reports/html/index.html
 \`\`\`
 
-The WebPilot natural-language runner is available for discovery and reports. Generated-code scaffolds for non-TypeScript profiles are starter templates while codegen support is expanded.
+The WebPilot natural-language runner is available for discovery and reports. All major generated-test profiles (TypeScript/Playwright, Python/Playwright, Java/Selenium, TypeScript/Cypress, TypeScript/WebdriverIO, C#/Selenium, C#/Playwright) include full scaffolds.
 `);
 
       const assetsSource = path.join(installRoot, 'resources', 'assets');
@@ -791,109 +1192,30 @@ The WebPilot natural-language runner is available for discovery and reports. Gen
       }
 
       if (!isFullTypeScriptPlaywright(profile)) {
-        if (profile.language === 'python' && profile.automationTool === 'playwright') {
-          writeProjectFile('pyproject.toml', `[project]
-name = "${profile.projectName}"
-version = "0.1.0"
-requires-python = ">=3.11"
-dependencies = [
-  "pytest>=8.0.0",
-  "pytest-playwright>=0.5.0"
-]
-
-[tool.pytest.ini_options]
-testpaths = ["tests/generated"]
-`);
-          writeProjectFile('tests/generated/test_automationexercise_smoke.py', `from playwright.sync_api import Page
-
-
-def test_automationexercise_smoke(page: Page):
-    page.goto("https://automationexercise.com/")
-    assert "Automation Exercise" in page.title()
-`);
-        } else if (profile.language === 'typescript' && profile.automationTool === 'cypress') {
-          writeProjectFile('cypress.config.ts', `import { defineConfig } from 'cypress';
-
-export default defineConfig({
-  e2e: {
-    baseUrl: 'https://automationexercise.com',
-    specPattern: 'cypress/e2e/**/*.cy.ts',
-  },
-});
-`);
-          writeProjectFile('cypress/e2e/automationexercise_smoke.cy.ts', `describe('AutomationExercise smoke', () => {
-  it('opens the home page', () => {
-    cy.visit('/');
-    cy.contains('AutomationExercise').should('be.visible');
-  });
-});
-`);
-        } else if (profile.language === 'typescript' && profile.automationTool === 'webdriverio') {
-          writeProjectFile('wdio.conf.ts', `export const config = {
-  runner: 'local',
-  specs: ['./test/specs/**/*.ts'],
-  maxInstances: 1,
-  capabilities: [{ browserName: 'chrome' }],
-  framework: 'mocha',
-  services: ['chromedriver'],
-};
-`);
-          writeProjectFile('test/specs/automationexercise_smoke.ts', `describe('AutomationExercise smoke', () => {
-  it('opens the home page', async () => {
-    await browser.url('https://automationexercise.com/');
-    await expect(browser).toHaveTitle(expect.stringContaining('Automation Exercise'));
-  });
-});
-`);
-        } else if (profile.language === 'java' && profile.automationTool === 'selenium') {
-          writeProjectFile('pom.xml', `<project xmlns="http://maven.apache.org/POM/4.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>io.webpilot</groupId>
-  <artifactId>${profile.projectName}</artifactId>
-  <version>0.1.0</version>
-  <properties>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
-  </properties>
-  <dependencies>
-    <dependency>
-      <groupId>org.seleniumhq.selenium</groupId>
-      <artifactId>selenium-java</artifactId>
-      <version>4.27.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>5.11.4</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-</project>
-`);
-          writeProjectFile('src/test/java/io/webpilot/AutomationExerciseSmokeTest.java', `package io.webpilot;
-
-import org.junit.jupiter.api.Test;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-class AutomationExerciseSmokeTest {
-  @Test
-  void opensHomePage() {
-    WebDriver driver = new ChromeDriver();
-    try {
-      driver.get("https://automationexercise.com/");
-      assertTrue(driver.getTitle().contains("Automation Exercise"));
-    } finally {
-      driver.quit();
-    }
-  }
-}
-`);
+        if (isPythonPlaywrightProfile(profile)) {
+          for (const file of pythonFrameworkFiles(profile.projectName)) {
+            writeProjectFile(file.path, file.content);
+          }
+        } else if (isJavaSeleniumProfile(profile)) {
+          for (const file of javaFrameworkFiles(profile.projectName)) {
+            writeProjectFile(file.path, file.content);
+          }
+        } else if (isTypeScriptCypressProfile(profile)) {
+          for (const file of cypressFrameworkFiles()) {
+            writeProjectFile(file.path, file.content);
+          }
+        } else if (isCsharpSeleniumProfile(profile)) {
+          for (const file of csharpSeleniumFrameworkFiles()) {
+            writeProjectFile(file.path, file.content);
+          }
+        } else if (isCsharpPlaywrightProfile(profile)) {
+          for (const file of csharpPlaywrightFrameworkFiles()) {
+            writeProjectFile(file.path, file.content);
+          }
+        } else if (isTypeScriptWebdriverIOProfile(profile)) {
+          for (const file of webdriverIOFrameworkFiles()) {
+            writeProjectFile(file.path, file.content);
+          }
         } else {
           writeProjectFile('GENERATED_CODE_PROFILE.md', `# Generated Code Profile
 
@@ -913,11 +1235,51 @@ Starter templates for this combination are not fully implemented yet. WebPilot c
         if (projectRoot !== process.cwd()) {
           console.log(`  1. ${chalk.bold(`cd ${path.relative(process.cwd(), projectRoot) || projectRoot}`)}`);
         }
-        console.log(`  ${projectRoot !== process.cwd() ? '2' : '1'}. ${chalk.bold('npm install')}`);
-        console.log(`  ${projectRoot !== process.cwd() ? '3' : '2'}. ${chalk.bold('npm run setup')}`);
-        console.log(`  ${projectRoot !== process.cwd() ? '4' : '3'}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
-        console.log(`  ${projectRoot !== process.cwd() ? '5' : '4'}. ${chalk.bold('npm run doctor')}`);
-        console.log(`  ${projectRoot !== process.cwd() ? '6' : '5'}. ${chalk.bold('npm run webpilot:run')}\n`);
+        const step = (n: number) => (projectRoot !== process.cwd() ? n + 1 : n);
+        console.log(`  ${step(1)}. ${chalk.bold('npm install')}`);
+        if (isPythonPlaywrightProfile(profile)) {
+          console.log(`  ${step(2)}. ${chalk.bold('npm run test:generated:install')} (pytest + Playwright browsers)`);
+          console.log(`  ${step(3)}. ${chalk.bold('npm run setup')} (WebPilot browser agent)`);
+          console.log(`  ${step(4)}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
+          console.log(`  ${step(5)}. ${chalk.bold('npm run doctor')}`);
+          console.log(`  ${step(6)}. ${chalk.bold('npm run webpilot:run')}\n`);
+        } else if (isJavaSeleniumProfile(profile)) {
+          console.log(`  ${step(2)}. ${chalk.bold('npm run test:generated:compile')} (Maven + Selenium compile check)`);
+          console.log(`  ${step(3)}. ${chalk.bold('npm run setup')} (WebPilot browser agent)`);
+          console.log(`  ${step(4)}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
+          console.log(`  ${step(5)}. ${chalk.bold('npm run doctor')}`);
+          console.log(`  ${step(6)}. ${chalk.bold('npm run webpilot:run')}\n`);
+        } else if (isTypeScriptCypressProfile(profile)) {
+          console.log(`  ${step(2)}. ${chalk.bold('npm install && npx cypress install')} (Cypress binary)`);
+          console.log(`  ${step(3)}. ${chalk.bold('npm run setup')} (WebPilot browser agent)`);
+          console.log(`  ${step(4)}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
+          console.log(`  ${step(5)}. ${chalk.bold('npm run doctor')}`);
+          console.log(`  ${step(6)}. ${chalk.bold('npm run webpilot:run')}\n`);
+        } else if (isCsharpSeleniumProfile(profile)) {
+          console.log(`  ${step(2)}. ${chalk.bold('npm run test:generated:build')} (.NET + Selenium compile check)`);
+          console.log(`  ${step(3)}. ${chalk.bold('npm run setup')} (WebPilot browser agent)`);
+          console.log(`  ${step(4)}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
+          console.log(`  ${step(5)}. ${chalk.bold('npm run doctor')}`);
+          console.log(`  ${step(6)}. ${chalk.bold('npm run webpilot:run')}\n`);
+        } else if (isCsharpPlaywrightProfile(profile)) {
+          console.log(`  ${step(2)}. ${chalk.bold('npm run test:generated:build')} (.NET Playwright compile check)`);
+          console.log(`  ${step(3)}. ${chalk.bold('npm run test:generated:install')} (Playwright browsers, after first build)`);
+          console.log(`  ${step(4)}. ${chalk.bold('npm run setup')} (WebPilot browser agent)`);
+          console.log(`  ${step(5)}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
+          console.log(`  ${step(6)}. ${chalk.bold('npm run doctor')}`);
+          console.log(`  ${step(7)}. ${chalk.bold('npm run webpilot:run')}\n`);
+        } else if (isTypeScriptWebdriverIOProfile(profile)) {
+          console.log(`  ${step(2)}. ${chalk.bold('npm run test:generated:verify')} (TypeScript compile check)`);
+          console.log(`  ${step(3)}. ${chalk.bold('npm run setup')} (WebPilot browser agent)`);
+          console.log(`  ${step(4)}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
+          console.log(`  ${step(5)}. ${chalk.bold('npm run doctor')}`);
+          console.log(`  ${step(6)}. ${chalk.bold('npm run webpilot:run')}\n`);
+        } else {
+          console.log(`  ${step(2)}. ${chalk.bold('npm run setup')}`);
+          console.log(`  ${step(3)}. ${chalk.bold('cp .env.example .env')} and add provider credentials`);
+          console.log(`  ${step(4)}. ${chalk.bold('npm run doctor')}`);
+          console.log(`  ${step(5)}. ${chalk.bold('npm run webpilot:run')}\n`);
+        }
         return;
       }
 

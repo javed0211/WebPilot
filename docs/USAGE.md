@@ -1,6 +1,6 @@
 # WebPilot usage guide
 
-WebPilot turns plain-language test scripts (`.txt`) into live browser automation and Playwright TypeScript. This guide covers install, configuration, running tests, reports, and generated code.
+WebPilot turns plain-language test scripts (`.txt`) into live browser automation and **profile-aware generated test code** (TypeScript Playwright by default; also Python, Java, Cypress, WebdriverIO, and C#). This guide covers install, configuration, running tests, reports, and generated code.
 
 For the full framework reference (architecture, all CLI commands, test formats, CI), see **[FRAMEWORK_GUIDE.md](./FRAMEWORK_GUIDE.md)**.
 
@@ -293,20 +293,33 @@ webpilot report --json
 
 ---
 
-## 9. Generated Playwright code
+## 9. Generated test code
 
-After a successful UI run, check:
+After a successful UI run with `--codegen`, output location depends on your init profile:
 
-- **Page objects:** `packages/test-framework/pages/<site>/`
-- **Specs:** `packages/test-framework/tests/*.spec.ts`
+| Profile | Page objects | Specs |
+|---------|--------------|-------|
+| TypeScript Playwright | `packages/test-framework/pages/` | `packages/test-framework/tests/*.spec.ts` |
+| Python Playwright | `tests/generated/pages/` | `tests/generated/` |
+| Java Selenium | `src/test/java/webpilot/generated/pages/` | `src/test/java/webpilot/generated/` |
+| Cypress | `cypress/support/pages/` | `cypress/e2e/generated/` |
+| WebdriverIO | `test/pageobjects/` | `test/specs/generated/` |
+| C# Selenium | `tests/WebPilot.Tests/Generated/Pages/` | `tests/WebPilot.Tests/Generated/` |
+| C# Playwright | `tests/WebPilot.Playwright.Tests/Generated/Pages/` | `tests/WebPilot.Playwright.Tests/Generated/` |
 
-Replay generated Playwright tests without Browser Use or an LLM:
+Replay generated tests without Browser Use or an LLM:
 
 ```bash
+# TypeScript Playwright
 webpilot replay
+
+# Other profiles (also recorded in runtime/codegen/history/<slug>.json)
+npm run test:generated
 ```
 
-Canonical automationexercise POMs may be merged from `src/core/CodegenCanonicalPages.ts` for stability; see `resources/prompts/shared/framework-guidelines.md`.
+Canonical automationexercise POMs may be merged for TypeScript Playwright stability; see `resources/prompts/shared/framework-guidelines.md`.
+
+Full profile reference: [guides/multi-language-codegen.md](./guides/multi-language-codegen.md).
 
 ---
 
@@ -314,7 +327,7 @@ Canonical automationexercise POMs may be merged from `src/core/CodegenCanonicalP
 
 | Command | Purpose |
 |---------|---------|
-| `webpilot init` | Create default folders |
+| `webpilot init` | Scaffold project, config, and profile-specific framework |
 | `webpilot setup` | Create `.venv` and install vendored Browser Use |
 | `webpilot doctor` | Check dirs and environment |
 | `webpilot doctor --json` | Machine-readable doctor output |
@@ -323,7 +336,7 @@ Canonical automationexercise POMs may be merged from `src/core/CodegenCanonicalP
 | `webpilot create test <name> --template checkout-flow` | Create a metadata-rich web starter |
 | `webpilot create test <name>` | New `tests/web/<name>.txt` template |
 | `webpilot create api <name>` | New `tests/api/<name>.txt` template |
-| `webpilot replay [paths...]` | Run generated Playwright specs without AI |
+| `webpilot replay [paths...]` | Run generated TypeScript Playwright specs without AI |
 | `webpilot self-heal` | List healed selectors in cache |
 | `webpilot self-heal --clean` | Clear healing cache |
 

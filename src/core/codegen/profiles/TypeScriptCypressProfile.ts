@@ -62,11 +62,11 @@ export class TypeScriptCypressProfile implements CodegenProfile {
     return profile.language === 'typescript' && profile.automationTool === 'cypress';
   }
 
-  public specPath(slug: string): string {
+  public specPath(slug: string, _profile: CodegenProfilePlan): string {
     return `cypress/e2e/generated/${slug}.cy.ts`;
   }
 
-  public pagePath(className: string): string {
+  public pagePath(className: string, _profile: CodegenProfilePlan, _url?: string): string {
     return `cypress/support/pages/${className}.ts`;
   }
 
@@ -88,7 +88,7 @@ export class TypeScriptCypressProfile implements CodegenProfile {
     return [{ path: plan.specPath, content: lines.join('\n') }];
   }
 
-  public validationCommand(): string {
-    return 'npx cypress run';
+  public validationCommand(_profile: CodegenProfilePlan): string {
+    return 'npx tsc --noEmit';
   }
 }

@@ -14,13 +14,13 @@
 |-------|--------|
 | [Execution & Replay](./guides/execution-and-replay.md) | Run modes, knowledge-only, codegen vs replay |
 | [Intelligent Runner & Site Knowledge](./guides/intelligent-runner-and-site-knowledge.md) | Learned capabilities, per-step replay, performance |
-| [Deterministic Codegen](./guides/deterministic-codegen.md) | Trace → plan → Playwright without LLM |
+| [Deterministic Codegen](./guides/deterministic-codegen.md) | Trace → plan → profile-aware test code without LLM |
 | [Selector Intelligence & Healing](./guides/selector-intelligence-and-healing.md) | Registry, confidence, `self-heal` |
 | [Test Authoring](./guides/test-authoring.md) | `.txt` format, metadata, templates |
 | [Browser Providers](./guides/browser-providers.md) | browser-use, local-playwright, testmu |
 | [Assertion Engine](./guides/assertion-engine.md) | Inferred assertions and strength scoring |
 | [Flake Analyzer](./guides/flake-analyzer.md) | Failure classification and fixes |
-| [Multi-Language Codegen](./guides/multi-language-codegen.md) | TypeScript, Python, Java, Cypress profiles |
+| [Multi-Language Codegen](./guides/multi-language-codegen.md) | TypeScript, Python, Java, Cypress, WebdriverIO, C# profiles |
 | [Reports & Evidence](./guides/reports-and-evidence.md) | HTML, video, trace, artifacts |
 | [CI & Artifacts](./guides/ci-and-artifacts.md) | GitHub Actions, JUnit, manifest |
 | [API Testing](./guides/api-testing.md) | HTTP scenarios, OpenAPI import |

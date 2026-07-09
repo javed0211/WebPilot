@@ -175,11 +175,22 @@ Every command answers: what happened, where outputs are, what to do next, how to
 
 ## `webpilot init` starter tests
 
-`webpilot init` scaffolds project structure and creates starter tests for TypeScript + Playwright profiles. Other language profiles receive template files without full framework scaffold.
+`webpilot init` scaffolds project structure, sample tests, and a full framework for your chosen profile. **TypeScript + Playwright** receives the richest scaffold (`packages/test-framework/`). All other supported profiles receive complete, runnable starter projects for their stack.
 
 ```bash
+# TypeScript Playwright (reference profile)
 webpilot init --yes --language typescript --tool playwright --pattern pom
+
+# Other supported profiles
+webpilot init --yes --language python --tool playwright --pattern pom
+webpilot init --yes --language java --tool selenium --pattern pom
+webpilot init --yes --language typescript --tool cypress --pattern simple
+webpilot init --yes --language typescript --tool webdriverio --pattern pom
+webpilot init --yes --language csharp --tool selenium --pattern pom
+webpilot init --yes --language csharp --tool playwright --pattern pom
 ```
+
+See [Multi-Language Codegen](./multi-language-codegen.md) for output paths and validation commands.
 
 ---
 

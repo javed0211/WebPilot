@@ -20,6 +20,14 @@ import { TraceBuilder } from './TraceBuilder';
 import { ReportCodegenInfo } from '../execution_report/types';
 import { CodegenProfileRegistry } from './profiles/CodegenProfileRegistry';
 import { AssertionRanker } from '../assertions/AssertionRanker';
+import { ensurePythonPlaywrightFramework, readProjectName } from '../PythonFrameworkTemplates';
+import { ensureJavaSeleniumFramework, readJavaProjectName } from '../JavaFrameworkTemplates';
+import { ensureCypressFramework, ensureCypressTsConfig } from '../CypressFrameworkTemplates';
+import {
+  ensureCsharpPlaywrightFramework,
+  ensureCsharpSeleniumFramework,
+} from '../CsharpFrameworkTemplates';
+import { ensureWebdriverIOFramework, ensureWdioTsConfig } from '../WebdriverIOFrameworkTemplates';
 
 export interface PipelineInput {
   scenario: string;
@@ -133,17 +141,9 @@ export class DeterministicCodegenPipeline {
     };
   }
 
-  private static validateProfileFiles(plan: GenerationPlan, files: GeneratedFile[]): void {
+  private static validateProfileFiles(plan: GenerationPlan, _files: GeneratedFile[]): void {
     const profile = CodegenProfileRegistry.resolve(plan.profile);
     if (profile.language === 'typescript' && profile.automationTool === 'playwright') return;
-    // Profile validators (python/cypress/java commands) are optional. Skip them on
-    // Windows for reliability — hardcoding /bin/sh previously caused spawnSync ENOENT.
-    if (process.platform === 'win32') {
-      console.warn(
-        `[Codegen] Skipping profile validation on Windows (${profile.language}/${profile.automationTool}).`
-      );
-      return;
-    }
     const command = profile.validationCommand(plan.profile);
     if (!command) return;
     try {
@@ -152,11 +152,75 @@ export class DeterministicCodegenPipeline {
         stdio: 'inherit',
         env: process.env,
       });
+      console.log(`[Codegen] Profile validation passed (${profile.language}/${profile.automationTool}).`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `[Codegen] Profile validation skipped after command failed (${command}): ${message}`
+      throw new Error(
+        `Generated code failed validation for ${profile.language}/${profile.automationTool}: ${message}`
       );
+    }
+  }
+
+  private static ensureProfileScaffold(plan: GenerationPlan): void {
+    const { language, automationTool } = plan.profile;
+    if (language === 'python' && automationTool === 'playwright') {
+      const written = ensurePythonPlaywrightFramework(process.cwd(), readProjectName());
+      if (written.length > 0) {
+        console.log(
+          `[Codegen] Scaffolded Python Playwright framework (${written.length} file(s)): ${written.join(', ')}`
+        );
+      }
+      return;
+    }
+    if (language === 'java' && automationTool === 'selenium') {
+      const written = ensureJavaSeleniumFramework(process.cwd(), readJavaProjectName());
+      if (written.length > 0) {
+        console.log(
+          `[Codegen] Scaffolded Java Selenium framework (${written.length} file(s)): ${written.join(', ')}`
+        );
+      }
+      return;
+    }
+    if (language === 'typescript' && automationTool === 'cypress') {
+      if (ensureCypressTsConfig()) {
+        console.log('[Codegen] Wrote tsconfig.json with Cypress types.');
+      }
+      const written = ensureCypressFramework();
+      if (written.length > 0) {
+        console.log(
+          `[Codegen] Scaffolded Cypress framework (${written.length} file(s)): ${written.join(', ')}`
+        );
+      }
+      return;
+    }
+    if (language === 'csharp' && automationTool === 'selenium') {
+      const written = ensureCsharpSeleniumFramework();
+      if (written.length > 0) {
+        console.log(
+          `[Codegen] Scaffolded C# Selenium framework (${written.length} file(s)): ${written.join(', ')}`
+        );
+      }
+      return;
+    }
+    if (language === 'csharp' && automationTool === 'playwright') {
+      const written = ensureCsharpPlaywrightFramework();
+      if (written.length > 0) {
+        console.log(
+          `[Codegen] Scaffolded C# Playwright framework (${written.length} file(s)): ${written.join(', ')}`
+        );
+      }
+      return;
+    }
+    if (language === 'typescript' && automationTool === 'webdriverio') {
+      if (ensureWdioTsConfig()) {
+        console.log('[Codegen] Wrote tsconfig.json with WebdriverIO types.');
+      }
+      const written = ensureWebdriverIOFramework();
+      if (written.length > 0) {
+        console.log(
+          `[Codegen] Scaffolded WebdriverIO framework (${written.length} file(s)): ${written.join(', ')}`
+        );
+      }
     }
   }
 
@@ -167,6 +231,7 @@ export class DeterministicCodegenPipeline {
     const metadata = DeterministicCodegenPipeline.persist(trace, plan, files);
 
     const profile = CodegenProfileRegistry.resolve(plan.profile);
+    DeterministicCodegenPipeline.ensureProfileScaffold(plan);
     if (options?.validate === false) {
       CodegenWriter.writeFiles(files);
     } else if (profile.language === 'typescript' && profile.automationTool === 'playwright') {

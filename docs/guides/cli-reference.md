@@ -102,7 +102,7 @@ webpilot report [options]
 webpilot doctor [--provider <name>] [--json]
 ```
 
-Checks Node, Playwright, Python, browser-use, LLM credentials, provider config, writable `runtime/`.
+Checks Node, Python, browser-use, LLM credentials, provider config, writable `runtime/`, and **profile-specific toolchains** (Playwright, pytest, Maven, Cypress, WebdriverIO, .NET SDK, etc.) based on `resources/config/webpilot.yaml`.
 
 ---
 
@@ -117,6 +117,22 @@ webpilot init [directory] [options]
 | `-f, --force` | Overwrite WebPilot-owned files |
 | `-y, --yes` | Non-interactive defaults |
 | `--language`, `--tool`, `--pattern`, `--target` | Project profile |
+
+### Supported init profiles
+
+| `--language` | `--tool` | Scaffold highlights |
+|--------------|----------|---------------------|
+| `typescript` | `playwright` | `packages/test-framework/`, Playwright config |
+| `python` | `playwright` | `tests/generated/`, `pyproject.toml`, `conftest.py` |
+| `java` | `selenium` | `src/test/java/webpilot/`, `pom.xml` |
+| `typescript` | `cypress` | `cypress/`, `cypress.config.ts` |
+| `typescript` | `webdriverio` | `wdio.conf.ts`, `test/specs/`, `test/pageobjects/` |
+| `csharp` | `selenium` | `tests/WebPilot.Tests/`, NUnit + Selenium |
+| `csharp` | `playwright` | `tests/WebPilot.Playwright.Tests/`, NUnit + Playwright |
+
+`webpilot doctor` runs profile-specific toolchain checks after init.
+
+See [Multi-Language Codegen](./multi-language-codegen.md).
 | `--llm-provider`, `--llm-model` | LLM defaults |
 
 ---

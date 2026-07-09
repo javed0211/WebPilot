@@ -25,7 +25,9 @@ runtime/     Generated and local-only output
 ### `packages/`
 
 - `browser-use/`: pinned upstream Browser Use source plus documented WebPilot patches
-- `test-framework/`: canonical and generated Playwright pages, APIs, fixtures, and tests
+- `test-framework/`: canonical and generated **TypeScript Playwright** pages, APIs, fixtures, and tests
+
+Initialized projects using other codegen profiles store generated code in profile-specific paths (for example `tests/generated/` for Python, `test/specs/generated/` for WebdriverIO, `tests/WebPilot.Playwright.Tests/Generated/` for C# Playwright). See [guides/multi-language-codegen.md](./guides/multi-language-codegen.md).
 
 ### `resources/`
 

@@ -100,9 +100,10 @@ This product feature supports:
 
 Future enhancements:
 
-- Selenium/Cypress/WebdriverIO selector emitters.
 - Persistent cloud selector service.
 - Visual matching.
+
+Codegen profiles already emit Selenium, Cypress, WebdriverIO, and C# selectors via `src/core/codegen/profiles/` and `AssertionEmitter`.
 
 ## Implementation Plan
 

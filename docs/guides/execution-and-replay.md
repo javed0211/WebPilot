@@ -82,20 +82,28 @@ Skips knowledge replay and re-explores every step. Use when:
 
 ## Script replay (CI / regression)
 
-After codegen (or manual framework work), run generated Playwright tests without WebPilot or LLM:
+After codegen (or manual framework work), run generated tests without WebPilot or LLM. The command depends on your init profile:
 
 ```bash
+# TypeScript Playwright
 webpilot replay packages/test-framework/tests/booking_search_hotels.spec.ts
-# or:
 npx playwright test packages/test-framework/tests/booking_search_hotels.spec.ts
+
+# Other profiles (also in runtime/codegen/history/<slug>.json)
+pytest tests/generated/test_booking_search_hotels.py
+mvn -q test -Dtest=BookingSearchHotelsTest
+npx wdio run wdio.conf.ts --spec test/specs/generated/booking_search_hotels.spec.ts
+dotnet test tests/WebPilot.Playwright.Tests/WebPilot.Playwright.Tests.csproj
 ```
 
 This path:
 
-- Uses committed TypeScript page objects and specs
+- Uses committed page objects and specs for your framework
 - Does not read `.txt` files
 - Does not call browser-use or LLM
 - Is the recommended CI execution mode for stable suites
+
+See [Multi-Language Codegen](./multi-language-codegen.md).
 
 ---
 
@@ -109,7 +117,7 @@ After live execution succeeds:
 
 1. Execution history is saved under `runtime/reports/data/execution-history/`
 2. A trace and generation plan are written under `runtime/codegen/`
-3. Playwright POM + spec files are emitted to `packages/test-framework/`
+3. Spec and page object files are emitted to the active profile's output paths (see [Multi-Language Codegen](./multi-language-codegen.md))
 4. HTML report is generated (with `--report`)
 
 Codegen mode is controlled by `framework.codegenMode` in `webpilot.yaml`:

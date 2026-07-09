@@ -91,6 +91,66 @@ function javaBy(assertion: AssertionCandidate): string {
   }
 }
 
+function csharpBy(assertion: AssertionCandidate): string {
+  const selector = assertion.selector;
+  if (!selector) return 'By.CssSelector("body")';
+  const role = roleParts(selector);
+  if (role?.name) {
+    return `By.XPath("//*[@role='${escapeDouble(role.role)}' and normalize-space(.)='${escapeDouble(role.name)}']")`;
+  }
+  switch (selector.kind) {
+    case 'testid':
+      return `By.CssSelector("[data-testid='${escapeDouble(selector.value)}']")`;
+    case 'text':
+      return `By.XPath("//*[normalize-space(.)='${escapeDouble(selector.value)}']")`;
+    case 'xpath':
+      return `By.XPath("${escapeDouble(selector.value)}")`;
+    default:
+      return `By.CssSelector("${escapeDouble(selector.value)}")`;
+  }
+}
+
+function csharpPlaywrightLocator(assertion: AssertionCandidate, receiver = 'Page'): string | null {
+  const selector = assertion.selector;
+  if (!selector) return null;
+  const role = roleParts(selector);
+  if (role) {
+    const aria = role.role.charAt(0).toUpperCase() + role.role.slice(1);
+    return role.name
+      ? `${receiver}.GetByRole(AriaRole.${aria}, new() { Name = "${escapeDouble(role.name)}" })`
+      : `${receiver}.GetByRole(AriaRole.${aria})`;
+  }
+  switch (selector.kind) {
+    case 'label':
+      return `${receiver}.GetByLabel("${escapeDouble(selector.value)}")`;
+    case 'placeholder':
+      return `${receiver}.GetByPlaceholder("${escapeDouble(selector.value)}")`;
+    case 'testid':
+      return `${receiver}.GetByTestId("${escapeDouble(selector.value)}")`;
+    case 'text':
+      return `${receiver}.GetByText("${escapeDouble(selector.value)}")`;
+    default:
+      return `${receiver}.Locator("${escapeDouble(selector.value)}")`;
+  }
+}
+
+function wdioLocator(assertion: AssertionCandidate): string | null {
+  const selector = assertion.selector;
+  if (!selector) return null;
+  const role = roleParts(selector);
+  if (role?.name) {
+    return `$('[role="${escapeSingle(role.role)}"]*=${escapeSingle(role.name)}')`;
+  }
+  switch (selector.kind) {
+    case 'testid':
+      return `$('[data-testid="${escapeSingle(selector.value)}"]')`;
+    case 'text':
+      return `$('*=${escapeSingle(selector.value)}')`;
+    default:
+      return `$('${escapeSingle(selector.value)}')`;
+  }
+}
+
 export class AssertionEmitter {
   public static typeScriptPlaywright(assertion: AssertionCandidate, receiver = 'page'): string[] {
     const comment = `// assertion(${assertion.strength}): ${assertion.description}`;
@@ -145,6 +205,46 @@ export class AssertionEmitter {
       return [comment, `assertTrue(${driver}.getCurrentUrl().contains("${escapeDouble(String(assertion.expected))}"));`];
     }
     return [comment, `assertTrue(${driver}.findElement(${javaBy(assertion)}).isDisplayed());`];
+  }
+
+  public static csharpSelenium(assertion: AssertionCandidate, driver = 'Driver'): string[] {
+    const comment = `// assertion(${assertion.strength}): ${assertion.description}`;
+    if (assertion.kind === 'url_contains') {
+      return [comment, `Assert.That(${driver}.Url, Does.Contain("${escapeDouble(String(assertion.expected))}"));`];
+    }
+    return [comment, `Assert.That(${driver}.FindElement(${csharpBy(assertion)}).Displayed, Is.True);`];
+  }
+
+  public static csharpPlaywright(assertion: AssertionCandidate, receiver = 'Page'): string[] {
+    const comment = `// assertion(${assertion.strength}): ${assertion.description}`;
+    if (assertion.kind === 'url_contains') {
+      return [
+        comment,
+        `await Expect(${receiver}).ToHaveURLAsync(new Regex("${regexSafe(String(assertion.expected))}"));`,
+      ];
+    }
+    if (assertion.kind === 'text_visible' && !assertion.selector) {
+      return [
+        comment,
+        `await Expect(${receiver}.GetByText("${escapeDouble(String(assertion.expected))}")).ToBeVisibleAsync();`,
+      ];
+    }
+    const locator = csharpPlaywrightLocator(assertion, receiver);
+    return locator
+      ? [comment, `await Expect(${locator}).ToBeVisibleAsync();`]
+      : [comment];
+  }
+
+  public static webdriverIO(assertion: AssertionCandidate): string[] {
+    const comment = `// assertion(${assertion.strength}): ${assertion.description}`;
+    if (assertion.kind === 'url_contains') {
+      return [comment, `await expect(browser).toHaveUrl(expect.stringContaining('${escapeSingle(String(assertion.expected))}'));`];
+    }
+    if (assertion.kind === 'text_visible' && !assertion.selector) {
+      return [comment, `await expect($('*=${escapeSingle(String(assertion.expected))}')).toBeDisplayed();`];
+    }
+    const locator = wdioLocator(assertion);
+    return locator ? [comment, `await expect(${locator}).toBeDisplayed();`] : [comment];
   }
 
   public static cypress(assertion: AssertionCandidate): string[] {

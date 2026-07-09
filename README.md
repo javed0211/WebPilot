@@ -1,10 +1,10 @@
 # WebPilot
 
-**AI-native web automation on top of Playwright.**
+**AI-native web automation on top of Playwright, Selenium, Cypress, and WebdriverIO.**
 
-WebPilot lets teams describe browser and API workflows in natural language, run them through an autonomous browser agent, reuse learned site knowledge, generate deterministic Playwright code, self-heal broken automation, and publish rich execution reports.
+WebPilot lets teams describe browser and API workflows in natural language, run them through an autonomous browser agent, reuse learned site knowledge, generate deterministic test code for multiple frameworks, self-heal broken automation, and publish rich execution reports.
 
-It is not trying to replace Playwright or Selenium. Playwright is the browser engine. WebPilot is the intelligent automation layer above it: generation, execution, healing, knowledge reuse, reporting, and CI-ready artifacts.
+It is not trying to replace Playwright or Selenium. Those tools are the browser engines. WebPilot is the intelligent automation layer above them: generation, execution, healing, knowledge reuse, reporting, and CI-ready artifacts.
 
 [![WebPilot demo: CLI and browser agent](https://raw.githubusercontent.com/javed0211/WebPilot/main/resources/assets/demo.webpilot.gif)](https://github.com/javed0211/WebPilot/blob/main/resources/assets/demo.webpilot.mp4)
 
@@ -15,7 +15,7 @@ Traditional browser automation is powerful, but teams still spend too much time 
 WebPilot focuses on the missing layer:
 
 - **Natural language to automation**: write test intent as readable steps, not just code.
-- **Playwright-native output**: generate TypeScript tests and page objects that can run in standard CI.
+- **Multi-framework codegen**: generate TypeScript Playwright, Python Playwright, Java Selenium, Cypress, WebdriverIO, and C# (Selenium + Playwright) tests and page objects.
 - **Agentic execution**: use Browser Use and Playwright to navigate real web pages when a flow is not yet known.
 - **Knowledge reuse**: learn validated page capabilities so future runs can replay known steps more deterministically.
 - **Self-healing**: recover from locator drift and persist healed behavior for future runs.
@@ -64,7 +64,7 @@ Test: Add Products in Cart
 5. Verify the product appears in the cart
 ```
 
-WebPilot can execute that flow, collect runtime evidence, generate Playwright code, and write a report.
+WebPilot can execute that flow, collect runtime evidence, generate framework-specific test code, and write a report.
 
 ## Reports
 
@@ -99,7 +99,33 @@ webpilot self-heal
 
 During local development, prefix commands with `npm run webpilot --` if you have not linked the CLI.
 
-`webpilot init` starts an interactive project wizard. It records your LLM provider, model/deployment, automation target, generated-code language, automation tool, test runner, and framework pattern in `resources/config/webpilot.yaml`. The current fully supported generated-code profile is TypeScript + Playwright, and the wizard also scaffolds starter templates for Python Playwright, Cypress, WebdriverIO, and Java Selenium profiles as the codegen backend expands.
+`webpilot init` starts an interactive project wizard. It records your LLM provider, model/deployment, automation target, generated-code language, automation tool, test runner, and framework pattern in `resources/config/webpilot.yaml`.
+
+**Supported codegen profiles** (each with init scaffold, deterministic codegen, and profile-aware validation):
+
+| Language | Tool | Output layout |
+|----------|------|---------------|
+| TypeScript | Playwright | `packages/test-framework/` (full framework) |
+| Python | Playwright | `tests/generated/` |
+| Java | Selenium | `src/test/java/webpilot/generated/` |
+| TypeScript | Cypress | `cypress/e2e/generated/` |
+| TypeScript | WebdriverIO | `test/specs/generated/`, `test/pageobjects/` |
+| C# | Selenium | `tests/WebPilot.Tests/Generated/` |
+| C# | Playwright | `tests/WebPilot.Playwright.Tests/Generated/` |
+
+Example init commands:
+
+```bash
+webpilot init --yes --language typescript --tool playwright --pattern pom
+webpilot init --yes --language python --tool playwright --pattern pom
+webpilot init --yes --language java --tool selenium --pattern pom
+webpilot init --yes --language typescript --tool cypress --pattern simple
+webpilot init --yes --language typescript --tool webdriverio --pattern pom
+webpilot init --yes --language csharp --tool selenium --pattern pom
+webpilot init --yes --language csharp --tool playwright --pattern pom
+```
+
+See [Multi-Language Codegen](docs/guides/multi-language-codegen.md) for profile details.
 
 Author tests from templates:
 
@@ -121,7 +147,7 @@ WebPilot CLI + Engine
         +--> Browser Use agent for discovery and live navigation
         +--> Playwright for deterministic browser automation
         +--> Site knowledge for learned reusable actions
-        +--> Codegen for TypeScript specs and page objects
+        +--> Codegen for specs and page objects (profile-aware)
         +--> Report service for static HTML dashboards and artifacts
 ```
 
@@ -156,6 +182,7 @@ WebPilot should feel familiar to automation engineers, but useful to product eng
 ## Documentation
 
 - [Quick start and usage](docs/USAGE.md)
+- [Multi-language codegen](docs/guides/multi-language-codegen.md)
 - [Framework guide](docs/FRAMEWORK_GUIDE.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Reporting](docs/REPORTING.md)
@@ -169,7 +196,7 @@ WebPilot is being shaped into a serious open-source automation project. The road
 - stable CLI and npm packaging
 - clean example projects
 - polished documentation
-- deterministic Playwright output
+- deterministic multi-framework output
 - report UI improvements
 - self-healing and knowledge reuse
 - CI integrations

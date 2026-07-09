@@ -19,7 +19,7 @@ Write .txt scenario  →  webpilot run  →  learn + execute live  →  optional
 | Author | Write natural-language steps | [Test Authoring](./test-authoring.md) |
 | Explore | First run on new flows | [Intelligent Runner](./intelligent-runner-and-site-knowledge.md) |
 | Re-run | Fast deterministic replay | [Execution & Replay](./execution-and-replay.md) |
-| Promote | Generate Playwright for CI | [Deterministic Codegen](./deterministic-codegen.md) |
+| Promote | Generate tests for CI (profile-aware) | [Deterministic Codegen](./deterministic-codegen.md) · [Multi-Language Codegen](./multi-language-codegen.md) |
 | Maintain | Fix broken selectors | [Selector Intelligence & Healing](./selector-intelligence-and-healing.md) |
 | Debug | Understand failures | [Flake Analyzer](./flake-analyzer.md) · [Reports](./reports-and-evidence.md) |
 | Ship | Run in GitHub Actions | [CI & Artifacts](./ci-and-artifacts.md) |
@@ -40,8 +40,8 @@ Write .txt scenario  →  webpilot run  →  learn + execute live  →  optional
 
 | Guide | Summary |
 |-------|---------|
-| [Deterministic Codegen](./deterministic-codegen.md) | Trace → plan → Playwright spec/POM without LLM |
-| [Multi-Language Codegen](./multi-language-codegen.md) | TypeScript, Python, Java, Cypress profiles |
+| [Deterministic Codegen](./deterministic-codegen.md) | Trace → plan → profile-aware spec/POM without LLM |
+| [Multi-Language Codegen](./multi-language-codegen.md) | TypeScript, Python, Java, Cypress, WebdriverIO, C# profiles |
 | [Assertion Engine](./assertion-engine.md) | How WebPilot infers and scores assertions |
 | [Repository Knowledge Graph](./repository-knowledge-graph.md) | `webpilot graph`, reusing existing page objects |
 
