@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .paths import PROMPTS_ROOT
+from .paths import INSTALL_PROMPTS_ROOT, PROMPTS_ROOT, resolve_prompt_path
 
 
 def _read(path: Path) -> str:
@@ -13,9 +13,13 @@ def _read(path: Path) -> str:
 
 
 def load_prompt(relative_path: str) -> str:
-    full = PROMPTS_ROOT / relative_path
+    full = resolve_prompt_path(relative_path)
     if not full.is_file():
-        raise FileNotFoundError(f'Prompt file not found: resources/prompts/{relative_path}')
+        searched = [str(PROMPTS_ROOT / relative_path), str(INSTALL_PROMPTS_ROOT / relative_path)]
+        raise FileNotFoundError(
+            f'Prompt file not found: resources/prompts/{relative_path} '
+            f'(searched: {", ".join(searched)})'
+        )
     return _read(full)
 
 

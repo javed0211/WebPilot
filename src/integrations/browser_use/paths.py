@@ -9,7 +9,9 @@ BROWSER_USE_SOURCE_ROOT = INSTALL_ROOT / 'packages' / 'browser-use'
 TEST_FRAMEWORK_ROOT = PROJECT_ROOT / 'packages' / 'test-framework'
 RESOURCES_ROOT = PROJECT_ROOT / 'resources'
 CONFIG_ROOT = RESOURCES_ROOT / 'config'
-PROMPTS_ROOT = PROJECT_ROOT / 'resources' / 'prompts'
+PROMPTS_ROOT = RESOURCES_ROOT / 'prompts'
+INSTALL_RESOURCES_ROOT = INSTALL_ROOT / 'resources'
+INSTALL_PROMPTS_ROOT = INSTALL_RESOURCES_ROOT / 'prompts'
 ASSETS_ROOT = RESOURCES_ROOT / 'assets'
 RUNTIME_ROOT = PROJECT_ROOT / 'runtime'
 REPORTS_ROOT = RUNTIME_ROOT / 'reports'
@@ -27,7 +29,17 @@ REPORTS_TRACES_DIR = REPORTS_ROOT / 'traces'
 REPORTS_SCREENSHOTS_DIR = REPORTS_ROOT / 'screenshots'
 REPORTS_ASSETS_DIR = REPORTS_ROOT / 'assets'
 REPORTS_HISTORY_DIR = REPORTS_ROOT / 'history'
-ARTIFACTS_ROOT = RUNTIME_ROOT / 'artifacts'
+def resolve_prompt_path(relative_path: str) -> Path:
+    """Prefer project prompts, then fall back to the installed WebPilot package."""
+    relative = Path(relative_path)
+    candidates = (
+        PROMPTS_ROOT / relative,
+        INSTALL_PROMPTS_ROOT / relative,
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
 
 
 def ensure_report_dirs() -> None:
