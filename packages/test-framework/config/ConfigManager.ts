@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveWebPilotProjectRoot } from './resolveProjectRoot';
 
 export interface EnvConfig {
   environment: string;
@@ -21,7 +22,8 @@ export class ConfigManager {
     }
 
     const env = process.env.ENV || 'qa';
-    const configPath = path.join(process.cwd(), 'resources', 'config', 'environments', `${env}.json`);
+    const projectRoot = resolveWebPilotProjectRoot();
+    const configPath = path.join(projectRoot, 'resources', 'config', 'environments', `${env}.json`);
 
     if (!fs.existsSync(configPath)) {
       throw new Error(`Configuration file not found for environment "${env}" at: ${configPath}`);

@@ -7,7 +7,7 @@ import re
 from typing import Any
 
 from .llm_config import _load_dotenv
-from .paths import CONFIG_ROOT
+from .paths import resolve_environment_config_path
 
 ENV_VAR_RE = re.compile(r'\$\{([^}]+)\}')
 STEP_PLACEHOLDER_RE = re.compile(r'\$\{([^}]+)\}')
@@ -59,8 +59,8 @@ def _is_sensitive_variable_key(key: str, value: str, credential_keys: set[str]) 
 
 def load_environment_config(env_name: str) -> dict[str, Any]:
     _load_dotenv()
-    config_path = CONFIG_ROOT / 'environments' / f'{env_name}.json'
-    if not os.path.isfile(config_path):
+    config_path = resolve_environment_config_path(env_name)
+    if not config_path.is_file():
         return {}
     with open(config_path, encoding='utf-8') as handle:
         data = json.load(handle)
@@ -90,6 +90,17 @@ def build_environment_variable_map(env_name: str) -> tuple[dict[str, str], set[s
 
     for cred_key, cred_val in load_environment_credentials(env_name).items():
         register(cred_key, cred_val, sensitive=True)
+
+    raw_config = load_environment_config(env_name)
+    resolved_creds = load_environment_credentials(env_name)
+    for cred_key, raw_val in (raw_config.get('credentials') or {}).items():
+        resolved_val = resolved_creds.get(cred_key, '')
+        if not resolved_val or _is_unresolved_placeholder(resolved_val):
+            continue
+        if isinstance(raw_val, str):
+            env_ref = ENV_VAR_RE.fullmatch(raw_val.strip())
+            if env_ref:
+                register(env_ref.group(1), resolved_val, sensitive=True)
 
     for var_key, var_val in (config.get('variables') or {}).items():
         if var_val is not None:

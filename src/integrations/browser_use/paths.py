@@ -45,6 +45,30 @@ def resolve_prompt_path(relative_path: str) -> Path:
     return candidates[0]
 
 
+def resolve_environment_config_path(env_name: str) -> Path:
+    """Resolve environments/<env>.json from project tree or installed package."""
+    filename = f'{env_name}.json'
+    candidates: list[Path] = [
+        CONFIG_ROOT / 'environments' / filename,
+        INSTALL_ROOT / 'resources' / 'config' / 'environments' / filename,
+    ]
+    current = Path.cwd().resolve()
+    for _ in range(12):
+        candidates.append(current / 'resources' / 'config' / 'environments' / filename)
+        if current.parent == current:
+            break
+        current = current.parent
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if resolved.is_file():
+            return resolved
+    return (CONFIG_ROOT / 'environments' / filename).resolve()
+
+
 def ensure_report_dirs() -> None:
     for directory in (
         REPORTS_HTML_DIR,
