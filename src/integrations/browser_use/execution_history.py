@@ -5,9 +5,95 @@ Codegen must use this package as the primary source of truth (NL steps are secon
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Callable
 from typing import Any
 
 MAX_PROMPT_CHARS = 120_000
+
+
+def _is_verification_step(step: str) -> bool:
+    return bool(re.match(r"^(verify|assert|check|ensure)\b", step.strip(), re.IGNORECASE))
+
+
+def append_replay_history_from_capability(
+    execution_history: list[dict],
+    capability: dict[str, Any] | None,
+    *,
+    description: str,
+    url: str | None,
+    redact_value: Callable[[str], str] | None = None,
+    fallback_action: str = "knowledge-replay",
+) -> None:
+    """Expand stored capability actions into codegen-friendly execution history."""
+    redact = redact_value or (lambda value: value)
+    actions = (capability or {}).get("actions") or []
+    if not actions:
+        execution_history.append(
+            {
+                "index": len(execution_history) + 1,
+                "action": fallback_action,
+                "description": description,
+                "url": url,
+            }
+        )
+        return
+
+    for action in actions:
+        raw_value = str(action.get("value") or "")
+        redacted_value = redact(raw_value) if raw_value else ""
+        execution_history.append(
+            {
+                "index": len(execution_history) + 1,
+                "action": action.get("type", fallback_action),
+                "selector": json.dumps(action.get("locators")) if action.get("locators") else None,
+                "value": redacted_value or None,
+                "url": action.get("url") or url,
+                "description": description,
+            }
+        )
+
+
+def append_recipe_replay_history(
+    execution_history: list[dict],
+    step: str,
+    *,
+    description: str,
+    url: str | None,
+) -> None:
+    """Record recipe replay steps with concrete actions for deterministic codegen."""
+    stripped = step.strip()
+    if re.match(r"^navigate to ", stripped, re.IGNORECASE):
+        nav_url = re.sub(r"^navigate to\s+", "", stripped, flags=re.IGNORECASE).strip().rstrip(".")
+        execution_history.append(
+            {
+                "index": len(execution_history) + 1,
+                "action": "navigate",
+                "url": nav_url or url,
+                "description": description,
+            }
+        )
+        return
+
+    if _is_verification_step(stripped):
+        execution_history.append(
+            {
+                "index": len(execution_history) + 1,
+                "action": "assert_visible_page",
+                "url": url,
+                "description": description,
+            }
+        )
+        return
+
+    execution_history.append(
+        {
+            "index": len(execution_history) + 1,
+            "action": "recipe-replay",
+            "description": description,
+            "url": url,
+        }
+    )
 
 
 def _safe_str(value: Any, limit: int = 4000) -> str:

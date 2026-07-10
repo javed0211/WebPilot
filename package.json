@@ -52,7 +52,8 @@
     "check:architecture": "node scripts/check-browser-use-boundary.js",
     "security:secrets:check": "node scripts/sanitize-publish-secrets.cjs --check",
     "security:secrets:fix": "node scripts/sanitize-publish-secrets.cjs --fix",
-    "test:publish-security": "node scripts/test-publish-secret-sanitizer.cjs"
+    "test:publish-security": "node scripts/test-publish-secret-sanitizer.cjs",
+    "test:codegen-validation": "npm run build && node scripts/test-codegen-validation.cjs"
   },
   "keywords": [
     "web-automation",

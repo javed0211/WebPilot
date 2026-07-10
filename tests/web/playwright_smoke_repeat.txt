@@ -1,0 +1,7 @@
+@smoke @playwright @repeat-test
+Test: Playwright docs smoke (repeat-run validation)
+
+1. Navigate to https://playwright.dev/
+2. Verify Playwright homepage loads successfully
+3. Click Get Started button
+4. Verify Getting Started page is displayed

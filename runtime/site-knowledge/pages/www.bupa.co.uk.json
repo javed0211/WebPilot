@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 3,
+  "storeKind": "page",
+  "capabilities": [
+    {
+      "id": "db149f0a2adb858cf6e6",
+      "step": "If a cookie consent dialog is visible, accept or dismiss it",
+      "stepSignature": "if a cookie consent dialog is visible, accept or dismiss it",
+      "origin": "www.bupa.co.uk",
+      "before": {
+        "urlPattern": "https://www.bupa.co.uk/",
+        "anchors": [
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "TopNavigationStrip"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "link Individuals & families"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "link Business"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "link Intermediaries"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "click",
+          "locators": [
+            {
+              "kind": "role",
+              "value": "button",
+              "name": "Accept cookies"
+            },
+            {
+              "kind": "css",
+              "value": "button[id=\"onetrust-accept-btn-handler\"]"
+            },
+            {
+              "kind": "text",
+              "value": "Accept cookies",
+              "tag": "button"
+            }
+          ]
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.bupa.co.uk/",
+        "anchors": [
+          {
+            "tag": "div",
+            "attrs": {
+              "data-testid": "TopNavigationStrip"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "link Individuals & families"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "link Business"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "link Intermediaries"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 1,
+      "status": "candidate",
+      "updatedAt": "2026-06-30T20:22:46.671965+00:00"
+    },
+    {
+      "id": "bc685156f25d9b3c7ac6",
+      "step": "Verify the Bupa home page is loaded and the main navigation is visible",
+      "stepSignature": "verify the bupa home page is loaded and the main navigation is visible",
+      "origin": "www.bupa.co.uk",
+      "before": {
+        "urlPattern": "https://www.bupa.co.uk/",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.bupa.co.uk/",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 1,
+      "status": "candidate",
+      "updatedAt": "2026-06-30T20:22:46.680176+00:00"
+    },
+    {
+      "id": "33ac912e17e8793d623b",
+      "step": "Verify the page title or header contains \"Bupa\"",
+      "stepSignature": "verify the page title or header contains \"bupa\"",
+      "origin": "www.bupa.co.uk",
+      "before": {
+        "urlPattern": "https://www.bupa.co.uk/",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.bupa.co.uk/",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 1,
+      "status": "candidate",
+      "updatedAt": "2026-06-30T20:22:46.687269+00:00"
+    }
+  ],
+  "origin": "www.bupa.co.uk"
+}

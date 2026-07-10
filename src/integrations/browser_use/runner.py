@@ -52,6 +52,8 @@ from .llm_config import (
     validate_provider_config,
 )
 from .execution_history import (
+    append_recipe_replay_history,
+    append_replay_history_from_capability,
     build_full_execution_context,
     format_history_for_prompt,
 )
@@ -723,12 +725,13 @@ async def run_intelligent_steps(
             if ok:
                 reused += 1
                 knowledge_repo.promote(capability)
-                execution_history.append({
-                    "index": len(execution_history) + 1,
-                    "action": "knowledge-replay",
-                    "description": safe_step_label,
-                    "url": await browser.get_current_page_url(),
-                })
+                append_replay_history_from_capability(
+                    execution_history,
+                    capability,
+                    description=safe_step_label,
+                    url=await browser.get_current_page_url(),
+                    redact_value=lambda value: redact_for_logs(value, step_sensitive_data),
+                )
                 continue
             knowledge_repo.record_failure(capability, reason)
             repair_failure_class = classify_failure(reason)
@@ -745,12 +748,13 @@ async def run_intelligent_steps(
                     if ok:
                         reused += 1
                         knowledge_repo.promote(capability)
-                        execution_history.append({
-                            "index": len(execution_history) + 1,
-                            "action": "knowledge-replay",
-                            "description": safe_step_label,
-                            "url": await browser.get_current_page_url(),
-                        })
+                        append_replay_history_from_capability(
+                            execution_history,
+                            capability,
+                            description=safe_step_label,
+                            url=await browser.get_current_page_url(),
+                            redact_value=lambda value: redact_for_logs(value, step_sensitive_data),
+                        )
                         continue
                     knowledge_repo.record_failure(capability, reason)
                     repair_failure_reason = reason
@@ -771,12 +775,12 @@ async def run_intelligent_steps(
             print(f"[Knowledge] Step {step_index}/{len(steps)} recipe replay: {safe_step_label}")
             recipe_steps += 1
             reused += 1
-            execution_history.append({
-                "index": len(execution_history) + 1,
-                "action": "recipe-replay",
-                "description": safe_step_label,
-                "url": await browser.get_current_page_url(),
-            })
+            append_recipe_replay_history(
+                execution_history,
+                step,
+                description=safe_step_label,
+                url=await browser.get_current_page_url(),
+            )
             continue
         if recipe_handled and not recipe_ok:
             print(f"[Knowledge] Recipe replay failed; scoped WebPilot repair: {recipe_reason}")

@@ -4,8 +4,9 @@ import * as path from 'path';
 import { GeneratedFile } from '../agents/CodegenAgent';
 import { LLMClient, LLMMessage } from './LLMClient';
 import { CodegenContext } from './CodegenContext';
-import { CodegenNormalizer } from './CodegenNormalizer';
+import { CodegenNormalizer, NormalizeOptions } from './CodegenNormalizer';
 import { PromptLoader } from './PromptLoader';
+import { CodegenValidationBundle } from './CodegenValidationBundle';
 
 export interface PlaywrightRunResult {
   passed: boolean;
@@ -67,13 +68,17 @@ export class CodegenPlaywrightValidator {
 
   public static async validateAndFix(
     files: GeneratedFile[],
-    llm: LLMClient
+    llm: LLMClient,
+    options?: NormalizeOptions
   ): Promise<{ passed: boolean; files: GeneratedFile[]; output: string }> {
     const specPaths = files.filter((f) => f.path.endsWith('.spec.ts')).map((f) => f.path);
-    let currentFiles = [...files];
+    let currentFiles = CodegenValidationBundle.expand(files, options);
 
     for (let round = 0; round <= MAX_PLAYWRIGHT_FIX_ROUNDS; round++) {
-      currentFiles = CodegenNormalizer.sanitizeGeneratedFiles(currentFiles);
+      currentFiles = CodegenNormalizer.normalize(
+        CodegenNormalizer.sanitizeGeneratedFiles(currentFiles),
+        options
+      );
       for (const file of currentFiles) {
         const fullPath = path.join(process.cwd(), file.path);
         fs.mkdirSync(path.dirname(fullPath), { recursive: true });
@@ -111,7 +116,7 @@ export class CodegenPlaywrightValidator {
       if (!fixed?.length) {
         return { passed: false, files: currentFiles, output: result.output };
       }
-      currentFiles = fixed;
+      currentFiles = CodegenValidationBundle.expand(fixed, options);
     }
 
     return { passed: false, files: currentFiles, output: '' };

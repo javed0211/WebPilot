@@ -67,7 +67,7 @@ export class BasePage {
     url: string,
     options?: Parameters<Page['goto']>[1]
   ): Promise<void> {
-    await this.page.goto(url, { waitUntil: 'load', ...options });
+    await this.page.goto(url, { waitUntil: 'domcontentloaded', ...options });
   }
 
   public async reload(options?: Parameters<Page['reload']>[0]): Promise<void> {
@@ -97,7 +97,7 @@ export class BasePage {
     options?: Parameters<Page['goto']>[1]
   ): Promise<Page> {
     const newPage = await this.page.context().newPage();
-    await newPage.goto(url, { waitUntil: 'load', ...options });
+    await newPage.goto(url, { waitUntil: 'domcontentloaded', ...options });
     return newPage;
   }
 
@@ -758,7 +758,7 @@ export class BasePage {
     await expect(this.resolveLocator(target)).toHaveCount(count, options);
   }
 
-  /** Use instead of non-existent toHaveCountGreaterThan */
+  /** Use instead of non-existent assertCountAtLeast */
   public async assertCountAtLeast(locator: Locator, minimum: number): Promise<void> {
     const n = await locator.count();
     expect(n).toBeGreaterThanOrEqual(minimum);

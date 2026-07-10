@@ -27,21 +27,35 @@ export abstract class AutomationExerciseBasePage extends BasePage {
   }
 
   async dismissCookieConsentIfPresent(): Promise<void> {
-    const consent = this.page.locator('.fc-consent-root');
-    if (!(await consent.isVisible().catch(() => false))) {
-      return;
-    }
-    const acceptSelectors = [
-      this.page.locator('button.fc-cta-consent'),
-      this.page.getByRole('button', { name: 'Consent', exact: true }),
-      this.page.getByRole('button', { name: /accept all|accept|agree/i }),
-    ];
-    for (const accept of acceptSelectors) {
-      if (await accept.first().isVisible().catch(() => false)) {
-        await accept.first().click({ force: true });
-        await consent.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const consent = this.page.locator('.fc-consent-root');
+      if ((await consent.count()) === 0) {
         return;
       }
+      const acceptSelectors = [
+        this.page.locator('button.fc-cta-consent'),
+        this.page.getByRole('button', { name: 'Consent', exact: true }),
+        this.page.getByRole('button', { name: /accept all|accept|agree/i }),
+      ];
+      for (const accept of acceptSelectors) {
+        if (await accept.first().isVisible().catch(() => false)) {
+          await accept.first().click({ force: true });
+          break;
+        }
+      }
+      const hidden = await consent
+        .waitFor({ state: 'hidden', timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+      if (hidden) {
+        return;
+      }
+      await this.page
+        .evaluate(() => {
+          document.querySelector('.fc-consent-root')?.remove();
+        })
+        .catch(() => {});
+      await this.page.waitForTimeout(200);
     }
   }
 

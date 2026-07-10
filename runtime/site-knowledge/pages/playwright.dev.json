@@ -1,0 +1,443 @@
+{
+  "schemaVersion": 3,
+  "storeKind": "page",
+  "capabilities": [
+    {
+      "id": "6f4159a029fc93a041c9",
+      "step": "Verify Playwright homepage loads successfully",
+      "stepSignature": "verify playwright homepage loads successfully",
+      "origin": "playwright.dev",
+      "before": {
+        "urlPattern": "https://playwright.dev/",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://playwright.dev/",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 4,
+      "status": "candidate",
+      "quality": {
+        "confidence": 0.67,
+        "failureClass": null,
+        "lastFailureReason": null,
+        "validationContexts": [
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:13:33.074452+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:13:37.559120+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:15:02.651932+00:00"
+          }
+        ],
+        "environments": [
+          "qa"
+        ]
+      },
+      "lastValidatedAt": "2026-07-10T22:15:02.651949+00:00",
+      "updatedAt": "2026-07-10T22:15:02.651949+00:00",
+      "schemaVersion": 4,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "https://playwright.dev/",
+        "anchors": [],
+        "notAllowedAnchors": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "forbiddenText": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ]
+      },
+      "postconditions": {
+        "urlPattern": "https://playwright.dev/",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    },
+    {
+      "id": "d6ed2bf587a9383acecb",
+      "step": "Click Get Started button",
+      "stepSignature": "click get started button",
+      "origin": "playwright.dev",
+      "before": {
+        "urlPattern": "https://playwright.dev/",
+        "anchors": [
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "GitHub repository"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "Discord server"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Switch between dark and light mode (currently system mode)"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Search (Meta+k)"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "click",
+          "locators": [
+            {
+              "kind": "role",
+              "value": "link",
+              "name": "Get started"
+            },
+            {
+              "kind": "text",
+              "value": "Get started",
+              "tag": "a"
+            },
+            {
+              "kind": "css",
+              "value": "a[href=\"/docs/intro\"]"
+            },
+            {
+              "kind": "css",
+              "value": "a[href*=\"/docs/intro\"]"
+            }
+          ]
+        }
+      ],
+      "after": {
+        "urlPattern": "https://playwright.dev/docs/intro",
+        "anchors": [
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "GitHub repository"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "Discord server"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Switch between dark and light mode (currently system mode)"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Search (Meta+k)"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "schemaVersion": 4,
+      "capabilityType": "site_capability",
+      "intent": "interact",
+      "preconditions": {
+        "urlPattern": "https://playwright.dev/",
+        "anchors": [
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "GitHub repository"
+            }
+          },
+          {
+            "tag": "a",
+            "attrs": {
+              "aria-label": "Discord server"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Switch between dark and light mode (currently system mode)"
+            }
+          },
+          {
+            "tag": "button",
+            "attrs": {
+              "aria-label": "Search (Meta+k)"
+            }
+          }
+        ],
+        "notAllowedAnchors": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "forbiddenText": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "pageType": "generic"
+      },
+      "postconditions": {
+        "urlPattern": "https://playwright.dev/docs/intro",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [
+          {
+            "tag": "img",
+            "text": "Playwright logo"
+          },
+          {
+            "tag": "h1",
+            "text": "Installation"
+          }
+        ],
+        "requiredText": [
+          "Playwright logo",
+          "Installation",
+          "Introduction\u200b",
+          "Installing Playwright\u200b",
+          "Using npm, yarn or pnpm\u200b",
+          "Using the VS Code Extension\u200b"
+        ],
+        "urlContains": [
+          "docs/intro"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      },
+      "quality": {
+        "confidence": 0.75,
+        "failureClass": null,
+        "lastFailureReason": null,
+        "validationContexts": [
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:13:21.448656+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:13:33.922848+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:13:38.382906+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:15:03.475600+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:34:21.151611+00:00"
+          }
+        ],
+        "environments": [
+          "qa"
+        ]
+      },
+      "intentDescriptor": {
+        "intent": "interact",
+        "action": "click",
+        "entity": "",
+        "targetLabel": "",
+        "pageTypeHint": "",
+        "stepTokens": [
+          "button",
+          "click",
+          "get",
+          "started"
+        ]
+      },
+      "pageType": "generic",
+      "successCount": 5,
+      "status": "trusted",
+      "lastValidatedAt": "2026-07-10T22:34:21.151628+00:00",
+      "updatedAt": "2026-07-10T22:34:21.151628+00:00"
+    },
+    {
+      "id": "8004a4c8bdef8b041b39",
+      "step": "Verify Getting Started page is displayed",
+      "stepSignature": "verify getting started page is displayed",
+      "origin": "playwright.dev",
+      "before": {
+        "urlPattern": "https://playwright.dev/docs/intro",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://playwright.dev/docs/intro",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 5,
+      "status": "trusted",
+      "quality": {
+        "confidence": 0.75,
+        "failureClass": null,
+        "lastFailureReason": null,
+        "validationContexts": [
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:13:33.942115+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:13:38.396105+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:15:03.488949+00:00"
+          },
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-10T22:34:21.164784+00:00"
+          }
+        ],
+        "environments": [
+          "qa"
+        ]
+      },
+      "lastValidatedAt": "2026-07-10T22:34:21.164796+00:00",
+      "updatedAt": "2026-07-10T22:34:21.164796+00:00",
+      "schemaVersion": 4,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "https://playwright.dev/docs/intro",
+        "anchors": [],
+        "notAllowedAnchors": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "forbiddenText": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ]
+      },
+      "postconditions": {
+        "urlPattern": "https://playwright.dev/docs/intro",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "docs/intro"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    }
+  ],
+  "origin": "playwright.dev"
+}

@@ -1,0 +1,6 @@
+@smoke @codegen @playwright @validation
+Test: Codegen validation pipeline smoke
+
+1. Navigate to https://playwright.dev/
+2. Click Get Started button
+3. Verify Getting Started page is displayed

@@ -27,7 +27,8 @@ function normalizeAction(raw: string): TraceAction {
   if (['click', 'tap', 'press'].includes(action)) return 'click';
   if (['input', 'fill', 'type', 'enter'].includes(action)) return 'fill';
   if (['select', 'choose', 'dropdown'].includes(action)) return 'select';
-  if (['assert', 'verify', 'expect', 'check'].includes(action)) return 'assert';
+  if (['assert', 'verify', 'expect', 'check', 'assert_visible_page', 'browser-use-assertion'].includes(action))
+    return 'assert';
   if (['wait', 'sleep', 'pause'].includes(action)) return 'wait';
   return 'custom';
 }
@@ -51,9 +52,57 @@ function toTraceSelector(candidate: SelectorCandidate, fallbacks: SelectorCandid
   };
 }
 
+function locatorExpressionFromJson(raw: string): TraceSelector | undefined {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return undefined;
+
+    const candidates: SelectorCandidate[] = [];
+    for (const locator of parsed) {
+      if (!locator || typeof locator !== 'object') continue;
+      const kind = String(locator.kind || 'unknown');
+      const value = String(locator.value || '');
+      const name = typeof locator.name === 'string' ? locator.name : undefined;
+      let expression = '';
+
+      if (kind === 'role') {
+        expression = name
+          ? `getByRole('${value.replace(/'/g, "\\'")}', { name: '${name.replace(/'/g, "\\'")}' })`
+          : `getByRole('${value.replace(/'/g, "\\'")}')`;
+        candidates.push(
+          SelectorRanker.candidate('role', name ? `${value}[name='${name}']` : value, expression)
+        );
+        continue;
+      }
+      if (kind === 'label') {
+        expression = `getByLabel('${value.replace(/'/g, "\\'")}')`;
+      } else if (kind === 'placeholder') {
+        expression = `getByPlaceholder('${value.replace(/'/g, "\\'")}')`;
+      } else if (kind === 'testid') {
+        expression = `getByTestId('${value.replace(/'/g, "\\'")}')`;
+      } else if (kind === 'text') {
+        expression = `getByText('${value.replace(/'/g, "\\'")}')`;
+      } else if (kind === 'css' || kind === 'xpath') {
+        expression = `locator('${value.replace(/'/g, "\\'")}')`;
+      }
+      candidates.push(SelectorRanker.candidate(kind as SelectorKind, value, expression || undefined));
+    }
+
+    const ranked = SelectorRanker.rank(candidates);
+    if (!ranked) return undefined;
+    return toTraceSelector(ranked.primary, ranked.fallbacks);
+  } catch {
+    return undefined;
+  }
+}
+
 function parseSelector(raw?: string | null, url?: string, intent?: string): TraceSelector | undefined {
   if (!raw || !raw.trim()) return undefined;
   const selector = raw.trim();
+  if (selector.startsWith('[')) {
+    const fromJson = locatorExpressionFromJson(selector);
+    if (fromJson) return fromJson;
+  }
   const candidates: SelectorCandidate[] = [];
 
   const roleMatch = selector.match(/getByRole\(\s*['"]([^'"]+)['"]/i);

@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 3,
+  "storeKind": "page",
+  "capabilities": [
+    {
+      "id": "b7a985b3dc8eb9920867",
+      "step": "Navigate to https://www.wikipedia.org/",
+      "stepSignature": "navigate to https://www.wikipedia.org/",
+      "origin": "www.wikipedia.org",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "navigate",
+          "url": "https://www.wikipedia.org/",
+          "newTab": false
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 3,
+      "status": "trusted",
+      "updatedAt": "2026-06-23T08:18:06.576115+00:00"
+    },
+    {
+      "id": "4725c4191a7b6a175818",
+      "step": "Enter \"Browser automation\" in the search input",
+      "stepSignature": "enter \"browser automation\" in the search input",
+      "origin": "www.wikipedia.org",
+      "before": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search"
+            }
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "input",
+          "locators": [
+            {
+              "kind": "css",
+              "value": "input[id=\"searchInput\"]"
+            },
+            {
+              "kind": "css",
+              "value": "input[name=\"search\"]"
+            }
+          ],
+          "value": "Browser automation",
+          "clear": true
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 3,
+      "status": "trusted",
+      "updatedAt": "2026-06-23T08:18:06.816778+00:00"
+    }
+  ],
+  "origin": "www.wikipedia.org"
+}

@@ -121,7 +121,12 @@ export function pageMethodBody(step: TraceStep): string[] {
       if (!locator) return [`// select: ${step.intent}`];
       return [...metadata, `await ${locator}.selectOption('${escapeTsString(step.value || '')}');`, ...assertionLines];
     case 'assert':
-      return assertionLines.length > 0 ? assertionLines : locator ? [...metadata, `await expect(${locator}).toBeVisible();`] : [`// assert: ${step.intent}`];
+      if (assertionLines.length > 0) return assertionLines;
+      if (locator) return [...metadata, `await expect(${locator}).toBeVisible();`];
+      if (step.url) {
+        return [`await expect(this.page).toHaveURL(${JSON.stringify(step.url)});`, ...assertionLines];
+      }
+      return [`// assert: ${step.intent}`];
     case 'wait':
       return [`await this.page.waitForLoadState('networkidle');`, ...assertionLines];
     default:
@@ -151,6 +156,12 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
     case 'assert':
       if (assertionLines.length > 0) return assertionLines;
       if (locator) return [...metadata, `await expect(${locator}).toBeVisible();`];
+      if (step.url) {
+        return [
+          `await expect(${pageVar}).toHaveURL(${JSON.stringify(step.url)});`,
+          ...assertionLines,
+        ];
+      }
       if (step.value) return [`await expect(${pageVar}.getByText('${escapeTsString(step.value)}')).toBeVisible();`];
       return [`// assert: ${step.intent}`];
     case 'wait':

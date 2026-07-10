@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-06-30T20:22:15.211Z",
+  "lastUpdated": "2026-07-10T22:35:15.598Z",
   "classes": [
     {
       "name": "BookingBasePage",
@@ -309,12 +309,95 @@
       ]
     },
     {
+      "name": "PlaywrightdevHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "PlaywrightdevHomePage",
+      "urlPattern": "https://playwright.dev/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPlaywrightHomepageLoadsSuccessfully",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickGetStartedButton",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyGettingStartedPageIsDisplayed",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "PlaywrightdevIntroPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "PlaywrightdevIntroPage",
+      "urlPattern": "https://playwright.dev/docs/intro",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevIntroPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyGettingStartedPageIsDisplayed",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
       "name": "AutomationExerciseBasePage",
       "extendsClass": "BasePage",
       "pageIdentity": "AutomationExerciseBasePage\nShared Automation Exercise helpers (cookie banner, global nav).",
       "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseBasePage.ts",
       "properties": [],
       "methods": [
+        {
+          "name": "assertCountAtLeast",
+          "parameters": [
+            {
+              "name": "locator",
+              "type": "Locator"
+            },
+            {
+              "name": "minimum",
+              "type": "number"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertHeadingVisible",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickByRole",
+          "parameters": [
+            {
+              "name": "role",
+              "type": "Role"
+            },
+            {
+              "name": "options",
+              "type": "RoleOptions"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
         {
           "name": "dismissCookieConsentIfPresent",
           "parameters": [],

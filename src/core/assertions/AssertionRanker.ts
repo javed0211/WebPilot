@@ -37,6 +37,31 @@ function lastPathSegment(url?: string): string | null {
   }
 }
 
+function containsWord(haystack: string, word: string): boolean {
+  return new RegExp(`\\b${word}\\b`, 'i').test(haystack);
+}
+
+function homepageUrlAssertion(step: TraceStep): AssertionCandidate | null {
+  if (step.action !== 'assert' || !step.url) return null;
+  try {
+    const parsed = new URL(step.url);
+    if (parsed.pathname !== '/' && parsed.pathname !== '') return null;
+    const normalized = `${parsed.origin}/`;
+    return {
+      kind: 'url_equals',
+      strength: 'medium',
+      confidence: 0.74,
+      description: `URL is ${normalized}`,
+      expected: normalized,
+      source: 'url-change',
+      signals: ['page-loaded', 'root-url'],
+      risks: [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 function routeAssertion(step: TraceStep, previous?: TraceStep): AssertionCandidate | null {
   if (!step.url) return null;
   const segment = lastPathSegment(step.url);
@@ -98,7 +123,7 @@ function valueAssertion(step: TraceStep): AssertionCandidate | null {
 
 function successTextAssertion(step: TraceStep): AssertionCandidate | null {
   const intent = step.intent.toLowerCase();
-  const found = SUCCESS_WORDS.find((word) => intent.includes(word));
+  const found = SUCCESS_WORDS.find((word) => containsWord(intent, word));
   if (!found) return null;
   const display = found.charAt(0).toUpperCase() + found.slice(1);
   return {
@@ -113,15 +138,21 @@ function successTextAssertion(step: TraceStep): AssertionCandidate | null {
   };
 }
 
-function explicitAssert(step: TraceStep): AssertionCandidate | null {
+function explicitAssert(step: TraceStep, previous?: TraceStep): AssertionCandidate | null {
   if (step.action !== 'assert') return null;
-  return selectorAssertion(step) || routeAssertion(step) || successTextAssertion(step);
+  return (
+    selectorAssertion(step) ||
+    homepageUrlAssertion(step) ||
+    routeAssertion(step, previous) ||
+    successTextAssertion(step)
+  );
 }
 
 export class AssertionRanker {
   public static candidatesForStep(step: TraceStep, previous?: TraceStep): AssertionCandidate[] {
     const candidates = [
-      explicitAssert(step),
+      explicitAssert(step, previous),
+      homepageUrlAssertion(step),
       successTextAssertion(step),
       valueAssertion(step),
       selectorAssertion(step),

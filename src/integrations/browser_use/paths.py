@@ -29,6 +29,9 @@ REPORTS_TRACES_DIR = REPORTS_ROOT / 'traces'
 REPORTS_SCREENSHOTS_DIR = REPORTS_ROOT / 'screenshots'
 REPORTS_ASSETS_DIR = REPORTS_ROOT / 'assets'
 REPORTS_HISTORY_DIR = REPORTS_ROOT / 'history'
+ARTIFACTS_ROOT = RUNTIME_ROOT / 'artifacts'
+
+
 def resolve_prompt_path(relative_path: str) -> Path:
     """Prefer project prompts, then fall back to the installed WebPilot package."""
     relative = Path(relative_path)

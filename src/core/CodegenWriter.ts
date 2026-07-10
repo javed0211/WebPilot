@@ -10,6 +10,8 @@ import { CodegenPlaywrightValidator } from './CodegenPlaywrightValidator';
 import { CodegenSanitizer } from './CodegenSanitizer';
 import { AUTOMATION_EXERCISE_BASE_PAGE } from './CodegenCanonicalPages';
 import { ensureFrameworkTsConfig } from './FrameworkTemplates';
+import { CodegenValidationBundle } from './CodegenValidationBundle';
+import { CodegenReferenceValidator } from './CodegenReferenceValidator';
 
 const MONOLITHIC_PAGE_DENYLIST = ['AutomationExercisePage.ts'];
 
@@ -40,6 +42,14 @@ export class CodegenWriter {
 
   private static isPageObjectPath(filePath: string): boolean {
     return filePath.startsWith('packages/test-framework/pages/') && filePath.endsWith('.ts');
+  }
+
+  private static isStubPageObject(content: string): boolean {
+    return !/public\s+async\s+\w+\s*\(/.test(content);
+  }
+
+  private static isFullPageObject(content: string): boolean {
+    return /extends\s+(BasePage|AutomationExerciseBasePage)/.test(content);
   }
 
   private static rejectMonolithicPage(file: GeneratedFile): boolean {
@@ -97,15 +107,23 @@ export class CodegenWriter {
 
       if (CodegenWriter.isPageObjectPath(file.path)) {
         if (fs.existsSync(fullPath) && !isCanonical) {
-          console.log(`\x1b[33m[AST Merger] Merging into: ${file.path}\x1b[0m`);
-          const mergedContent = ASTMerger.mergeClassContent(fullPath, file.content);
-          const safeContent = CodegenSanitizer.chooseMergeContent(
-            file.path,
-            fullPath,
-            file.content,
-            mergedContent
-          );
-          fs.writeFileSync(fullPath, safeContent, 'utf8');
+          const existingContent = fs.readFileSync(fullPath, 'utf8');
+          const replaceStub =
+            CodegenWriter.isStubPageObject(existingContent) && CodegenWriter.isFullPageObject(file.content);
+          if (replaceStub) {
+            console.log(`\x1b[32m[Codegen] Replacing stub Page Object: ${file.path}\x1b[0m`);
+            fs.writeFileSync(fullPath, file.content, 'utf8');
+          } else {
+            console.log(`\x1b[33m[AST Merger] Merging into: ${file.path}\x1b[0m`);
+            const mergedContent = ASTMerger.mergeClassContent(fullPath, file.content);
+            const safeContent = CodegenSanitizer.chooseMergeContent(
+              file.path,
+              fullPath,
+              file.content,
+              mergedContent
+            );
+            fs.writeFileSync(fullPath, safeContent, 'utf8');
+          }
         } else {
           console.log(`\x1b[32m[Codegen] Writing Page Object: ${file.path}\x1b[0m`);
           fs.mkdirSync(path.dirname(fullPath), { recursive: true });
@@ -140,13 +158,15 @@ export class CodegenWriter {
     }
     const normalized = CodegenNormalizer.normalize(files, normalizeOptions);
     CodegenWriter.ensureSiteScaffolds(normalized);
-    const paths = CodegenWriter.writeFiles(normalized);
+    const bundle = CodegenValidationBundle.expand(normalized, normalizeOptions);
+    const paths = CodegenWriter.writeFiles(bundle);
     if (paths.length === 0) {
       console.error(`\x1b[31m[CodegenWriter] No files written.\x1b[0m`);
       return { ok: false, paths: [] };
     }
 
     let onDisk = CodegenSanitizer.applyDeterministicFixes(CodegenWriter.readFilesFromDisk(paths));
+
     const sanitizedChanged = onDisk.some(
       (f, i) => f.content !== fs.readFileSync(path.join(process.cwd(), paths[i]), 'utf8')
     );
@@ -155,7 +175,32 @@ export class CodegenWriter {
       onDisk = CodegenWriter.readFilesFromDisk(paths);
     }
 
-    console.log(`\x1b[34m[CodegenValidator] Running TypeScript checks on ${paths.length} file(s)...\x1b[0m`);
+    let reference = CodegenReferenceValidator.validate(onDisk);
+    if (
+      !reference.valid &&
+      reference.issues.some((issue) => issue.code === 'stub_page_object') &&
+      CodegenNormalizer.touchesAutomationExercise(onDisk, normalizeOptions)
+    ) {
+      console.log(
+        '\x1b[33m[CodegenReferenceValidator] Stub page object detected — re-applying canonical automationexercise POMs.\x1b[0m'
+      );
+      onDisk = CodegenValidationBundle.expand(onDisk, normalizeOptions);
+      CodegenWriter.writeFiles(onDisk);
+      onDisk = CodegenWriter.readFilesFromDisk(onDisk.map((file) => file.path));
+      reference = CodegenReferenceValidator.validate(onDisk);
+    }
+    if (!reference.valid) {
+      console.error(`\x1b[31m[CodegenReferenceValidator] Generated code has reference issues.\x1b[0m`);
+      reference.issues.forEach((issue) => {
+        console.error(`  - ${issue.file}: ${issue.message}`);
+      });
+      return { ok: false, paths };
+    }
+    console.log(
+      `\x1b[32m[CodegenReferenceValidator] Import and method references are valid (${onDisk.length} file(s)).\x1b[0m`
+    );
+
+    console.log(`\x1b[34m[CodegenValidator] Running TypeScript checks on ${onDisk.length} file(s)...\x1b[0m`);
     const { valid, files: fixedFiles, issues } = await CodegenValidator.validateAndFix(onDisk, llm);
 
     if (!valid) {
@@ -166,16 +211,25 @@ export class CodegenWriter {
       return { ok: false, paths };
     }
 
-    let finalFiles = fixedFiles;
-    if (fixedFiles.some((f, i) => f.content !== onDisk[i]?.content)) {
-      CodegenWriter.writeFiles(fixedFiles);
-      finalFiles = CodegenWriter.readFilesFromDisk(paths);
+    let finalFiles = CodegenValidationBundle.expand(fixedFiles, normalizeOptions);
+    if (finalFiles.some((f, i) => f.content !== fixedFiles[i]?.content)) {
+      CodegenWriter.writeFiles(finalFiles);
+      finalFiles = CodegenWriter.readFilesFromDisk(finalFiles.map((f) => f.path));
+    }
+
+    const postTsReference = CodegenReferenceValidator.validate(finalFiles);
+    if (!postTsReference.valid) {
+      console.error(`\x1b[31m[CodegenReferenceValidator] TypeScript fixes introduced reference issues.\x1b[0m`);
+      postTsReference.issues.forEach((issue) => {
+        console.error(`  - ${issue.file}: ${issue.message}`);
+      });
+      return { ok: false, paths };
     }
 
     const hasSpec = finalFiles.some((f) => f.path.endsWith('.spec.ts'));
     if (hasSpec) {
       console.log(`\x1b[34m[CodegenPlaywrightValidator] Running generated Playwright spec(s)...\x1b[0m`);
-      const pw = await CodegenPlaywrightValidator.validateAndFix(finalFiles, llm);
+      const pw = await CodegenPlaywrightValidator.validateAndFix(finalFiles, llm, normalizeOptions);
       if (!pw.passed) {
         console.error(
           `\x1b[31m[CodegenPlaywrightValidator] Generated spec(s) failed Playwright after auto-fix.\x1b[0m`

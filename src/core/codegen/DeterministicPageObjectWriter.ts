@@ -156,8 +156,11 @@ export class DeterministicPageObjectWriter {
       if (methods.length === 0 && page.operation === 'extend') continue;
 
       const primaryUrl = page.urlPattern || pageSteps.find((step) => step.url)?.url;
+      const pageFilePath = path.join(process.cwd(), page.path);
+      const shouldReplaceStubPage =
+        page.operation === 'extend' && fs.existsSync(pageFilePath) && existing.size === 0;
       const content =
-        page.operation === 'extend' && fs.existsSync(path.join(process.cwd(), page.path))
+        page.operation === 'extend' && fs.existsSync(pageFilePath) && !shouldReplaceStubPage
           ? renderPartialClass(page.className, methods)
           : renderPageClass(page, methods, primaryUrl);
 
@@ -165,7 +168,7 @@ export class DeterministicPageObjectWriter {
         path: page.path,
         className: page.className,
         content,
-        operation: page.operation === 'extend' ? 'extend' : 'create',
+        operation: page.operation === 'extend' && !shouldReplaceStubPage ? 'extend' : 'create',
         stepMethods,
       });
     }

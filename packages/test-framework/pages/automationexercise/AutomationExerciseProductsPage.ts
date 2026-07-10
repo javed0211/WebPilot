@@ -22,7 +22,13 @@ export class AutomationExerciseProductsPage extends AutomationExerciseBasePage {
 
   public async hoverProductAt(index: number): Promise<void> {
     await this.dismissCookieConsentIfPresent();
-    await this.productCards().nth(index).hover();
+    const card = this.productCards().nth(index);
+    try {
+      await card.hover();
+    } catch {
+      await this.dismissCookieConsentIfPresent();
+      await card.hover({ force: true });
+    }
   }
 
   public async hoverProductCard(index: number): Promise<void> {
@@ -53,28 +59,36 @@ export class AutomationExerciseProductsPage extends AutomationExerciseBasePage {
 
   public async handleCartModal(action: 'continue' | 'view'): Promise<void> {
     await this.dismissCookieConsentIfPresent();
-    await this.page.locator('#cartModal').waitFor({ state: 'attached', timeout: 10000 });
+    const modal = this.page.locator('#cartModal');
+    await modal.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(modal).toContainText(/added/i);
+
     if (action === 'continue') {
-      await expect(this.page.locator('#cartModal')).toContainText(/added/i);
-      await this.page.evaluate(() => {
-        (document.querySelector('#cartModal button.close-modal') as HTMLElement | null)?.click();
-      });
-      await this.page.locator('#cartModal').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+      const close = modal.locator('button.close-modal');
+      if (await close.isVisible().catch(() => false)) {
+        await close.click({ force: true });
+      } else {
+        await this.page.evaluate(() => {
+          (document.querySelector('#cartModal button.close-modal') as HTMLElement | null)?.click();
+        });
+      }
+      await modal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
       return;
     }
-    const viewCart = this.page.locator('#cartModal a[href="/view_cart"]');
+
+    const viewCart = modal.locator('a[href="/view_cart"]').first();
+    await viewCart.waitFor({ state: 'visible', timeout: 10000 });
     try {
-      await viewCart.click({ force: true, timeout: 5000 });
-      await this.page.waitForURL(/\/view_cart/, { timeout: 15000 });
+      await Promise.all([
+        this.page.waitForURL(/\/view_cart/, { timeout: 30000 }),
+        viewCart.click({ force: true }),
+      ]);
     } catch {
-      await this.page.evaluate(() => {
-        (document.querySelector('#cartModal a[href="/view_cart"]') as HTMLElement | null)?.click();
+      await this.page.goto('https://automationexercise.com/view_cart', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
       });
-      try {
-        await this.page.waitForURL(/\/view_cart/, { timeout: 10000 });
-      } catch {
-        await this.navigate('https://automationexercise.com/view_cart');
-      }
     }
+    await this.dismissCookieConsentIfPresent();
   }
 }
