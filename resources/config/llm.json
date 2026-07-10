@@ -20,7 +20,7 @@
     "endpoint": "https://rfpqualityai2.services.ai.azure.com/",
     "deploymentId": "gpt-4.1",
     "apiVersion": "2024-12-01-preview",
-    "apiKey": "${AZURE_API_KEY}"
+    "apiKey": "${AZURE_OPENAI_API_KEY}"
   },
   "aws": {
     "model": "anthropic.claude-3-5-sonnet-20240620-v1:0",
