@@ -67,10 +67,8 @@ from .knowledge import (
     capability_from_step,
     compact_page_state,
     execute_capability,
-    find_capability,
-    load_knowledge,
-    promote_capability,
-    record_failure,
+    KnowledgeRepository,
+    load_knowledge_config,
     try_recipe_step,
 )
 
@@ -369,6 +367,11 @@ PERFORMANCE_DEFAULTS = {
     'networkIdleWait': 0.3,
     'waitBetweenActions': 0.3,
     'scopedAgentMaxSteps': 12,
+    'maxHistoryItems': 6,
+    'freshAgentPerStep': True,
+    'longScenarioStepWarning': 15,
+    'longScenarioMode': 'auto',  # auto | off — auto-tune agent settings for 15+ step files
+    'stepRetryOnFailure': 0,
 }
 
 VERIFICATION_KEYWORDS = (
@@ -387,6 +390,16 @@ def load_performance_config() -> dict:
         ir = yaml_config.get('intelligentRunner') or {}
         if ir.get('scopedAgentMaxSteps') is not None:
             cfg['scopedAgentMaxSteps'] = int(ir['scopedAgentMaxSteps'])
+        if ir.get('maxHistoryItems') is not None:
+            cfg['maxHistoryItems'] = int(ir['maxHistoryItems'])
+        if ir.get('freshAgentPerStep') is not None:
+            cfg['freshAgentPerStep'] = bool(ir['freshAgentPerStep'])
+        if ir.get('longScenarioStepWarning') is not None:
+            cfg['longScenarioStepWarning'] = int(ir['longScenarioStepWarning'])
+        if ir.get('longScenarioMode') is not None:
+            cfg['longScenarioMode'] = str(ir['longScenarioMode']).strip().lower()
+        if ir.get('stepRetryOnFailure') is not None:
+            cfg['stepRetryOnFailure'] = int(ir['stepRetryOnFailure'])
         perf = ir.get('performance') or {}
         for key in ('judgeMode', 'useVision'):
             if perf.get(key) is not None:
@@ -410,7 +423,88 @@ def load_performance_config() -> dict:
         cfg['flashMode'] = True
     elif env_flash in ('0', 'false', 'no', 'off'):
         cfg['flashMode'] = False
+    env_fresh = os.environ.get('WEBPILOT_FRESH_AGENT_PER_STEP', '').strip().lower()
+    if env_fresh in ('1', 'true', 'yes', 'on'):
+        cfg['freshAgentPerStep'] = True
+    elif env_fresh in ('0', 'false', 'no', 'off'):
+        cfg['freshAgentPerStep'] = False
+    env_history = os.environ.get('WEBPILOT_MAX_HISTORY_ITEMS', '').strip()
+    if env_history.isdigit():
+        cfg['maxHistoryItems'] = max(6, int(env_history))
     return cfg
+
+
+def _apply_long_scenario_tuning(perf: dict, step_count: int) -> dict:
+    """Apply reliability tuning for single-file long flows without requiring user splits."""
+    mode = str(perf.get('longScenarioMode', 'auto')).strip().lower()
+    threshold = int(perf.get('longScenarioStepWarning', 15))
+    if mode != 'auto' or step_count < threshold:
+        return perf
+
+    tuned = dict(perf)
+    tuned['freshAgentPerStep'] = True
+    tuned['maxHistoryItems'] = min(int(tuned.get('maxHistoryItems', 6)), 4)
+    tuned['scopedAgentMaxSteps'] = max(int(tuned.get('scopedAgentMaxSteps', 12)), 18)
+    if str(tuned.get('judgeMode', 'verification')).strip().lower() == 'always':
+        tuned['judgeMode'] = 'verification'
+    if int(tuned.get('stepRetryOnFailure', 0)) < 1:
+        tuned['stepRetryOnFailure'] = 1
+    return tuned
+
+
+async def _release_scoped_agent(scoped_agent: Any | None) -> None:
+    """Tear down a scoped agent without closing the shared browser session."""
+    if scoped_agent is None:
+        return
+    session = getattr(scoped_agent, 'browser_session', None)
+    session_profile = getattr(session, 'browser_profile', None) if session is not None else None
+    if session_profile is not None:
+        session_profile.keep_alive = True
+    try:
+        await scoped_agent.close()
+    except Exception as close_error:
+        print(f"Warning: scoped agent release did not finish cleanly: {close_error}")
+
+
+def _build_scoped_agent_kwargs(
+    *,
+    scoped_task: str,
+    step: str,
+    llm: Any,
+    browser: Any,
+    sensitive_data: dict,
+    upload_paths: list[str],
+    on_scoped_step,
+    resolved_use_vision,
+    step_use_judge: bool,
+    perf: dict,
+) -> dict:
+    return {
+        'task': scoped_task,
+        'llm': llm,
+        'browser': browser,
+        'calculate_cost': True,
+        'register_new_step_callback': on_scoped_step,
+        'use_vision': resolved_use_vision,
+        'use_judge': step_use_judge,
+        'ground_truth': step,
+        'enable_planning': False,
+        'use_thinking': bool(perf.get('useThinking', True)),
+        'flash_mode': bool(perf.get('flashMode', False)),
+        'max_actions_per_step': int(perf.get('maxActionsPerStep', 6)),
+        'max_history_items': int(perf.get('maxHistoryItems', 6)),
+        'directly_open_url': False,
+        **(
+            {'sensitive_data': sensitive_data}
+            if sensitive_data
+            else {}
+        ),
+        **(
+            {'available_file_paths': upload_paths}
+            if upload_paths
+            else {}
+        ),
+    }
 
 
 def _is_verification_step(step: str) -> bool:
@@ -482,17 +576,22 @@ async def run_intelligent_steps(
     llm_cfg: dict,
     steps: list[str],
     test_name: str,
+    test_slug: str,
     sensitive_data: dict,
     upload_paths: list[str],
     llm_usage_totals: dict,
     perf: dict | None = None,
 ) -> tuple[bool, dict, Any | None]:
     """Execute known steps deterministically and delegate only missing steps to WebPilot discovery."""
-    perf = perf or dict(PERFORMANCE_DEFAULTS)
+    perf = _apply_long_scenario_tuning(perf or dict(PERFORMANCE_DEFAULTS), len(steps))
     judge_mode = perf.get('judgeMode', 'verification')
     scoped_max_steps = int(perf.get('scopedAgentMaxSteps', 12))
+    fresh_agent_per_step = bool(perf.get('freshAgentPerStep', True))
+    long_scenario_warning = int(perf.get('longScenarioStepWarning', 15))
+    step_retry_on_failure = int(perf.get('stepRetryOnFailure', 0))
+    long_scenario_mode = str(perf.get('longScenarioMode', 'auto')).strip().lower()
     resolved_use_vision = _resolve_use_vision(perf.get('useVision', 'auto'))
-    knowledge = load_knowledge()
+    knowledge_repo = KnowledgeRepository(load_knowledge_config(), test_slug)
     force_discovery = os.environ.get('WEBPILOT_DISABLE_SITE_KNOWLEDGE') == '1'
     knowledge_only = os.environ.get('WEBPILOT_KNOWLEDGE_ONLY') == '1'
     execution_history: list[dict] = []
@@ -505,6 +604,20 @@ async def run_intelligent_steps(
     active_step_text = ""
 
     await browser.start()
+
+    if len(steps) >= long_scenario_warning:
+        if long_scenario_mode == 'auto':
+            print(
+                f"[WebPilot] Long scenario endurance mode ({len(steps)} steps): "
+                f"freshAgentPerStep, maxHistory={perf.get('maxHistoryItems')}, "
+                f"scopedMaxSteps={scoped_max_steps}, stepRetry={step_retry_on_failure}. "
+                "AI runs only on steps not yet learned — re-runs replay the full file without LLM."
+            )
+        else:
+            print(
+                f"[WebPilot] Long scenario ({len(steps)} steps). "
+                "Enable intelligentRunner.longScenarioMode: auto in webpilot.yaml for tuned agent settings."
+            )
 
     async def on_scoped_step(state, output, _agent_step):
         if output is not None:
@@ -540,13 +653,13 @@ async def run_intelligent_steps(
         if not url_sequence or url_sequence[-1] != current_url:
             url_sequence.append(current_url)
 
-        capability = None if force_discovery else find_capability(knowledge, step, current_url)
+        capability = None if force_discovery else knowledge_repo.find_capability(step, current_url)
         if capability:
             print(f"[Knowledge] Step {step_index}/{len(steps)} deterministic: {step}")
             ok, reason = await execute_capability(browser, capability)
             if ok:
                 reused += 1
-                promote_capability(knowledge, capability)
+                knowledge_repo.promote(capability)
                 execution_history.append({
                     "index": len(execution_history) + 1,
                     "action": "knowledge-replay",
@@ -554,7 +667,7 @@ async def run_intelligent_steps(
                     "url": await browser.get_current_page_url(),
                 })
                 continue
-            record_failure(knowledge, capability, reason)
+            knowledge_repo.record_failure(capability, reason)
             print(f"[Knowledge] Validation failed; scoped WebPilot repair: {reason}")
 
         recipe_handled, recipe_ok, recipe_reason = await try_recipe_step(browser, step)
@@ -588,34 +701,45 @@ async def run_intelligent_steps(
         active_step_text = step
 
         scoped_task = (
-            f"Execute ONLY this test step and verify it is complete:\n{step}\n\n"
-            f"This is step {step_index} of {len(steps)} in test '{test_name}'. "
-            "Do not execute later test steps. Preserve all existing browser state. "
-            "Use done(success=true) only after this step's observable result is satisfied."
+            f"Execute ONLY this single test step and stop:\n{step}\n\n"
+            "Rules:\n"
+            "- Do not execute any other steps from the scenario.\n"
+            "- Preserve the current browser session state (cookies, cart, form data).\n"
+            "- Call done(success=true) only when this step's observable outcome is satisfied.\n"
+            "- If the UI is ambiguous, prefer the smallest action sequence that completes this step."
         )
         step_use_judge = _judge_enabled_for_step(judge_mode, step)
-        if scoped_agent is None:
-            agent_kwargs = {
-                'task': scoped_task,
-                'llm': llm,
-                'browser': browser,
-                'calculate_cost': True,
-                'register_new_step_callback': on_scoped_step,
-                'use_vision': resolved_use_vision,
-                'use_judge': step_use_judge,
-                'ground_truth': step,
-                'enable_planning': False,
-                'use_thinking': bool(perf.get('useThinking', True)),
-                'flash_mode': bool(perf.get('flashMode', False)),
-                'max_actions_per_step': int(perf.get('maxActionsPerStep', 6)),
-                'max_history_items': 8,
-                'directly_open_url': False,
-            }
-            if sensitive_data:
-                agent_kwargs['sensitive_data'] = sensitive_data
-            if upload_paths:
-                agent_kwargs['available_file_paths'] = upload_paths
-            scoped_agent = Agent(**agent_kwargs)
+        if fresh_agent_per_step:
+            await _release_scoped_agent(scoped_agent)
+            scoped_agent = Agent(
+                **_build_scoped_agent_kwargs(
+                    scoped_task=scoped_task,
+                    step=step,
+                    llm=llm,
+                    browser=browser,
+                    sensitive_data=sensitive_data,
+                    upload_paths=upload_paths,
+                    on_scoped_step=on_scoped_step,
+                    resolved_use_vision=resolved_use_vision,
+                    step_use_judge=step_use_judge,
+                    perf=perf,
+                )
+            )
+        elif scoped_agent is None:
+            scoped_agent = Agent(
+                **_build_scoped_agent_kwargs(
+                    scoped_task=scoped_task,
+                    step=step,
+                    llm=llm,
+                    browser=browser,
+                    sensitive_data=sensitive_data,
+                    upload_paths=upload_paths,
+                    on_scoped_step=on_scoped_step,
+                    resolved_use_vision=resolved_use_vision,
+                    step_use_judge=step_use_judge,
+                    perf=perf,
+                )
+            )
         else:
             scoped_agent.settings.ground_truth = step
             scoped_agent.settings.use_judge = step_use_judge
@@ -623,6 +747,27 @@ async def run_intelligent_steps(
 
         before_prompt, before_completion, before_cost, before_calls = await read_browser_use_usage_snapshot(scoped_agent)
         history = await scoped_agent.run(max_steps=scoped_max_steps)
+        step_ok = bool(getattr(history, 'is_successful', lambda: False)())
+        if not step_ok and step_retry_on_failure > 0:
+            print(f"[WebPilot] Step {step_index} failed — retrying once with a fresh agent...")
+            await _release_scoped_agent(scoped_agent)
+            scoped_agent = Agent(
+                **_build_scoped_agent_kwargs(
+                    scoped_task=scoped_task,
+                    step=step,
+                    llm=llm,
+                    browser=browser,
+                    sensitive_data=sensitive_data,
+                    upload_paths=upload_paths,
+                    on_scoped_step=on_scoped_step,
+                    resolved_use_vision=resolved_use_vision,
+                    step_use_judge=step_use_judge,
+                    perf=perf,
+                )
+            )
+            history = await scoped_agent.run(max_steps=scoped_max_steps)
+            step_ok = bool(getattr(history, 'is_successful', lambda: False)())
+
         after_prompt, after_completion, after_cost, after_calls = await read_browser_use_usage_snapshot(scoped_agent)
         delta_prompt = max(0, after_prompt - before_prompt)
         delta_completion = max(0, after_completion - before_completion)
@@ -636,7 +781,6 @@ async def run_intelligent_steps(
             else estimate_cost_usd(llm_cfg.get('model', ''), delta_prompt, delta_completion)
         )
         llm_usage_totals['llmCalls'] += delta_calls
-        step_ok = bool(getattr(history, 'is_successful', lambda: False)())
         if not step_ok:
             return False, {
                 "failure": f'WebPilot could not complete step {step_index}: {step}',
@@ -649,7 +793,7 @@ async def run_intelligent_steps(
         after = await compact_page_state(browser)
         capability = capability_from_step(step, before, after, captured_actions)
         if capability:
-            promote_capability(knowledge, capability)
+            knowledge_repo.promote(capability)
             learned += 1
         for action in captured_actions:
             execution_history.append({
@@ -1020,7 +1164,9 @@ async def main():
     print(
         f"[WebPilot] Performance: judge={perf.get('judgeMode')} "
         f"vision={perf.get('useVision')} thinking={perf.get('useThinking')} "
-        f"flash={perf.get('flashMode')} maxActions/step={perf.get('maxActionsPerStep')}"
+        f"flash={perf.get('flashMode')} maxActions/step={perf.get('maxActionsPerStep')} "
+        f"freshAgentPerStep={perf.get('freshAgentPerStep', True)} "
+        f"maxHistory={perf.get('maxHistoryItems', 6)}"
     )
 
     llm_usage_totals = {
@@ -1053,6 +1199,7 @@ async def main():
             llm_cfg=llm_cfg,
             steps=steps,
             test_name=test_name,
+            test_slug=base_file_name,
             sensitive_data=sensitive_data,
             upload_paths=upload_paths,
             llm_usage_totals=llm_usage_totals,

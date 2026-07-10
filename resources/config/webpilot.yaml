@@ -58,7 +58,18 @@ requirements:
 intelligentRunner:
   enabled: true
   knowledgePath: "./runtime/site-knowledge/knowledge.json"
+  # global: share learned steps per page (default). test: isolate per scenario file.
+  knowledgeScope: global
+  # partitioned: pages/*.json (global) or scenarios/*.json (test). legacy: single knowledge.json
+  knowledgeStorage: partitioned
   scopedAgentMaxSteps: 12
+  # Fresh agent per discovery step avoids LLM context drift on 15+ step scenarios.
+  freshAgentPerStep: true
+  maxHistoryItems: 6
+  longScenarioStepWarning: 15
+  # auto: tune agent for single-file 15+ step flows (fresh agent, retries, higher step budget)
+  longScenarioMode: auto
+  stepRetryOnFailure: 0
   # Performance tuning: speeds up execution without lowering execution/codegen quality.
   # The independent LLM judge is the most expensive add-on (one extra LLM call per
   # step). It does NOT override the agent's own success/failure self-report, so it is

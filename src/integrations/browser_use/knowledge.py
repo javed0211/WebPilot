@@ -4,15 +4,19 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from .paths import PROJECT_ROOT
+from .paths import CONFIG_ROOT, PROJECT_ROOT
 
 KNOWLEDGE_ROOT = PROJECT_ROOT / "runtime" / "site-knowledge"
 KNOWLEDGE_PATH = KNOWLEDGE_ROOT / "knowledge.json"
+KNOWLEDGE_LEGACY_PATH = KNOWLEDGE_ROOT / "knowledge.legacy.json"
+SCENARIOS_DIR = KNOWLEDGE_ROOT / "scenarios"
+PAGES_DIR = KNOWLEDGE_ROOT / "pages"
 SELECTOR_REGISTRY_PATH = PROJECT_ROOT / "runtime" / "selectors" / "registry.json"
 
 CONSENT_TERMS = ("consent", "cookie", "privacy", "accept", "agree")
@@ -140,6 +144,200 @@ def registry_locators_for_step(current_url: str, step: str) -> list[dict[str, An
     return locators
 
 
+def _slugify_store_key(value: str) -> str:
+    key = re.sub(r"[^a-z0-9._-]+", "_", (value or "").strip().lower())
+    return key.strip("_")[:120] or "unknown"
+
+
+def load_knowledge_config() -> dict[str, str]:
+    """Read knowledge scope/storage from webpilot.yaml with env overrides."""
+    defaults = {"knowledgeScope": "global", "knowledgeStorage": "partitioned"}
+    try:
+        import yaml
+
+        with open(CONFIG_ROOT / "webpilot.yaml", "r", encoding="utf-8") as handle:
+            yaml_config = yaml.safe_load(handle) or {}
+        ir = yaml_config.get("intelligentRunner") or {}
+        if ir.get("knowledgeScope"):
+            defaults["knowledgeScope"] = str(ir["knowledgeScope"]).strip().lower()
+        if ir.get("knowledgeStorage"):
+            defaults["knowledgeStorage"] = str(ir["knowledgeStorage"]).strip().lower()
+    except Exception:
+        pass
+    env_scope = os.environ.get("WEBPILOT_KNOWLEDGE_SCOPE", "").strip().lower()
+    if env_scope in ("global", "test"):
+        defaults["knowledgeScope"] = env_scope
+    env_storage = os.environ.get("WEBPILOT_KNOWLEDGE_STORAGE", "").strip().lower()
+    if env_storage in ("partitioned", "legacy"):
+        defaults["knowledgeStorage"] = env_storage
+    return defaults
+
+
+def _empty_store(store_kind: str, *, origin: str | None = None, test_slug: str | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {"schemaVersion": 3, "storeKind": store_kind, "capabilities": []}
+    if store_kind == "page" and origin:
+        payload["origin"] = origin
+    if store_kind == "scenario" and test_slug:
+        payload["testSlug"] = test_slug
+    return payload
+
+
+def _read_store_file(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception:
+        return {}
+
+
+def _write_store_file(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2)
+
+
+def _promote_in_store(data: dict[str, Any], capability: dict[str, Any]) -> None:
+    capabilities = data.setdefault("capabilities", [])
+    capability_id = capability["id"]
+    existing = next((item for item in capabilities if item.get("id") == capability_id), None)
+    if existing:
+        capability["successCount"] = int(existing.get("successCount", 0)) + 1
+        capabilities[capabilities.index(existing)] = capability
+    else:
+        capability["successCount"] = 1
+        capabilities.append(capability)
+    capability["status"] = "trusted" if capability["successCount"] >= 2 else "candidate"
+    capability["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def _record_failure_in_store(data: dict[str, Any], capability: dict[str, Any], reason: str) -> None:
+    capability["failureCount"] = int(capability.get("failureCount", 0)) + 1
+    capability["lastFailure"] = reason[:1000]
+    if capability["failureCount"] >= 2:
+        capability["status"] = "quarantined"
+    capability["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    capabilities = data.setdefault("capabilities", [])
+    existing = next((item for item in capabilities if item.get("id") == capability.get("id")), None)
+    if existing:
+        capabilities[capabilities.index(existing)] = capability
+    else:
+        capabilities.append(capability)
+
+
+class KnowledgeRepository:
+    """Partitioned site knowledge: per-page (global) or per-scenario (test scope)."""
+
+    def __init__(self, config: dict[str, str], test_slug: str):
+        self.scope = config.get("knowledgeScope", "global")
+        self.storage = config.get("knowledgeStorage", "partitioned")
+        self.test_slug = _slugify_store_key(test_slug)
+        if self.storage == "partitioned":
+            self._migrate_legacy_if_needed()
+
+    def _scenario_path(self) -> Path:
+        return SCENARIOS_DIR / f"{self.test_slug}.json"
+
+    def _page_path(self, origin: str) -> Path:
+        return PAGES_DIR / f"{_slugify_store_key(origin)}.json"
+
+    def _migrate_legacy_if_needed(self) -> None:
+        if not KNOWLEDGE_PATH.exists():
+            return
+        if PAGES_DIR.exists() and any(PAGES_DIR.glob("*.json")):
+            return
+        if SCENARIOS_DIR.exists() and any(SCENARIOS_DIR.glob("*.json")):
+            return
+        try:
+            with open(KNOWLEDGE_PATH, encoding="utf-8") as handle:
+                legacy = json.load(handle)
+        except Exception:
+            return
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for capability in legacy.get("capabilities") or []:
+            origin = capability.get("origin") or origin_for_url(
+                (capability.get("before") or {}).get("urlPattern", "")
+            )
+            grouped.setdefault(origin, []).append(capability)
+        for origin, capabilities in grouped.items():
+            _write_store_file(
+                self._page_path(origin),
+                _empty_store("page", origin=origin) | {"capabilities": capabilities},
+            )
+        try:
+            KNOWLEDGE_PATH.rename(KNOWLEDGE_LEGACY_PATH)
+            print(
+                f"[Knowledge] Migrated {len(legacy.get('capabilities') or [])} capability(ies) "
+                f"into {len(grouped)} page store(s) under runtime/site-knowledge/pages/."
+            )
+        except Exception:
+            pass
+
+    def _load_partitioned_store(self, path: Path, store_kind: str) -> dict[str, Any]:
+        raw = _read_store_file(path)
+        if raw.get("capabilities") is not None:
+            return raw
+        if store_kind == "page":
+            origin = path.stem.replace("_", ".")
+            return _empty_store("page", origin=origin)
+        return _empty_store("scenario", test_slug=self.test_slug)
+
+    def _lookup_stores(self, current_url: str) -> list[dict[str, Any]]:
+        if self.storage != "partitioned":
+            return [load_knowledge()]
+        if self.scope == "test":
+            return [self._load_partitioned_store(self._scenario_path(), "scenario")]
+        stores = [self._load_partitioned_store(self._page_path(origin_for_url(current_url)), "page")]
+        if KNOWLEDGE_PATH.exists():
+            stores.append(load_knowledge())
+        return stores
+
+    def _writable_store(self, capability: dict[str, Any]) -> tuple[Path, dict[str, Any]]:
+        if self.storage != "partitioned":
+            return KNOWLEDGE_PATH, load_knowledge()
+        if self.scope == "test":
+            path = self._scenario_path()
+            store = self._load_partitioned_store(path, "scenario")
+            store["testSlug"] = self.test_slug
+            capability["testSlug"] = self.test_slug
+            return path, store
+        origin = capability.get("origin") or origin_for_url(
+            (capability.get("before") or {}).get("urlPattern", "")
+        )
+        path = self._page_path(origin)
+        store = self._load_partitioned_store(path, "page")
+        store["origin"] = origin
+        return path, store
+
+    def find_capability(self, step: str, current_url: str) -> dict[str, Any] | None:
+        for data in self._lookup_stores(current_url):
+            found = find_capability(data, step, current_url)
+            if found:
+                return found
+        return None
+
+    def promote(self, capability: dict[str, Any]) -> None:
+        if self.storage != "partitioned":
+            data = load_knowledge()
+            _promote_in_store(data, capability)
+            save_knowledge(data)
+            return
+        path, data = self._writable_store(capability)
+        _promote_in_store(data, capability)
+        _write_store_file(path, data)
+
+    def record_failure(self, capability: dict[str, Any], reason: str) -> None:
+        if self.storage != "partitioned":
+            data = load_knowledge()
+            _record_failure_in_store(data, capability, reason)
+            save_knowledge(data)
+            return
+        path, data = self._writable_store(capability)
+        _record_failure_in_store(data, capability, reason)
+        _write_store_file(path, data)
+
+
 def load_knowledge() -> dict[str, Any]:
     if not KNOWLEDGE_PATH.exists():
         return {"schemaVersion": 2, "capabilities": []}
@@ -191,26 +389,12 @@ def find_capability(data: dict[str, Any], step: str, current_url: str) -> dict[s
 
 
 def promote_capability(data: dict[str, Any], capability: dict[str, Any]) -> None:
-    capabilities = data.setdefault("capabilities", [])
-    capability_id = capability["id"]
-    existing = next((item for item in capabilities if item.get("id") == capability_id), None)
-    if existing:
-        capability["successCount"] = int(existing.get("successCount", 0)) + 1
-        capabilities[capabilities.index(existing)] = capability
-    else:
-        capability["successCount"] = 1
-        capabilities.append(capability)
-    capability["status"] = "trusted" if capability["successCount"] >= 2 else "candidate"
-    capability["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    _promote_in_store(data, capability)
     save_knowledge(data)
 
 
 def record_failure(data: dict[str, Any], capability: dict[str, Any], reason: str) -> None:
-    capability["failureCount"] = int(capability.get("failureCount", 0)) + 1
-    capability["lastFailure"] = reason[:1000]
-    if capability["failureCount"] >= 2:
-        capability["status"] = "quarantined"
-    capability["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    _record_failure_in_store(data, capability, reason)
     save_knowledge(data)
 
 
@@ -245,6 +429,25 @@ def _locator_candidates(node: Any) -> list[dict[str, str]]:
     return candidates[:5]
 
 
+def _step_mentions_modal(step: str) -> bool:
+    return bool(re.search(r"\b(modal|popup|dialog|overlay|alert|banner)\b", step, re.IGNORECASE))
+
+
+def _node_in_modal_context(node: Any) -> bool:
+    attrs = dict(getattr(node, "attributes", {}) or {})
+    if attrs.get("role") == "dialog" or attrs.get("aria-modal") == "true":
+        return True
+    parent = getattr(node, "parent", None)
+    depth = 0
+    while parent is not None and depth < 6:
+        parent_attrs = dict(getattr(parent, "attributes", {}) or {})
+        if parent_attrs.get("role") == "dialog" or parent_attrs.get("aria-modal") == "true":
+            return True
+        parent = getattr(parent, "parent", None)
+        depth += 1
+    return False
+
+
 def actions_from_output(state: Any, output: Any) -> list[dict[str, Any]]:
     recipes: list[dict[str, Any]] = []
     selector_map = getattr(getattr(state, "dom_state", None), "selector_map", {}) or {}
@@ -257,6 +460,10 @@ def actions_from_output(state: Any, output: Any) -> list[dict[str, Any]]:
             params = params or {}
             if name == "navigate" and params.get("url"):
                 recipes.append({"type": "navigate", "url": params["url"], "newTab": bool(params.get("new_tab", False))})
+            elif name in ("switch", "switch_tab") and params.get("tab_id"):
+                recipes.append({"type": "switch_tab", "tabId": str(params["tab_id"])})
+            elif name in ("close", "close_tab") and params.get("tab_id"):
+                recipes.append({"type": "close_tab", "tabId": str(params["tab_id"])})
             elif name in ("click", "input"):
                 index = params.get("index")
                 node = selector_map.get(index)
@@ -264,6 +471,8 @@ def actions_from_output(state: Any, output: Any) -> list[dict[str, Any]]:
                 if not locators:
                     continue
                 recipe: dict[str, Any] = {"type": name, "locators": locators}
+                if _node_in_modal_context(node):
+                    recipe["modal"] = True
                 if name == "input":
                     recipe["value"] = params.get("text", "")
                     recipe["clear"] = params.get("clear", True)
@@ -319,7 +528,12 @@ def capability_from_step(
     after: dict[str, Any],
     actions: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
-    actionable = [action for action in actions if action.get("type") in {"navigate", "click", "input", "press", "wait"}]
+    actionable = [
+        action
+        for action in actions
+        if action.get("type")
+        in {"navigate", "click", "input", "press", "wait", "switch_tab", "close_tab", "wait_for_modal"}
+    ]
     assertion_step = bool(re.match(r"^(verify|assert|check|ensure|then)\b", step.strip(), re.IGNORECASE))
     if not actionable and not assertion_step:
         return None
@@ -339,6 +553,8 @@ def capability_from_step(
             return None
     signature = step_signature(step)
     identity = f"{signature}|{before.get('urlPattern')}|{after.get('urlPattern')}"
+    if _step_mentions_modal(step) and not any(action.get("type") == "wait_for_modal" for action in actionable):
+        actionable = [{"type": "wait_for_modal", "seconds": 5}, *actionable]
     return {
         "id": hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20],
         "step": step,
@@ -677,6 +893,75 @@ async def assert_cart_contains_product(browser_session: Any) -> tuple[bool, str]
         return False, str(exc)
 
 
+async def wait_for_modal(browser_session: Any, timeout_seconds: float = 5.0) -> bool:
+    import asyncio
+    import time
+
+    page = await browser_session.must_get_current_page()
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        found = await page.evaluate(
+            """() => {
+              const visible = (el) => {
+                const r = el.getBoundingClientRect();
+                const s = getComputedStyle(el);
+                return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+              };
+              return [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.modal.show,.modal.in')]
+                .some(visible);
+            }"""
+        )
+        if found:
+            return True
+        await asyncio.sleep(0.25)
+    return False
+
+
+async def dismiss_blocking_modals(browser_session: Any) -> None:
+    page = await browser_session.must_get_current_page()
+    await page.evaluate(
+        """() => {
+          const visible = (el) => {
+            const r = el.getBoundingClientRect();
+            const s = getComputedStyle(el);
+            return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+          };
+          const modals = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.modal.show,.modal.in')]
+            .filter(visible);
+          for (const modal of modals) {
+            const buttons = [...modal.querySelectorAll('button,[role="button"],input[type="button"],input[type="submit"]')]
+              .filter(visible);
+            const preferred = buttons.find((btn) =>
+              /^(ok|yes|confirm|continue|accept|close|got it|agree)$/i.test((btn.textContent || btn.value || '').trim())
+            ) || buttons[0];
+            if (preferred) {
+              preferred.click();
+              return true;
+            }
+          }
+          return false;
+        }"""
+    )
+
+
+async def _switch_tab(browser_session: Any, tab_id: str) -> None:
+    from browser_use.browser.events import SwitchTabEvent
+
+    target_id = await browser_session.get_target_id_from_tab_id(tab_id)
+    event = browser_session.event_bus.dispatch(SwitchTabEvent(target_id=target_id))
+    await event
+    await event.event_result(raise_if_any=False, raise_if_none=False)
+
+
+async def _close_tab(browser_session: Any, tab_id: str) -> None:
+    from browser_use.browser.events import CloseTabEvent
+
+    target_id = await browser_session.get_target_id_from_tab_id(tab_id)
+    event = browser_session.event_bus.dispatch(CloseTabEvent(target_id=target_id))
+    await event
+    await event.event_result(raise_if_any=False, raise_if_none=False)
+
+
 async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, str]:
     """Run canonical page recipes before falling back to Browser Use discovery."""
     stripped = step.strip()
@@ -701,12 +986,22 @@ async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, 
 async def execute_capability(browser_session: Any, capability: dict[str, Any]) -> tuple[bool, str]:
     if not await fingerprint_matches(browser_session, capability.get("before", {})):
         return False, "current page fingerprint does not match learned precondition"
+    step_text = capability.get("step", "")
+    if _step_mentions_modal(step_text):
+        await wait_for_modal(browser_session)
     page = await browser_session.must_get_current_page()
     for action in capability.get("actions", []):
         action_type = action.get("type")
         try:
             if action_type == "navigate":
                 await browser_session.navigate_to(action["url"], new_tab=bool(action.get("newTab", False)))
+            elif action_type == "switch_tab":
+                await _switch_tab(browser_session, str(action.get("tabId", "")))
+            elif action_type == "close_tab":
+                await _close_tab(browser_session, str(action.get("tabId", "")))
+            elif action_type == "wait_for_modal":
+                if not await wait_for_modal(browser_session, float(action.get("seconds", 5))):
+                    return False, "expected modal did not appear"
             elif action_type == "assert_visible_page":
                 ok, reason = await assert_visible_page(browser_session)
                 if not ok:
@@ -718,6 +1013,9 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                 await page.press(str(action.get("value", "")))
             elif action_type in ("click", "input"):
                 await dismiss_cookie_consent_if_present(browser_session)
+                if action.get("modal") or _step_mentions_modal(step_text):
+                    await wait_for_modal(browser_session)
+                    await dismiss_blocking_modals(browser_session)
                 handled, ok, reason = await try_booking_recipe(
                     browser_session,
                     capability.get("step", ""),
@@ -745,7 +1043,12 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                     _clean_accessible_text(str(locator.get("value", ""))).lower() == "view cart"
                     for locator in locators
                 )
-                action_payload = {**action, "locators": locators, "allowFirstMatch": allow_first_match}
+                action_payload = {
+                    **action,
+                    "locators": locators,
+                    "allowFirstMatch": allow_first_match,
+                    "modal": bool(action.get("modal")) or _step_mentions_modal(step_text),
+                }
                 result = await _evaluate_json(
                     page,
                     """(payload) => {
@@ -754,42 +1057,48 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                         return r.width>0 && r.height>0 && s.visibility!=='hidden' && s.display!=='none';
                       };
                       const normalize = (s) => (s || '').replace(/[\ue000-\uf8ff]/g, ' ').replace(/\\s+/g, ' ').trim();
-                      const find = (locator) => {
+                      const roots = payload.modal
+                        ? [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.modal.show,.modal.in')].filter(visible)
+                        : [document];
+                      const scopes = roots.length ? roots : [document];
+                      const find = (locator, root) => {
                         let els = [];
-                        if (locator.kind === 'css') els = [...document.querySelectorAll(locator.value)];
-                        if (locator.kind === 'role') els = [...document.querySelectorAll(`[role="${CSS.escape(locator.value)}"]`)]
+                        if (locator.kind === 'css') els = [...root.querySelectorAll(locator.value)];
+                        if (locator.kind === 'role') els = [...root.querySelectorAll(`[role="${CSS.escape(locator.value)}"]`)]
                           .filter(el => !locator.name || normalize(el.getAttribute('aria-label') || el.textContent) === locator.name);
-                        if (locator.kind === 'role' && locator.value === 'link') els.push(...[...document.querySelectorAll('a')]
+                        if (locator.kind === 'role' && locator.value === 'link') els.push(...[...root.querySelectorAll('a')]
                           .filter(el => !locator.name || normalize(el.getAttribute('aria-label') || el.textContent) === locator.name));
-                        if (locator.kind === 'role' && locator.value === 'button') els.push(...[...document.querySelectorAll('button')]
+                        if (locator.kind === 'role' && locator.value === 'button') els.push(...[...root.querySelectorAll('button')]
                           .filter(el => !locator.name || normalize(el.getAttribute('aria-label') || el.textContent) === locator.name));
-                        if (locator.kind === 'label') els = [...document.querySelectorAll('label')]
+                        if (locator.kind === 'label') els = [...root.querySelectorAll('label')]
                           .filter(el => normalize(el.textContent) === locator.value)
                           .map(label => label.control).filter(Boolean);
-                        if (locator.kind === 'placeholder') els = [...document.querySelectorAll(`[placeholder="${CSS.escape(locator.value)}"]`)];
-                        if (locator.kind === 'testid') els = [...document.querySelectorAll(`[data-testid="${CSS.escape(locator.value)}"]`)];
-                        if (locator.kind === 'text') els = [...document.querySelectorAll(locator.tag || '*')]
+                        if (locator.kind === 'placeholder') els = [...root.querySelectorAll(`[placeholder="${CSS.escape(locator.value)}"]`)];
+                        if (locator.kind === 'testid') els = [...root.querySelectorAll(`[data-testid="${CSS.escape(locator.value)}"]`)];
+                        if (locator.kind === 'text') els = [...root.querySelectorAll(locator.tag || '*')]
                           .filter(el => normalize(el.textContent) === normalize(locator.value));
                         return [...new Set(els)].filter(visible);
                       };
-                      for (const locator of payload.locators || []) {
-                        const els = find(locator);
-                        if (els.length < 1) continue;
-                        if (els.length !== 1 && !payload.allowFirstMatch) continue;
-                        const el = els[0];
-                        if (payload.type === 'click') el.click();
-                        else {
-                          el.focus();
-                          const setter = Object.getOwnPropertyDescriptor(
-                            el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
-                            'value'
-                          )?.set;
-                          if (!setter) return JSON.stringify({ok:false,error:'no value setter'});
-                          setter.call(el, payload.value || '');
-                          el.dispatchEvent(new Event('input',{bubbles:true}));
-                          el.dispatchEvent(new Event('change',{bubbles:true}));
+                      for (const root of scopes) {
+                        for (const locator of payload.locators || []) {
+                          const els = find(locator, root);
+                          if (els.length < 1) continue;
+                          if (els.length !== 1 && !payload.allowFirstMatch) continue;
+                          const el = els[0];
+                          if (payload.type === 'click') el.click();
+                          else {
+                            el.focus();
+                            const setter = Object.getOwnPropertyDescriptor(
+                              el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
+                              'value'
+                            )?.set;
+                            if (!setter) return JSON.stringify({ok:false,error:'no value setter'});
+                            setter.call(el, payload.value || '');
+                            el.dispatchEvent(new Event('input',{bubbles:true}));
+                            el.dispatchEvent(new Event('change',{bubbles:true}));
+                          }
+                          return JSON.stringify({ok:true});
                         }
-                        return JSON.stringify({ok:true});
                       }
                       return JSON.stringify({ok:false,error:'no unique visible locator'});
                     }""",

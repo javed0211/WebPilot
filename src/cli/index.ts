@@ -937,6 +937,8 @@ program
         'runtime/healing-cache',
         'runtime/reports/assets',
         'runtime/site-knowledge',
+        'runtime/site-knowledge/pages',
+        'runtime/site-knowledge/scenarios',
         ...(isFullTypeScriptPlaywright(profile)
           ? [
               'packages/test-framework/apis',

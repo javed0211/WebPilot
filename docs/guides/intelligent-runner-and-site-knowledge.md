@@ -39,7 +39,7 @@ flowchart TD
 
 ### Step 1 — Site knowledge replay
 
-Learned capabilities live in `runtime/site-knowledge/knowledge.json`. Each capability stores:
+Learned capabilities are stored in partitioned files under `runtime/site-knowledge/` (per page origin, or per scenario when `knowledgeScope: test`). Each capability stores:
 
 | Field | Purpose |
 |-------|---------|
@@ -83,6 +83,8 @@ In `resources/config/webpilot.yaml`:
 ```yaml
 intelligentRunner:
   enabled: true
+  knowledgeScope: global        # global | test — test isolates login/sensitive flows per .txt file
+  knowledgeStorage: partitioned # partitioned | legacy
   knowledgePath: "./runtime/site-knowledge/knowledge.json"
   scopedAgentMaxSteps: 12
   performance:
@@ -93,6 +95,37 @@ intelligentRunner:
     flashMode: false
     waitBetweenActions: 0.3
 ```
+
+### Knowledge storage layout
+
+Partitioned storage avoids a single large `knowledge.json` bottleneck:
+
+```text
+runtime/site-knowledge/
+  pages/                    # knowledgeScope: global (one file per site origin)
+    automationexercise.com.json
+    app.example.com.json
+  scenarios/                # knowledgeScope: test (one file per .txt scenario)
+    full_checkout.json
+    admin_login_flow.json
+  knowledge.legacy.json     # auto-migrated from old monolithic knowledge.json
+```
+
+| `knowledgeScope` | Lookup | Save |
+|------------------|--------|------|
+| `global` (default) | `pages/<origin>.json` for current URL host | Same page file |
+| `test` | `scenarios/<test-slug>.json` only | Same scenario file |
+
+Use **`knowledgeScope: test`** when flows must not share login steps across scenarios (e.g. admin vs user credentials).
+
+Environment overrides:
+
+```bash
+WEBPILOT_KNOWLEDGE_SCOPE=test
+WEBPILOT_KNOWLEDGE_STORAGE=partitioned
+```
+
+Replay captures **tab switches** (`switch_tab`, `close_tab`) and **modal-aware** clicks (scoped to `[role="dialog"]`) for complex UI flows.
 
 ### Performance tuning
 
@@ -188,6 +221,55 @@ Summary JSON includes `reusedSteps` and `learnedSteps`.
 | Registry not always populated on live path | Auto-promote every successful step to registry |
 | Healing not inline on browser-use path | Scoped repair with healing proposals |
 | Knowledge keyed by step + origin | Broader page-level action library (e.g. "accept cookies" reusable across all tests on host) |
+| 20+ step scenarios on first discovery | Endurance mode + per-step learning; re-runs are fully deterministic |
+
+### Long scenarios (15+ steps in one file)
+
+You do **not** need to split files. WebPilot is designed so AI handles the hard part once; the full scenario stays in one `.txt`.
+
+**Where AI adds value (even for 20+ steps):**
+
+| Phase | What happens | LLM? |
+|-------|----------------|------|
+| **First run** on a new app/flow | Agent discovers locators for steps you have not scripted | Yes — only for unknown steps |
+| **Same file, second run** | Learned capabilities replay step-by-step deterministically | **No** |
+| **UI changes** | One broken step triggers scoped repair, not a full rewrite | Yes — one step |
+| **After run** | Codegen turns the trace into framework code for CI | Optional |
+
+Splitting is an *optional* optimization, not a requirement. The limitation is physics: every LLM agent struggles when **every** step in a long flow still needs live discovery in a **single** session (huge DOM, compounding errors). WebPilot's answer is **learn each step as you go** — step 12's success is saved before step 13 starts, and the next full run replays all 20 without AI.
+
+**Endurance mode** (`longScenarioMode: auto`, default) auto-applies for 15+ steps:
+
+```yaml
+intelligentRunner:
+  longScenarioMode: auto
+  freshAgentPerStep: true
+  maxHistoryItems: 6
+  scopedAgentMaxSteps: 12   # auto-bumped to 18 in endurance mode
+  stepRetryOnFailure: 0     # auto-set to 1 retry per failed step in endurance mode
+```
+
+Force maximum reliability on one long file:
+
+```yaml
+intelligentRunner:
+  longScenarioMode: auto
+  scopedAgentMaxSteps: 20
+  stepRetryOnFailure: 2
+  performance:
+    judgeMode: verification
+    useVision: auto
+```
+
+Use a capable model for the **first** discovery run on a new flow; re-runs do not need it.
+
+```bash
+# First time on new site — AI discovers, learns every step into knowledge.json
+webpilot run tests/web/full_e2e_checkout.txt --env qa --headed --report
+
+# Every regression after — same file, zero LLM, full 20+ steps
+WEBPILOT_KNOWLEDGE_ONLY=1 webpilot run tests/web/full_e2e_checkout.txt --env qa
+```
 
 ---
 
