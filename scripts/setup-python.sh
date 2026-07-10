@@ -8,7 +8,7 @@ pick_python() {
     echo "$WEBPILOT_PYTHON"
     return
   fi
-  for cmd in python3.12 python3.11 python3; do
+  for cmd in python3.13 python3.12 python3.11 python3 python py; do
     if command -v "$cmd" >/dev/null 2>&1; then
       ver="$("$cmd" -c 'import sys; print(sys.version_info[:2])' 2>/dev/null || echo '(0,0)')"
       major="${ver#*(}"
@@ -27,16 +27,22 @@ pick_python() {
 PYTHON="$(pick_python)"
 if [[ -z "$PYTHON" ]]; then
   echo "ERROR: browser-use requires Python 3.11+."
-  echo "  Install: brew install python@3.12"
-  echo "  Or set WEBPILOT_PYTHON=/path/to/python3.12"
+  echo "  macOS: brew install python@3.12"
+  echo "  Windows: install from https://www.python.org/downloads/"
+  echo "  Or set WEBPILOT_PYTHON to your python executable"
   exit 1
+fi
+
+VENV_PY="${ROOT}/.venv/bin/python3"
+if [[ -f "${ROOT}/.venv/Scripts/python.exe" ]]; then
+  VENV_PY="${ROOT}/.venv/Scripts/python.exe"
 fi
 
 echo "WebPilot: using $PYTHON ($($PYTHON --version))"
 echo "Creating venv at ${ROOT}/.venv"
 rm -rf .venv
 "$PYTHON" -m venv .venv
-.venv/bin/python3 -m pip install -U pip
-.venv/bin/python3 -m pip install -r requirements.txt
+"$VENV_PY" -m pip install -U pip
+"$VENV_PY" -m pip install -r requirements.txt
 echo "Done. WebPilot's Browser Use engine source is installed editable in .venv"
-.venv/bin/python3 -c "import browser_use; print(f'browser_use source: {browser_use.__file__}')"
+"$VENV_PY" -c "import browser_use; print(f'browser_use source: {browser_use.__file__}')"

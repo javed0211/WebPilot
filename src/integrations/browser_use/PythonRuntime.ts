@@ -1,10 +1,66 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { findCliInstallRoot, findProjectRoot } from '../../cli/ProjectContext';
 
 const VENV_DIR = '.venv';
 const REQUIREMENTS = 'requirements.txt';
+
+/** Unix and Windows launcher names, newest first. 3.11+ is required; 3.12 is not. */
+const SYSTEM_PYTHON_CANDIDATES = [
+  'python3.13',
+  'python3.12',
+  'python3.11',
+  'python3',
+  'python',
+  ...(process.platform === 'win32'
+    ? ['py -3.13', 'py -3.12', 'py -3.11', 'py']
+    : []),
+];
+
+function isPython311Plus(major: number, minor: number): boolean {
+  return major > 3 || (major === 3 && minor >= 11);
+}
+
+function splitPythonCommand(cmd: string): { exe: string; prefixArgs: string[] } {
+  const parts = cmd.trim().split(/\s+/);
+  return { exe: parts[0], prefixArgs: parts.slice(1) };
+}
+
+function tryPythonCandidate(cmd: string): string | null {
+  try {
+    const { exe, prefixArgs } = splitPythonCommand(cmd);
+    const out = execFileSync(
+      exe,
+      [...prefixArgs, '-c', "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')"],
+      { encoding: 'utf8', stdio: 'pipe' }
+    ).trim();
+    const [major, minor] = out.split('.').map(Number);
+    if (isPython311Plus(major, minor)) {
+      return cmd;
+    }
+  } catch {
+    /* try next */
+  }
+  return null;
+}
+
+function pythonSetupHint(): string {
+  if (process.platform === 'win32') {
+    return (
+      'browser-use requires Python 3.11+.\n' +
+      '  Install from https://www.python.org/downloads/ (or: winget install Python.Python.3.13)\n' +
+      '  Or set WEBPILOT_PYTHON to your python.exe path\n' +
+      'Then run: webpilot setup'
+    );
+  }
+  return (
+    'browser-use requires Python 3.11+.\n' +
+    '  Install: brew install python@3.12  (macOS) or your distro python3 package\n' +
+    '  Or set WEBPILOT_PYTHON=/path/to/python3\n' +
+    'Then run: webpilot setup'
+  );
+}
 
 function projectRoot(): string {
   return path.resolve(process.env.WEBPILOT_PROJECT_ROOT || findProjectRoot());
@@ -30,7 +86,7 @@ export function resolvePythonPath(): string {
   if (fs.existsSync(venvPy)) {
     return venvPy;
   }
-  return process.env.PYTHON || 'python3';
+  return process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 }
 
 export function hasBrowserUse(pythonPath: string): boolean {
@@ -54,28 +110,25 @@ export function hasBrowserUse(pythonPath: string): boolean {
   }
 }
 
-function pickSystemPython(): string {
+export function findCompatibleSystemPython(): string | null {
   if (process.env.WEBPILOT_PYTHON) {
     return process.env.WEBPILOT_PYTHON;
   }
-  for (const cmd of ['python3.12', 'python3.11', 'python3']) {
-    try {
-      const out = execSync(`"${cmd}" -c "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')"`, {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe']
-      }).trim();
-      const [major, minor] = out.split('.').map(Number);
-      if (major > 3 || (major === 3 && minor >= 11)) {
-        return cmd;
-      }
-    } catch {
-      /* try next */
+  for (const cmd of SYSTEM_PYTHON_CANDIDATES) {
+    const found = tryPythonCandidate(cmd);
+    if (found) {
+      return found;
     }
   }
-  throw new Error(
-    'browser-use requires Python 3.11+. Install with: brew install python@3.12\n' +
-      'Then run: webpilot setup'
-  );
+  return null;
+}
+
+function pickSystemPython(): string {
+  const found = findCompatibleSystemPython();
+  if (found) {
+    return found;
+  }
+  throw new Error(pythonSetupHint());
 }
 
 /** Create .venv (if needed) and install the editable vendored Browser Use source. */
@@ -102,9 +155,10 @@ export function setupPythonVenv(systemPython?: string): string {
     if (fs.existsSync(path.join(root, VENV_DIR))) {
       fs.rmSync(path.join(root, VENV_DIR), { recursive: true, force: true });
     }
-    execSync(`"${py}" -m venv "${path.join(root, VENV_DIR)}"`, {
+    const { exe, prefixArgs } = splitPythonCommand(py);
+    execFileSync(exe, [...prefixArgs, '-m', 'venv', path.join(root, VENV_DIR)], {
       stdio: 'inherit',
-      cwd: root
+      cwd: root,
     });
   }
 
@@ -137,7 +191,7 @@ export function ensureBrowserUsePython(): string {
     throw new Error(
       'Python package "browser_use" is not installed.\n' +
       '  Run: webpilot setup\n' +
-      '  Or: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt\n' +
+      `  Or: python -m venv .venv && ${process.platform === 'win32' ? '.venv\\Scripts\\pip' : '.venv/bin/pip'} install -r requirements.txt\n` +
       '  Or set WEBPILOT_PYTHON to a Python that already has browser-use.'
     );
   }

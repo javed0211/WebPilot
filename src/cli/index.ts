@@ -728,7 +728,7 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
 
   console.log(`\n${chalk.blue('Python and WebPilot engine')}`);
   try {
-    const { resolvePythonPath, hasBrowserUse } = require('../integrations/browser_use/PythonRuntime');
+    const { resolvePythonPath, hasBrowserUse, findCompatibleSystemPython } = require('../integrations/browser_use/PythonRuntime');
     const py = resolvePythonPath();
     const version = execSync(
       `"${py}" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"`,
@@ -737,27 +737,23 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
     const [major, minor] = version.split('.').map(Number);
     if (major > 3 || (major === 3 && minor >= 11)) pass(`Python ${version} (${py})`);
     else {
-      let compatiblePython: string | null = null;
-      for (const candidate of ['python3.12', 'python3.11', 'python3']) {
+      const compatiblePython = findCompatibleSystemPython();
+      if (compatiblePython) {
         try {
           const candidateVersion = execSync(
-            `"${candidate}" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"`,
-            { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+            `${compatiblePython} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"`,
+            { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], shell: true }
           ).trim();
-          const [candidateMajor, candidateMinor] = candidateVersion.split('.').map(Number);
-          if (candidateMajor > 3 || (candidateMajor === 3 && candidateMinor >= 11)) {
-            compatiblePython = `${candidate} (${candidateVersion})`;
-            break;
-          }
+          warn(
+            `Current Python ${version} is too old, but ${compatiblePython} (${candidateVersion}) is available`,
+            'Run: webpilot setup'
+          );
         } catch {
-          /* try next candidate */
+          warn(
+            `Current Python ${version} is too old, but ${compatiblePython} is available`,
+            'Run: webpilot setup'
+          );
         }
-      }
-      if (compatiblePython) {
-        warn(
-          `Current Python ${version} is too old, but ${compatiblePython} is available`,
-          'Run: webpilot setup'
-        );
       } else {
         fail(`Python ${version} is too old`, 'Install Python 3.11+ and run: webpilot setup');
       }
