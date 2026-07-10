@@ -93,8 +93,10 @@ class CredentialTests(unittest.TestCase):
                 'Login using credentials ${QA_USERNAME} and ${QA_PASSWORD}',
                 'qa',
             )
-        self.assertIn('<secret>QA_USERNAME</secret>', sanitized)
-        self.assertIn('<secret>QA_PASSWORD</secret>', sanitized)
+        self.assertIn('<secret>username</secret>', sanitized)
+        self.assertIn('<secret>password</secret>', sanitized)
+        self.assertEqual(sensitive['username'], 'qa-user@example.com')
+        self.assertEqual(sensitive['password'], 'qa-pass')
         self.assertEqual(sensitive['QA_USERNAME'], 'qa-user@example.com')
         self.assertEqual(sensitive['QA_PASSWORD'], 'qa-pass')
 
@@ -121,6 +123,20 @@ class CredentialTests(unittest.TestCase):
         var_map, _ = build_environment_variable_map('qa')
         self.assertEqual(var_map['baseURL'], 'https://automationexercise.com')
         self.assertEqual(var_map['baseUrl'], 'https://automationexercise.com')
+
+    @patch('integrations.browser_use.credentials.load_environment_config')
+    def test_prepare_step_masks_quoted_credential_placeholders(self, mock_load_config):
+        mock_load_config.return_value = QA_ENV
+        with patch.dict(os.environ, {'QA_USERNAME': 'qa-user@example.com', 'QA_PASSWORD': 'qa-pass'}):
+            sanitized, sensitive = prepare_step(
+                'login using "${QA_USERNAME}" and password "${QA_PASSWORD}"',
+                'qa',
+            )
+        self.assertIn('<secret>username</secret>', sanitized)
+        self.assertIn('<secret>password</secret>', sanitized)
+        self.assertNotIn('${QA_USERNAME}', sanitized)
+        self.assertEqual(sensitive['username'], 'qa-user@example.com')
+        self.assertEqual(sensitive['password'], 'qa-pass')
 
     @patch('integrations.browser_use.credentials.load_environment_config')
     def test_enrich_step_sensitive_data_merges_env_credentials(self, mock_load_config):

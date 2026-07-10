@@ -80,7 +80,8 @@ class QaEnvironmentConfigTests(unittest.TestCase):
             clear=False,
         ):
             sanitized, sensitive = prepare_step('Login with ${QA_USERNAME} / ${QA_PASSWORD}', 'qa')
-        self.assertIn('<secret>QA_USERNAME</secret>', sanitized)
+        self.assertIn('<secret>username</secret>', sanitized)
+        self.assertIn('<secret>password</secret>', sanitized)
         self.assertEqual(sensitive['QA_USERNAME'], 'qa-user@example.com')
 
 

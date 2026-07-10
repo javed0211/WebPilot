@@ -148,7 +148,7 @@ def detect_page_type(page_state: dict[str, Any]) -> str:
     body = (page_state.get("bodyText") or "").lower()
     origin = origin_for_url(url)
 
-    if origin in AUTH_RELAXED_ORIGINS or any(p in body for p in AUTH_INTERSTITIAL_PHRASES):
+    if origin in AUTH_RELAXED_ORIGINS:
         return "auth_interstitial"
 
     if any(hint in url for hint in SHELL_URL_HINTS):
@@ -157,6 +157,9 @@ def detect_page_type(page_state: dict[str, Any]) -> str:
         if any(hint in body for hint in APP_SHELL_BODY_HINTS):
             return "app_shell"
         return "app_shell"
+
+    if any(p in body for p in AUTH_INTERSTITIAL_PHRASES):
+        return "auth_interstitial"
 
     if page_state.get("title", "").lower().find("sign in") >= 0:
         return "auth_interstitial"

@@ -85,12 +85,35 @@ def infer_safety(intent: str, step: str) -> dict[str, Any]:
     }
 
 
+def is_navigable_url(value: str) -> bool:
+    """True only for absolute http(s) URLs — not NL navigation targets like CRM subareas."""
+    candidate = (value or "").strip().strip('"\'')
+    if not candidate:
+        return False
+    parsed = urlparse(candidate)
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+
+
 def _extract_navigate_target(step: str) -> str | None:
     quoted = re.search(r'["\'](https?://[^"\']+)["\']', step, re.IGNORECASE)
     if quoted:
-        return quoted.group(1)
+        target = quoted.group(1)
+        return target if is_navigable_url(target) else None
     bare = re.search(r"(https?://\S+)", step, re.IGNORECASE)
-    return bare.group(1).rstrip(".,;") if bare else None
+    if not bare:
+        return None
+    target = bare.group(1).rstrip(".,;")
+    return target if is_navigable_url(target) else None
+
+
+def resolve_navigate_target(step: str) -> str | None:
+    """Extract a browser URL from goto/navigate steps; ignore in-app NL navigation."""
+    stripped = step.strip()
+    for prefix in (r"^goto\s+", r"^go to\s+", r"^navigate to\s+"):
+        if re.match(prefix, stripped, re.IGNORECASE):
+            remainder = re.sub(prefix, "", stripped, flags=re.IGNORECASE).strip().strip('"\'').rstrip(".")
+            return remainder if is_navigable_url(remainder) else None
+    return _extract_navigate_target(step)
 
 
 def build_postconditions(intent: str, step: str, before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:

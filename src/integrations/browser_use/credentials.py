@@ -13,7 +13,7 @@ ENV_VAR_RE = re.compile(r'\$\{([^}]+)\}')
 STEP_PLACEHOLDER_RE = re.compile(r'\$\{([^}]+)\}')
 SECRET_TAG_RE = re.compile(r'<secret>(.*?)</secret>', re.IGNORECASE)
 CREDENTIAL_PAIR_VARS_RE = re.compile(
-    r'(?:login|sign[\s-]?in)\s+(?:using|with)\s+(?:credentials?\s+)?\$\{([^}]+)\}\s+and\s+(?:password\s+)?\$\{([^}]+)\}',
+    r'(?:login|sign[\s-]?in)\s+(?:using|with)\s+(?:credentials?\s+)?["\']?\$\{([^}]+)\}["\']?\s+and\s+(?:password\s+)?["\']?\$\{([^}]+)\}["\']?',
     re.IGNORECASE,
 )
 
@@ -109,6 +109,25 @@ def build_environment_variable_map(env_name: str) -> tuple[dict[str, str], set[s
     return values, sensitive_keys
 
 
+def _credential_placeholder_aliases(key: str) -> tuple[str, ...]:
+    lowered = key.lower()
+    aliases: list[str] = [key]
+    if lowered in {"qa_username", "username", "user", "email"}:
+        aliases.extend(["username", "QA_USERNAME", "qa_username"])
+    elif lowered in {"qa_password", "password", "pass"}:
+        aliases.extend(["password", "QA_PASSWORD", "qa_password"])
+    return tuple(dict.fromkeys(item for item in aliases if item))
+
+
+def _lookup_credential_value(key: str, env_name: str) -> str | None:
+    creds = load_environment_credentials(env_name)
+    for alias in _credential_placeholder_aliases(key):
+        value = creds.get(alias)
+        if value and not _is_unresolved_placeholder(value):
+            return value
+    return None
+
+
 def _lookup_variable(key: str, var_map: dict[str, str]) -> str | None:
     candidates = [key, key.lower(), key.upper()]
     snake = re.sub(r'(?<!^)(?=[A-Z])', '_', key).upper()
@@ -184,8 +203,10 @@ def extract_step_credentials(step: str) -> tuple[str, dict[str, str]]:
 
     password_match = PASSWORD_IN_STEP_RE.search(step)
     if password_match:
-        sensitive['password'] = password_match.group(1).strip()
-        sanitized = PASSWORD_IN_STEP_RE.sub('password <secret>password</secret>', sanitized, count=1)
+        raw_password = password_match.group(1).strip()
+        if not SECRET_TAG_RE.search(raw_password):
+            sensitive['password'] = raw_password
+            sanitized = PASSWORD_IN_STEP_RE.sub('password <secret>password</secret>', sanitized, count=1)
 
     return sanitized, sensitive
 
@@ -199,21 +220,31 @@ def resolve_step_placeholders(step: str, env_name: str) -> tuple[str, dict[str, 
 
     def replace_placeholder(match: re.Match[str]) -> str:
         key = match.group(1).strip()
-        value = _lookup_variable(key, var_map)
+        value = _lookup_variable(key, var_map) or _lookup_credential_value(key, env_name)
         if not value:
             return match.group(0)
         if _is_sensitive_variable_key(key, value, sensitive_keys):
             sensitive[key] = value
-            return f'<secret>{key}</secret>'
+            canonical = "username" if key.lower() in {"qa_username", "username", "user", "email"} else (
+                "password" if key.lower() in {"qa_password", "password", "pass"} else key
+            )
+            if canonical != key:
+                sensitive[canonical] = value
+            return f'<secret>{canonical}</secret>'
         return value
 
     sanitized = STEP_PLACEHOLDER_RE.sub(replace_placeholder, step)
     pair_match = CREDENTIAL_PAIR_VARS_RE.search(step)
     if pair_match:
         for key in (pair_match.group(1).strip(), pair_match.group(2).strip()):
-            value = _lookup_variable(key, var_map)
+            value = _lookup_variable(key, var_map) or _lookup_credential_value(key, env_name)
             if value and _is_sensitive_variable_key(key, value, sensitive_keys):
                 sensitive[key] = value
+                canonical = "username" if key.lower() in {"qa_username", "username", "user", "email"} else (
+                    "password" if key.lower() in {"qa_password", "password", "pass"} else key
+                )
+                if canonical != key:
+                    sensitive[canonical] = value
     return sanitized, sensitive
 
 

@@ -18,6 +18,7 @@ from .capability_contract import (
     is_replay_allowed,
     looks_like_auth_interstitial,
     migrate_legacy_capability,
+    resolve_navigate_target,
     resolve_validation_contract,
     route_failure,
     should_quarantine,
@@ -1275,11 +1276,10 @@ async def _close_tab(browser_session: Any, tab_id: str) -> None:
 async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, str]:
     """Run canonical page recipes before falling back to Browser Use discovery."""
     stripped = step.strip()
-    if re.match(r"^navigate to ", stripped, re.IGNORECASE):
-        url = re.sub(r"^navigate to\s+", "", stripped, flags=re.IGNORECASE).strip().rstrip(".")
-        if url:
-            await browser_session.navigate_to(url, new_tab=False)
-            return True, True, ""
+    url = resolve_navigate_target(stripped)
+    if url:
+        await browser_session.navigate_to(url, new_tab=False)
+        return True, True, ""
     if _is_verification_step(step):
         ok, reason = await assert_visible_page(browser_session)
         return True, ok, reason

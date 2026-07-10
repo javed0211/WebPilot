@@ -1,6 +1,7 @@
 """Built-in system recipes (not learned site knowledge)."""
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .intent_resolver import APP_SWITCHER_STEP_HINTS
@@ -15,7 +16,13 @@ async def try_app_switcher_recipe(
     if action_type != "click":
         return False, False, ""
     lowered = step.lower()
-    if not any(hint in lowered for hint in APP_SWITCHER_STEP_HINTS):
+    # "open application 'Anytime Healthline'" is app selection, not launcher click.
+    if re.search(r"\bopen\s+(the\s+)?(application|app)\b", lowered):
+        return False, False, ""
+    switcher_hints = tuple(
+        hint for hint in APP_SWITCHER_STEP_HINTS if hint not in {"application", "select app"}
+    )
+    if not any(hint in lowered for hint in switcher_hints):
         return False, False, ""
 
     page = await browser_session.must_get_current_page()

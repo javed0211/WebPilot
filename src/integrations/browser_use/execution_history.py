@@ -62,9 +62,11 @@ def append_recipe_replay_history(
     url: str | None,
 ) -> None:
     """Record recipe replay steps with concrete actions for deterministic codegen."""
+    from .capability_contract import resolve_navigate_target
+
     stripped = step.strip()
-    if re.match(r"^navigate to ", stripped, re.IGNORECASE):
-        nav_url = re.sub(r"^navigate to\s+", "", stripped, flags=re.IGNORECASE).strip().rstrip(".")
+    nav_url = resolve_navigate_target(stripped)
+    if nav_url:
         execution_history.append(
             {
                 "index": len(execution_history) + 1,
