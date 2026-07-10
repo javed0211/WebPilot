@@ -391,7 +391,7 @@ def load_performance_config() -> dict:
         if ir.get('scopedAgentMaxSteps') is not None:
             cfg['scopedAgentMaxSteps'] = int(ir['scopedAgentMaxSteps'])
         if ir.get('maxHistoryItems') is not None:
-            cfg['maxHistoryItems'] = int(ir['maxHistoryItems'])
+            cfg['maxHistoryItems'] = _clamp_max_history_items(int(ir['maxHistoryItems']))
         if ir.get('freshAgentPerStep') is not None:
             cfg['freshAgentPerStep'] = bool(ir['freshAgentPerStep'])
         if ir.get('longScenarioStepWarning') is not None:
@@ -430,8 +430,15 @@ def load_performance_config() -> dict:
         cfg['freshAgentPerStep'] = False
     env_history = os.environ.get('WEBPILOT_MAX_HISTORY_ITEMS', '').strip()
     if env_history.isdigit():
-        cfg['maxHistoryItems'] = max(6, int(env_history))
+        cfg['maxHistoryItems'] = _clamp_max_history_items(int(env_history))
     return cfg
+
+
+def _clamp_max_history_items(value: int | None) -> int:
+    """browser-use requires max_history_items to be None or strictly greater than 5."""
+    if value is None:
+        return 6
+    return max(6, int(value))
 
 
 def _apply_long_scenario_tuning(perf: dict, step_count: int) -> dict:
@@ -443,7 +450,7 @@ def _apply_long_scenario_tuning(perf: dict, step_count: int) -> dict:
 
     tuned = dict(perf)
     tuned['freshAgentPerStep'] = True
-    tuned['maxHistoryItems'] = min(int(tuned.get('maxHistoryItems', 6)), 4)
+    tuned['maxHistoryItems'] = _clamp_max_history_items(int(tuned.get('maxHistoryItems', 6)))
     tuned['scopedAgentMaxSteps'] = max(int(tuned.get('scopedAgentMaxSteps', 12)), 18)
     if str(tuned.get('judgeMode', 'verification')).strip().lower() == 'always':
         tuned['judgeMode'] = 'verification'
@@ -492,7 +499,7 @@ def _build_scoped_agent_kwargs(
         'use_thinking': bool(perf.get('useThinking', True)),
         'flash_mode': bool(perf.get('flashMode', False)),
         'max_actions_per_step': int(perf.get('maxActionsPerStep', 6)),
-        'max_history_items': int(perf.get('maxHistoryItems', 6)),
+        'max_history_items': _clamp_max_history_items(int(perf.get('maxHistoryItems', 6))),
         'directly_open_url': False,
         **(
             {'sensitive_data': sensitive_data}
