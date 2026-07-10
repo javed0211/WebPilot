@@ -76,10 +76,15 @@ from .knowledge import (
 )
 from .credentials import (
     credential_task_suffix,
+    enrich_step_sensitive_data,
     extract_step_credentials,
     is_credential_step,
+    is_unresolved_credential_placeholder,
+    load_environment_credentials,
     merge_sensitive_data,
+    prepare_step,
     redact_for_logs,
+    task_requires_environment_credentials,
 )
 from .capability_contract import classify_failure, infer_intent, is_replay_allowed, route_failure
 from .intent_resolver import detect_page_type, resolve_step_intent
@@ -87,50 +92,6 @@ from .repair_prompt import build_scoped_task
 
 BDD_PREFIXES = ('given', 'when', 'then', 'and', 'but')
 NUMBERED_STEP_RE = re.compile(r'^\d+\.\s+')
-ENV_VAR_RE = re.compile(r'\$\{(\w+)\}')
-
-def _resolve_env_vars(value: str) -> str:
-    def repl(match: re.Match) -> str:
-        return os.environ.get(match.group(1), match.group(0))
-
-    return ENV_VAR_RE.sub(repl, value)
-
-
-def _is_unresolved_placeholder(value: str) -> bool:
-    stripped = (value or '').strip()
-    return bool(stripped) and stripped.startswith('${') and stripped.endswith('}')
-
-
-def _resolve_credential_value(raw: str, *fallback_env_keys: str) -> str:
-    resolved = _resolve_env_vars(raw).strip()
-    if resolved and not _is_unresolved_placeholder(resolved):
-        return resolved
-    for key in fallback_env_keys:
-        fallback = (os.environ.get(key) or '').strip()
-        if fallback:
-            return fallback
-    return resolved
-
-
-def load_environment_credentials(env_name: str) -> dict[str, str]:
-    """Load resolved credentials from config/environments/<env>.json."""
-    _load_dotenv()
-    config_path = CONFIG_ROOT / 'environments' / f'{env_name}.json'
-    if not os.path.isfile(config_path):
-        return {}
-    with open(config_path, encoding='utf-8') as f:
-        config = json.load(f)
-    raw = config.get('credentials') or {}
-    resolved: dict[str, str] = {}
-    for key, value in raw.items():
-        if isinstance(value, str):
-            if key == 'username':
-                resolved[key] = _resolve_credential_value(value, 'QA_USERNAME')
-            elif key == 'password':
-                resolved[key] = _resolve_credential_value(value, 'QA_PASSWORD')
-            else:
-                resolved[key] = _resolve_env_vars(value)
-    return resolved
 
 
 def build_sensitive_data_context(
@@ -138,37 +99,41 @@ def build_sensitive_data_context(
     env_name: str,
 ) -> tuple[str, dict[str, str | dict[str, str]]]:
     """Expose credential placeholders to Browser Use without putting values in the LLM prompt."""
-    lowered = task.lower()
-    env_creds = load_environment_credentials(env_name) if (
-        'valid credentials' in lowered
-        or 'sign in' in lowered
-        or 'sign-in' in lowered
-        or 'login' in lowered
-        or 'password' in lowered
-    ) else {}
+    env_creds = (
+        load_environment_credentials(env_name)
+        if task_requires_environment_credentials(task)
+        else {}
+    )
 
     placeholders: dict[str, str] = {}
     username = (env_creds.get('username') or '').strip()
     password = (env_creds.get('password') or '').strip()
     if username:
         placeholders['username'] = username
-    if password and not _is_unresolved_placeholder(password):
+    if password and not is_unresolved_credential_placeholder(password):
         placeholders['password'] = password
 
     sanitized_task = task
     for line in task.splitlines():
-        sanitized_line, inline = extract_step_credentials(line)
-        if inline:
-            placeholders.update(inline)
-            if line in sanitized_task:
-                sanitized_task = sanitized_task.replace(line, sanitized_line, 1)
+        sanitized_line, step_sensitive = prepare_step(line, env_name)
+        if step_sensitive:
+            placeholders.update(step_sensitive)
+        if line in sanitized_task:
+            sanitized_task = sanitized_task.replace(line, sanitized_line, 1)
+
+    if task_requires_environment_credentials(task):
+        for key, value in load_environment_credentials(env_name).items():
+            if value and not is_unresolved_credential_placeholder(value):
+                placeholders.setdefault(key, value)
 
     if not placeholders:
         return redact_for_logs(task), {}
 
+    secret_keys = sorted(placeholders.keys())
+    secret_examples = ', '.join(f'<secret>{key}</secret>' for key in secret_keys[:6])
     lines = [
         '\n\nFor sign-in steps, use the sensitive-data placeholders exposed by WebPilot.',
-        'Type credentials as <secret>username</secret> and <secret>password</secret>.',
+        f'Type credentials using: {secret_examples}.',
         'Never print, extract, or repeat credential values.',
     ]
     sensitive_data: dict[str, str | dict[str, str]] = placeholders
@@ -610,6 +575,7 @@ async def run_intelligent_steps(
     steps: list[str],
     test_name: str,
     test_slug: str,
+    env_name: str,
     sensitive_data: dict,
     upload_paths: list[str],
     llm_usage_totals: dict,
@@ -698,8 +664,13 @@ async def run_intelligent_steps(
                 pass
 
     for step_index, step in enumerate(steps, start=1):
-        sanitized_step, step_sensitive = extract_step_credentials(step)
-        step_sensitive_data = merge_sensitive_data(sensitive_data, step_sensitive)
+        sanitized_step, step_sensitive = prepare_step(step, env_name)
+        step_sensitive_data = enrich_step_sensitive_data(
+            step,
+            env_name,
+            sensitive_data,
+            step_sensitive,
+        )
         safe_step_label = redact_for_logs(sanitized_step, step_sensitive_data)
         step_intent = infer_intent(step)
         current_url = await browser.get_current_page_url()
@@ -743,7 +714,7 @@ async def run_intelligent_steps(
         failed_capability: dict | None = None
         if capability:
             print(f"[Knowledge] Step {step_index}/{len(steps)} deterministic: {safe_step_label}")
-            ok, reason = await execute_capability(browser, capability)
+            ok, reason = await execute_capability(browser, capability, step_sensitive_data)
             if ok and is_credential_step(step):
                 kmsi_ok, kmsi_reason = await complete_microsoft_login_if_needed(browser, step)
                 if not kmsi_ok:
@@ -770,7 +741,7 @@ async def run_intelligent_steps(
                 auth_ok, auth_reason, auth_state = await advance_auth_state(browser)
                 if auth_ok:
                     print(f"[Auth] Advanced session ({auth_state}) — retrying step {step_index}")
-                    ok, reason = await execute_capability(browser, capability)
+                    ok, reason = await execute_capability(browser, capability, step_sensitive_data)
                     if ok:
                         reused += 1
                         knowledge_repo.promote(capability)
@@ -1325,7 +1296,7 @@ async def main():
     print(f"Loaded steps:")
     all_sensitive: dict[str, str] = {}
     for step in steps:
-        sanitized, inline = extract_step_credentials(step)
+        sanitized, inline = prepare_step(step, env_name)
         all_sensitive.update(inline)
         print(f"  - {redact_for_logs(sanitized, merge_sensitive_data(all_sensitive))}")
         
@@ -1408,6 +1379,7 @@ async def main():
             steps=steps,
             test_name=test_name,
             test_slug=base_file_name,
+            env_name=env_name,
             sensitive_data=sensitive_data,
             upload_paths=upload_paths,
             llm_usage_totals=llm_usage_totals,

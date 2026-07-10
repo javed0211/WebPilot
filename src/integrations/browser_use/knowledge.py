@@ -31,7 +31,7 @@ from .intent_resolver import (
     detect_page_type,
     resolve_step_intent,
 )
-from .credentials import is_credential_step
+from .credentials import is_credential_step, resolve_sensitive_text
 from .trust_scoring import invalidate_if_step_changed, record_promotion_trust
 from .system_recipes import try_app_switcher_recipe
 from .paths import CONFIG_ROOT, PROJECT_ROOT
@@ -1299,7 +1299,11 @@ async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, 
     return False, False, ""
 
 
-async def execute_capability(browser_session: Any, capability: dict[str, Any]) -> tuple[bool, str]:
+async def execute_capability(
+    browser_session: Any,
+    capability: dict[str, Any],
+    sensitive_data: dict[str, Any] | None = None,
+) -> tuple[bool, str]:
     pre_ok, pre_reason, _ = await validate_capability_phase(browser_session, capability, "pre")
     if not pre_ok:
         return False, pre_reason
@@ -1381,6 +1385,11 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                     "allowFirstMatch": allow_first_match,
                     "modal": bool(action.get("modal")) or _step_mentions_modal(step_text),
                 }
+                if action_type == "input" and action_payload.get("value") is not None:
+                    action_payload["value"] = resolve_sensitive_text(
+                        str(action_payload.get("value") or ""),
+                        sensitive_data,
+                    )
                 result = await _evaluate_json(
                     page,
                     """(payload) => {

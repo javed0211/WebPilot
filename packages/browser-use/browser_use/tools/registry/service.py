@@ -484,6 +484,10 @@ class Registry(Generic[Context]):
 						value = applicable_secrets[placeholder_name]
 					replaced_placeholders.add(placeholder_name)
 
+				# 3. WebPilot-style angle placeholders: <username>, <password>
+				for key, secret_value in applicable_secrets.items():
+					value = value.replace(f'<{key}>', secret_value)
+
 				return value
 			elif isinstance(value, dict):
 				return {k: recursively_replace_secrets(v) for k, v in value.items()}
