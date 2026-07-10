@@ -61,16 +61,29 @@ from .branding import (
     push_branding_status,
 )
 from .testmu import load_testmu_config
-from .prompt_loader import load_framework_rules, load_prompt_with_vars
+from .prompt_loader import load_framework_rules, load_prompt_with_vars, load_discovery_step_rules
 from .knowledge import (
     actions_from_output,
     capability_from_step,
     compact_page_state,
+    complete_microsoft_login_if_needed,
+    ensure_auth_context_ready,
     execute_capability,
     KnowledgeRepository,
     load_knowledge_config,
     try_recipe_step,
+    validate_step_outcome,
 )
+from .credentials import (
+    credential_task_suffix,
+    extract_step_credentials,
+    is_credential_step,
+    merge_sensitive_data,
+    redact_for_logs,
+)
+from .capability_contract import classify_failure, infer_intent, is_replay_allowed, route_failure
+from .intent_resolver import detect_page_type, resolve_step_intent
+from .repair_prompt import build_scoped_task
 
 BDD_PREFIXES = ('given', 'when', 'then', 'and', 'but')
 NUMBERED_STEP_RE = re.compile(r'^\d+\.\s+')
@@ -126,30 +139,40 @@ def build_sensitive_data_context(
 ) -> tuple[str, dict[str, str | dict[str, str]]]:
     """Expose credential placeholders to Browser Use without putting values in the LLM prompt."""
     lowered = task.lower()
-    if 'valid credentials' not in lowered and 'sign in' not in lowered and 'sign-in' not in lowered:
-        return task, {}
-
-    creds = load_environment_credentials(env_name)
-    username = (creds.get('username') or '').strip()
-    password = (creds.get('password') or '').strip()
-    if not username and not password:
-        return task, {}
+    env_creds = load_environment_credentials(env_name) if (
+        'valid credentials' in lowered
+        or 'sign in' in lowered
+        or 'sign-in' in lowered
+        or 'login' in lowered
+        or 'password' in lowered
+    ) else {}
 
     placeholders: dict[str, str] = {}
+    username = (env_creds.get('username') or '').strip()
+    password = (env_creds.get('password') or '').strip()
     if username:
         placeholders['username'] = username
     if password and not _is_unresolved_placeholder(password):
         placeholders['password'] = password
 
+    sanitized_task = task
+    for line in task.splitlines():
+        sanitized_line, inline = extract_step_credentials(line)
+        if inline:
+            placeholders.update(inline)
+            if line in sanitized_task:
+                sanitized_task = sanitized_task.replace(line, sanitized_line, 1)
+
     if not placeholders:
-        return task, {}
+        return redact_for_logs(task), {}
 
     lines = [
         '\n\nFor sign-in steps, use the sensitive-data placeholders exposed by WebPilot.',
+        'Type credentials as <secret>username</secret> and <secret>password</secret>.',
         'Never print, extract, or repeat credential values.',
     ]
     sensitive_data: dict[str, str | dict[str, str]] = placeholders
-    return task + '\n'.join(lines), sensitive_data
+    return redact_for_logs(sanitized_task, placeholders) + '\n'.join(lines), sensitive_data
 
 
 def estimate_cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
@@ -524,6 +547,9 @@ def _judge_enabled_for_step(judge_mode: str, step: str) -> bool:
         return False
     if judge_mode == 'always':
         return True
+    intent = infer_intent(step)
+    if intent in ('authenticate', 'navigate', 'mutate', 'delete'):
+        return True
     return _is_verification_step(step)
 
 
@@ -605,12 +631,28 @@ async def run_intelligent_steps(
     url_sequence: list[str] = []
     learned = 0
     reused = 0
+    recipe_steps = 0
+    discovery_steps = 0
+    repair_steps = 0
+    auth_guard_steps = 0
+    unsafe_skipped = 0
+    quarantined_skipped = 0
+    blocking_unknown_steps: list[int] = []
     scoped_agent = None
     active_capture: list[dict] = []
     active_step_index = 0
     active_step_text = ""
 
     await browser.start()
+    if os.environ.get("WEBPILOT_RESET_AUTH") == "1" or os.environ.get("WEBPILOT_FRESH_CONTEXT") == "1":
+        try:
+            await browser.clear_cookies()
+            page = await browser.must_get_current_page()
+            await page.evaluate("() => { try { localStorage.clear(); sessionStorage.clear(); } catch (e) {} }")
+            label = "WEBPILOT_FRESH_CONTEXT" if os.environ.get("WEBPILOT_FRESH_CONTEXT") == "1" else "WEBPILOT_RESET_AUTH"
+            print(f"[WebPilot] {label}=1 — cleared cookies and web storage for fresh context")
+        except Exception as reset_error:
+            print(f"[WebPilot] Warning: could not reset browser context: {reset_error}")
 
     if len(steps) >= long_scenario_warning:
         if long_scenario_mode == 'auto':
@@ -656,35 +698,112 @@ async def run_intelligent_steps(
                 pass
 
     for step_index, step in enumerate(steps, start=1):
+        sanitized_step, step_sensitive = extract_step_credentials(step)
+        step_sensitive_data = merge_sensitive_data(sensitive_data, step_sensitive)
+        safe_step_label = redact_for_logs(sanitized_step, step_sensitive_data)
+        step_intent = infer_intent(step)
+        current_url = await browser.get_current_page_url()
+
+        if step_intent != "authenticate":
+            auth_ok, auth_reason = await ensure_auth_context_ready(browser)
+            if not auth_ok:
+                auth_guard_steps += 1
+                if knowledge_only:
+                    print(f"[Auth] Blocking step {step_index} in knowledge-only mode: {auth_reason}")
+                    blocking_unknown_steps.append(step_index)
+                    return False, {
+                        "failure": f'Auth interstitial blocked step {step_index}: {auth_reason}',
+                        "executionHistory": execution_history,
+                        "urlSequence": url_sequence,
+                        "reusedSteps": reused,
+                        "learnedSteps": learned,
+                        "knowledgeMetrics": _knowledge_metrics_payload(
+                            len(steps), reused, recipe_steps, discovery_steps, repair_steps,
+                            auth_guard_steps, unsafe_skipped, quarantined_skipped, blocking_unknown_steps,
+                        ),
+                    }, scoped_agent
+                print(f"[Auth] Interstitial before step {step_index}: {auth_reason} — repair/discovery will run")
+
         current_url = await browser.get_current_page_url()
         if not url_sequence or url_sequence[-1] != current_url:
             url_sequence.append(current_url)
 
-        capability = None if force_discovery else knowledge_repo.find_capability(step, current_url)
+        page_state = await compact_page_state(browser)
+        capability = None if force_discovery else knowledge_repo.find_capability(step, current_url, page_state)
+        if capability and not is_replay_allowed(capability):
+            print(f"[Knowledge] Step {step_index}/{len(steps)} skipped unsafe replay (side effect): {safe_step_label}")
+            unsafe_skipped += 1
+            capability = None
+        if capability and capability.get("status") == "quarantined":
+            quarantined_skipped += 1
+            capability = None
+        repair_mode = False
+        repair_failure_class: str | None = None
+        repair_failure_reason = ""
+        failed_capability: dict | None = None
         if capability:
-            print(f"[Knowledge] Step {step_index}/{len(steps)} deterministic: {step}")
+            print(f"[Knowledge] Step {step_index}/{len(steps)} deterministic: {safe_step_label}")
             ok, reason = await execute_capability(browser, capability)
+            if ok and is_credential_step(step):
+                kmsi_ok, kmsi_reason = await complete_microsoft_login_if_needed(browser, step)
+                if not kmsi_ok:
+                    ok = False
+                    reason = kmsi_reason
             if ok:
                 reused += 1
                 knowledge_repo.promote(capability)
                 execution_history.append({
                     "index": len(execution_history) + 1,
                     "action": "knowledge-replay",
-                    "description": step,
+                    "description": safe_step_label,
                     "url": await browser.get_current_page_url(),
                 })
                 continue
             knowledge_repo.record_failure(capability, reason)
-            print(f"[Knowledge] Validation failed; scoped WebPilot repair: {reason}")
+            repair_failure_class = classify_failure(reason)
+            repair_failure_reason = reason
+            failed_capability = capability
+            action = route_failure(repair_failure_class)
+            if action == "auth_advance":
+                from .auth_state import advance_auth_state
 
-        recipe_handled, recipe_ok, recipe_reason = await try_recipe_step(browser, step)
+                auth_ok, auth_reason, auth_state = await advance_auth_state(browser)
+                if auth_ok:
+                    print(f"[Auth] Advanced session ({auth_state}) — retrying step {step_index}")
+                    ok, reason = await execute_capability(browser, capability)
+                    if ok:
+                        reused += 1
+                        knowledge_repo.promote(capability)
+                        execution_history.append({
+                            "index": len(execution_history) + 1,
+                            "action": "knowledge-replay",
+                            "description": safe_step_label,
+                            "url": await browser.get_current_page_url(),
+                        })
+                        continue
+                    knowledge_repo.record_failure(capability, reason)
+                    repair_failure_reason = reason
+                    repair_failure_class = classify_failure(reason)
+            print(f"[Knowledge] Validation failed; scoped WebPilot repair: {reason}")
+            repair_mode = True
+
+        recipe_handled, recipe_ok, recipe_reason = False, False, ""
+        if capability is None or repair_mode:
+            recipe_handled, recipe_ok, recipe_reason = await try_recipe_step(browser, step)
         if recipe_handled and recipe_ok:
-            print(f"[Knowledge] Step {step_index}/{len(steps)} recipe replay: {step}")
+            if is_credential_step(step):
+                kmsi_ok, kmsi_reason = await complete_microsoft_login_if_needed(browser, step)
+                if not kmsi_ok:
+                    recipe_ok = False
+                    recipe_reason = kmsi_reason
+        if recipe_handled and recipe_ok:
+            print(f"[Knowledge] Step {step_index}/{len(steps)} recipe replay: {safe_step_label}")
+            recipe_steps += 1
             reused += 1
             execution_history.append({
                 "index": len(execution_history) + 1,
                 "action": "recipe-replay",
-                "description": step,
+                "description": safe_step_label,
                 "url": await browser.get_current_page_url(),
             })
             continue
@@ -692,28 +811,40 @@ async def run_intelligent_steps(
             print(f"[Knowledge] Recipe replay failed; scoped WebPilot repair: {recipe_reason}")
 
         if knowledge_only:
+            blocking_unknown_steps.append(step_index)
             return False, {
-                "failure": f'No validated knowledge for step {step_index}: {step}',
+                "failure": f'No validated knowledge for step {step_index}: {safe_step_label}',
                 "executionHistory": execution_history,
                 "urlSequence": url_sequence,
                 "reusedSteps": reused,
                 "learnedSteps": learned,
+                "knowledgeMetrics": _knowledge_metrics_payload(
+                    len(steps), reused, recipe_steps, discovery_steps, repair_steps,
+                    auth_guard_steps, unsafe_skipped, quarantined_skipped, blocking_unknown_steps,
+                ),
             }, scoped_agent
 
-        print(f"[Discovery] Step {step_index}/{len(steps)} WebPilot: {step}")
+        if repair_mode:
+            repair_steps += 1
+        else:
+            discovery_steps += 1
+        print(f"[Discovery] Step {step_index}/{len(steps)} WebPilot: {safe_step_label}")
         before = await compact_page_state(browser)
         captured_actions: list[dict] = []
         active_capture = captured_actions
         active_step_index = step_index
-        active_step_text = step
+        active_step_text = safe_step_label
 
-        scoped_task = (
-            f"Execute ONLY this single test step and stop:\n{step}\n\n"
-            "Rules:\n"
-            "- Do not execute any other steps from the scenario.\n"
-            "- Preserve the current browser session state (cookies, cart, form data).\n"
-            "- Call done(success=true) only when this step's observable outcome is satisfied.\n"
-            "- If the UI is ambiguous, prefer the smallest action sequence that completes this step."
+        scoped_task = build_scoped_task(
+            sanitized_step,
+            step,
+            page_state=page_state,
+            credential_suffix=credential_task_suffix(step_sensitive),
+            discovery_rules=load_discovery_step_rules(),
+            repair_mode=repair_mode,
+            failure_class=repair_failure_class,
+            failure_reason=repair_failure_reason,
+            capability=failed_capability,
         )
         step_use_judge = _judge_enabled_for_step(judge_mode, step)
         if fresh_agent_per_step:
@@ -721,10 +852,10 @@ async def run_intelligent_steps(
             scoped_agent = Agent(
                 **_build_scoped_agent_kwargs(
                     scoped_task=scoped_task,
-                    step=step,
+                    step=sanitized_step,
                     llm=llm,
                     browser=browser,
-                    sensitive_data=sensitive_data,
+                    sensitive_data=step_sensitive_data,
                     upload_paths=upload_paths,
                     on_scoped_step=on_scoped_step,
                     resolved_use_vision=resolved_use_vision,
@@ -736,10 +867,10 @@ async def run_intelligent_steps(
             scoped_agent = Agent(
                 **_build_scoped_agent_kwargs(
                     scoped_task=scoped_task,
-                    step=step,
+                    step=sanitized_step,
                     llm=llm,
                     browser=browser,
-                    sensitive_data=sensitive_data,
+                    sensitive_data=step_sensitive_data,
                     upload_paths=upload_paths,
                     on_scoped_step=on_scoped_step,
                     resolved_use_vision=resolved_use_vision,
@@ -748,7 +879,7 @@ async def run_intelligent_steps(
                 )
             )
         else:
-            scoped_agent.settings.ground_truth = step
+            scoped_agent.settings.ground_truth = sanitized_step
             scoped_agent.settings.use_judge = step_use_judge
             scoped_agent.add_new_task(scoped_task)
 
@@ -761,10 +892,10 @@ async def run_intelligent_steps(
             scoped_agent = Agent(
                 **_build_scoped_agent_kwargs(
                     scoped_task=scoped_task,
-                    step=step,
+                    step=sanitized_step,
                     llm=llm,
                     browser=browser,
-                    sensitive_data=sensitive_data,
+                    sensitive_data=step_sensitive_data,
                     upload_paths=upload_paths,
                     on_scoped_step=on_scoped_step,
                     resolved_use_vision=resolved_use_vision,
@@ -788,16 +919,48 @@ async def run_intelligent_steps(
             else estimate_cost_usd(llm_cfg.get('model', ''), delta_prompt, delta_completion)
         )
         llm_usage_totals['llmCalls'] += delta_calls
+
+        if is_credential_step(step):
+            kmsi_ok, kmsi_reason = await complete_microsoft_login_if_needed(browser, step)
+            if not kmsi_ok:
+                blocking_unknown_steps.append(step_index)
+                return False, {
+                    "failure": f'Login incomplete after step {step_index}: {kmsi_reason}',
+                    "executionHistory": execution_history,
+                    "urlSequence": url_sequence,
+                    "reusedSteps": reused,
+                    "learnedSteps": learned,
+                    "knowledgeMetrics": _knowledge_metrics_payload(
+                        len(steps), reused, recipe_steps, discovery_steps, repair_steps,
+                        auth_guard_steps, unsafe_skipped, quarantined_skipped, blocking_unknown_steps,
+                    ),
+                }, scoped_agent
+
+        after = await compact_page_state(browser)
+        outcome_ok, outcome_reason = await validate_step_outcome(
+            browser, step, before, after, captured_actions
+        )
+        if step_ok and not outcome_ok:
+            print(f"[Validation] Step {step_index} agent reported success but outcome check failed: {outcome_reason}")
+            step_ok = False
+
         if not step_ok:
+            blocking_unknown_steps.append(step_index)
             return False, {
-                "failure": f'WebPilot could not complete step {step_index}: {step}',
+                "failure": (
+                    f'WebPilot could not complete step {step_index}: {safe_step_label}'
+                    + (f' ({outcome_reason})' if outcome_reason else '')
+                ),
                 "executionHistory": execution_history,
                 "urlSequence": url_sequence,
                 "reusedSteps": reused,
                 "learnedSteps": learned,
+                "knowledgeMetrics": _knowledge_metrics_payload(
+                    len(steps), reused, recipe_steps, discovery_steps, repair_steps,
+                    auth_guard_steps, unsafe_skipped, quarantined_skipped, blocking_unknown_steps,
+                ),
             }, scoped_agent
 
-        after = await compact_page_state(browser)
         capability = capability_from_step(step, before, after, captured_actions)
         if capability:
             knowledge_repo.promote(capability)
@@ -807,16 +970,16 @@ async def run_intelligent_steps(
                 "index": len(execution_history) + 1,
                 "action": action.get("type", "browser-use"),
                 "selector": json.dumps(action.get("locators")) if action.get("locators") else None,
-                "value": action.get("value"),
+                "value": redact_for_logs(str(action.get("value") or ""), step_sensitive_data) or None,
                 "url": action.get("url") or after.get("url"),
-                "description": step,
+                "description": safe_step_label,
             })
         if not captured_actions:
             execution_history.append({
                 "index": len(execution_history) + 1,
                 "action": "browser-use-assertion",
                 "url": after.get("url"),
-                "description": step,
+                "description": safe_step_label,
             })
 
         current_url = after.get("url", "")
@@ -832,7 +995,10 @@ async def run_intelligent_steps(
             "insights": [{
                 "type": "intelligent_runner",
                 "required": True,
-                "message": f"Reused {reused} validated steps and learned {learned} steps with scoped WebPilot discovery.",
+                "message": (
+                    f"Reused {reused} validated steps, {recipe_steps} recipe(s), "
+                    f"{discovery_steps} discovery, {repair_steps} repair; learned {learned}."
+                ),
             }],
         },
         "urlSequence": url_sequence,
@@ -844,8 +1010,40 @@ async def run_intelligent_steps(
         "fullHistoryDump": {},
         "reusedSteps": reused,
         "learnedSteps": learned,
+        "knowledgeMetrics": _knowledge_metrics_payload(
+            len(steps), reused, recipe_steps, discovery_steps, repair_steps,
+            auth_guard_steps, unsafe_skipped, quarantined_skipped, blocking_unknown_steps,
+        ),
     }
     return True, context, scoped_agent
+
+
+def _knowledge_metrics_payload(
+    total_steps: int,
+    reused: int,
+    recipe_steps: int,
+    discovery_steps: int,
+    repair_steps: int,
+    auth_guard_steps: int,
+    unsafe_skipped: int,
+    quarantined_skipped: int,
+    blocking_unknown_steps: list[int],
+) -> dict:
+    known = reused
+    coverage = round((known / total_steps) * 100, 1) if total_steps else 0.0
+    return {
+        "totalSteps": total_steps,
+        "reusedSteps": reused,
+        "recipeSteps": recipe_steps,
+        "discoverySteps": discovery_steps,
+        "repairSteps": repair_steps,
+        "authGuardSteps": auth_guard_steps,
+        "unsafeSkipped": unsafe_skipped,
+        "quarantinedSkipped": quarantined_skipped,
+        "blockingUnknownSteps": blocking_unknown_steps,
+        "knowledgeCoverage": f"{coverage}%",
+        "fullReplayEligible": len(blocking_unknown_steps) == 0 and discovery_steps == 0 and repair_steps == 0,
+    }
 
 
 def load_browser_artifact_config():
@@ -1125,8 +1323,11 @@ async def main():
     base_file_name = os.path.splitext(os.path.basename(test_file_path))[0]
     print(f"Parsed test name: {test_name}")
     print(f"Loaded steps:")
+    all_sensitive: dict[str, str] = {}
     for step in steps:
-        print(f"  - {step}")
+        sanitized, inline = extract_step_credentials(step)
+        all_sensitive.update(inline)
+        print(f"  - {redact_for_logs(sanitized, merge_sensitive_data(all_sensitive))}")
         
     provider = get_active_provider()
     try:
@@ -1225,6 +1426,16 @@ async def main():
             print("Runtime insights for codegen:")
             for ins in runtime_insights['insights']:
                 print(f"  - {ins.get('type')}: {ins.get('message', '')[:120]}")
+        metrics = execution_context.get('knowledgeMetrics') or {}
+        if metrics:
+            print(
+                f"[Knowledge] Coverage {metrics.get('knowledgeCoverage', '?')} — "
+                f"reused={metrics.get('reusedSteps', 0)} recipe={metrics.get('recipeSteps', 0)} "
+                f"discovery={metrics.get('discoverySteps', 0)} repair={metrics.get('repairSteps', 0)} "
+                f"learned={execution_context.get('learnedSteps', 0)}"
+            )
+            if metrics.get('blockingUnknownSteps'):
+                print(f"[Knowledge] Blocking steps: {metrics.get('blockingUnknownSteps')}")
         
         symbol_graph_context = "None"
         symbol_graph_path = TEST_FRAMEWORK_ROOT / 'symbol_graph.json'
@@ -1391,7 +1602,7 @@ async def main():
                 "completionTokens": llm_usage_totals['completionTokens'],
                 "estimatedCostUsd": round(llm_usage_totals['estimatedCostUsd'], 6),
                 "llmCalls": llm_usage_totals['llmCalls'],
-                "knowledge": {
+                "knowledge": execution_context.get('knowledgeMetrics') or {
                     "reusedSteps": reused_steps,
                     "learnedSteps": learned_steps,
                 },

@@ -147,6 +147,79 @@ WEBPILOT_FLASH_MODE=0
 
 ---
 
+## Capability contract (schema v4)
+
+Learned capabilities now include generic **intent**, **preconditions**, **postconditions**, and **safety** metadata — not only recorded clicks.
+
+| Field | Purpose |
+|-------|---------|
+| `intent` | `navigate`, `authenticate`, `interact`, `mutate`, `verify`, … |
+| `preconditions` | URL pattern, anchors — must match before replay |
+| `postconditions` | URL regex, forbidden auth origins, `notAllowedAnchors` (e.g. "Stay signed in") |
+| `safety.safeToReplay` | `false` for submit/create/delete — forces discovery instead of blind replay |
+| `quality.failureClass` | `auth_required`, `locator_not_found`, `postcondition_failed`, … |
+
+Promotion requires **runner-owned postcondition validation**, not only browser-use `done(success=true)`.
+
+### Intent resolution and page type (v3)
+
+Each capability stores:
+
+| Field | Purpose |
+|-------|---------|
+| `intentDescriptor.action` | Normalized action (`authenticate`, `switch_application`, `click`, `navigate`, …) |
+| `pageType` | Current page class (`auth_interstitial`, `app_shell`, `entity_list`, `app_switcher`, …) |
+| `preconditions.pageType` | Replay gate — mismatched page type lowers match score |
+| `lastValidatedAt` | Stale skip when older than `WEBPILOT_KNOWLEDGE_TTL_DAYS` |
+
+Lookup ranks capabilities by **step signature + URL pattern + intent/pageType score** (not step text alone).
+
+**Judge** runs on verify steps **and** `authenticate` / `navigate` / `mutate` / `delete` intents (not only bare “verify page” steps).
+
+**System recipes** (no LLM): Microsoft login, booking flows, and a generic **app launcher / waffle** handler for CRM shells.
+
+### Auth state machine + trust (Phase 3)
+
+Before non-login steps, WebPilot runs a generic **auth state machine**:
+
+```text
+unauthenticated → Microsoft username/password → MFA → Stay signed in → app picker → app shell
+```
+
+States are detected from URL + body (not step text). The runner advances through interstitials via recipes before business steps or repair.
+
+**Trust scoring** upgrades capabilities only when:
+
+- Multiple successes, and
+- At least one success after `WEBPILOT_FRESH_CONTEXT=1` or `WEBPILOT_RESET_AUTH=1`, or confidence ≥ 0.7
+
+Capabilities invalidated when step text changes (`stepSignature` drift).
+
+**Cross-scenario merge** (`WEBPILOT_CROSS_SCENARIO=1`, default on): global scope also searches `runtime/site-knowledge/scenarios/*.json` for the same origin, and promotes into `pages/<origin>.json`.
+
+**Repair prompts** include failure class, postcondition gaps, and locator hints when replay fails.
+
+Postcondition DSL fields: `requiredText`, `urlContains`, `forbiddenText`, `pageType`, `urlRegex`, `forbiddenOrigins`.
+
+### Inspect knowledge before a run
+
+```bash
+webpilot knowledge-status tests/web/CRM.txt
+webpilot knowledge-status tests/web/CRM.txt --json
+```
+
+### Stricter knowledge-only proof
+
+```bash
+# Fresh cookies — proves login knowledge, not cached session
+WEBPILOT_RESET_AUTH=1 WEBPILOT_KNOWLEDGE_ONLY=1 webpilot run tests/web/CRM.txt --env qa
+
+# Full storage wipe (cookies + localStorage) for strict isolation
+WEBPILOT_FRESH_CONTEXT=1 webpilot run tests/web/CRM.txt --env qa
+```
+
+---
+
 ## CLI modes
 
 | Flag / env | Behavior |
@@ -154,6 +227,12 @@ WEBPILOT_FLASH_MODE=0
 | Default | Knowledge → recipes → browser-use for gaps |
 | `--knowledge-only` / `WEBPILOT_KNOWLEDGE_ONLY=1` | Never call browser-use; fail on unknown steps |
 | `--force-discovery` / `WEBPILOT_DISABLE_SITE_KNOWLEDGE=1` | Skip knowledge; always discover |
+| `webpilot knowledge-status <test.txt>` | Per-step learned / missing / quarantined / stale / unsafe |
+| `WEBPILOT_RESET_AUTH=1` | Clear cookies before run (stricter auth replay proof) |
+| `WEBPILOT_FRESH_CONTEXT=1` | Clear cookies **and** `localStorage` / `sessionStorage` (full fresh session) |
+| `WEBPILOT_KNOWLEDGE_TTL_DAYS` | Skip capabilities older than N days (default `30`; `0` = disable) |
+| `WEBPILOT_CROSS_SCENARIO` | `1` (default) = global scope also searches scenario stores for same origin |
+| `WEBPILOT_DATA_SET` | Tag trust scoring with a data variant (e.g. `variant_2`) |
 
 ### Example: proven zero-LLM replay
 

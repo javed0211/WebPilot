@@ -2591,6 +2591,46 @@ program
   });
 
 /**
+ * COMMAND: knowledge-status
+ */
+program
+  .command('knowledge-status <testFile>')
+  .description('Show per-step learned capability status for a natural-language test file')
+  .option('--json', 'Emit machine-readable JSON')
+  .action((testFile: string, options: { json?: boolean }) => {
+    const { execSync } = require('child_process');
+    const py = require('../integrations/browser_use/PythonRuntime').resolvePythonPath();
+    const installRoot = findCliInstallRoot();
+    const absTest = path.isAbsolute(testFile) ? testFile : path.join(process.cwd(), testFile);
+    if (!fs.existsSync(absTest)) {
+      console.error(chalk.red(`Test file not found: ${absTest}`));
+      process.exit(1);
+    }
+    const jsonFlag = options.json ? ' --json' : '';
+    try {
+      const out = execSync(
+        `"${py}" -m integrations.browser_use.knowledge_status status "${absTest}"${jsonFlag}`,
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PYTHONPATH: [
+              path.join(installRoot, 'packages', 'browser-use'),
+              path.join(installRoot, 'src'),
+            ].join(path.delimiter),
+          },
+        }
+      );
+      console.log(out.trimEnd());
+    } catch (e: any) {
+      const msg = (e.stdout || e.stderr || e.message || '').toString();
+      console.error(chalk.red(msg.trim()));
+      process.exit(1);
+    }
+  });
+
+/**
  * COMMAND: self-heal
  */
 program

@@ -38,3 +38,7 @@ def load_framework_rules() -> str:
         load_prompt('shared/automationexercise-catalog.md'),
     ]
     return '\n'.join(parts)
+
+
+def load_discovery_step_rules() -> str:
+    return load_prompt('browser-use/discovery-step.md')

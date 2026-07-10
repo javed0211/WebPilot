@@ -16,6 +16,7 @@ Complete reference for WebPilot CLI commands, flags, and environment variables.
 | `webpilot generate` | Codegen from saved execution trace |
 | `webpilot report` | HTML/JSON reports and terminal dashboard |
 | `webpilot analyze` | Markdown roll-up / flake analysis |
+| `webpilot knowledge-status` | Per-step site knowledge maturity for a `.txt` test |
 | `webpilot self-heal` | Selector healing proposals and apply |
 | `webpilot graph` | Build repository knowledge graph |
 | `webpilot create` | Create test from template |
@@ -137,6 +138,17 @@ See [Multi-Language Codegen](./multi-language-codegen.md).
 
 ---
 
+## `webpilot knowledge-status`
+
+```bash
+webpilot knowledge-status tests/web/CRM.txt
+webpilot knowledge-status tests/web/CRM.txt --json
+```
+
+Shows per-step: `missing` | `candidate` | `trusted` | `quarantined` | `unsafe-no-replay`, intent, success/failure counts, and whether the file is eligible for full knowledge-only replay.
+
+---
+
 ## `webpilot self-heal`
 
 ```bash
@@ -194,6 +206,11 @@ webpilot ci run       # CI wrapper for webpilot run
 | Variable | Purpose |
 |----------|---------|
 | `WEBPILOT_KNOWLEDGE_ONLY` | `1` = knowledge-only replay |
+| `WEBPILOT_RESET_AUTH` | `1` = clear cookies before run (fresh login proof) |
+| `WEBPILOT_FRESH_CONTEXT` | `1` = clear cookies + web storage (full fresh session) |
+| `WEBPILOT_KNOWLEDGE_TTL_DAYS` | Skip stale capabilities after N days (default `30`) |
+| `WEBPILOT_CROSS_SCENARIO` | `1` (default) = merge lookup from scenario stores in global scope |
+| `WEBPILOT_DATA_SET` | Tag trust scoring with a data variant label |
 | `WEBPILOT_DISABLE_SITE_KNOWLEDGE` | `1` = force discovery |
 | `WEBPILOT_JUDGE_MODE` | `verification`, `always`, `off` |
 | `WEBPILOT_FLASH_MODE` | `1` = fast low-quality mode |

@@ -10,6 +10,30 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from .capability_contract import (
+    SCHEMA_VERSION,
+    classify_failure,
+    enrich_capability,
+    infer_intent,
+    is_replay_allowed,
+    looks_like_auth_interstitial,
+    migrate_legacy_capability,
+    resolve_validation_contract,
+    route_failure,
+    should_quarantine,
+    validate_contract,
+)
+from .intent_resolver import (
+    attach_intent_descriptor,
+    build_capability_identity,
+    capability_id_from_identity,
+    capability_match_score,
+    detect_page_type,
+    resolve_step_intent,
+)
+from .credentials import is_credential_step
+from .trust_scoring import invalidate_if_step_changed, record_promotion_trust
+from .system_recipes import try_app_switcher_recipe
 from .paths import CONFIG_ROOT, PROJECT_ROOT
 
 KNOWLEDGE_ROOT = PROJECT_ROOT / "runtime" / "site-knowledge"
@@ -19,7 +43,24 @@ SCENARIOS_DIR = KNOWLEDGE_ROOT / "scenarios"
 PAGES_DIR = KNOWLEDGE_ROOT / "pages"
 SELECTOR_REGISTRY_PATH = PROJECT_ROOT / "runtime" / "selectors" / "registry.json"
 
-CONSENT_TERMS = ("consent", "cookie", "privacy", "accept", "agree")
+KNOWLEDGE_TTL_DAYS = int(os.environ.get("WEBPILOT_KNOWLEDGE_TTL_DAYS", "30") or "30")
+
+# Microsoft Entra / Azure AD login hosts — URL paths change between runs (kmsi, oauth, etc.).
+AUTH_RELAXED_ORIGINS = frozenset({
+    "login.microsoftonline.com",
+    "login.live.com",
+    "login.microsoft.com",
+    "account.live.com",
+})
+
+_LOCATOR_KIND_PRIORITY = {
+    "role": 0,
+    "label": 1,
+    "placeholder": 2,
+    "testid": 3,
+    "text": 4,
+    "css": 5,
+}
 
 
 def step_signature(step: str) -> str:
@@ -31,6 +72,18 @@ def url_pattern(url: str) -> str:
     if parsed.scheme in ("http", "https"):
         return f"{parsed.scheme}://{parsed.netloc}{parsed.path or '/'}"
     return url or "about:blank"
+
+
+def _url_pattern_matches(stored_pattern: str, current_url: str) -> bool:
+    """Match learned preconditions; relax path for auth hosts whose routes vary per session."""
+    current_pattern = url_pattern(current_url)
+    if stored_pattern == current_pattern:
+        return True
+    stored_origin = origin_for_url(stored_pattern if "://" in stored_pattern else f"https://{stored_pattern}")
+    current_origin = origin_for_url(current_url)
+    if stored_origin in AUTH_RELAXED_ORIGINS and stored_origin == current_origin:
+        return True
+    return False
 
 
 def origin_for_url(url: str) -> str:
@@ -200,6 +253,7 @@ def _write_store_file(path: Path, data: dict[str, Any]) -> None:
 
 def _promote_in_store(data: dict[str, Any], capability: dict[str, Any]) -> None:
     capabilities = data.setdefault("capabilities", [])
+    capability = invalidate_if_step_changed(capability, capability.get("step", ""))
     capability_id = capability["id"]
     existing = next((item for item in capabilities if item.get("id") == capability_id), None)
     if existing:
@@ -208,14 +262,19 @@ def _promote_in_store(data: dict[str, Any], capability: dict[str, Any]) -> None:
     else:
         capability["successCount"] = 1
         capabilities.append(capability)
-    capability["status"] = "trusted" if capability["successCount"] >= 2 else "candidate"
-    capability["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    record_promotion_trust(capability)
+    capability["lastValidatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    capability["updatedAt"] = capability["lastValidatedAt"]
 
 
 def _record_failure_in_store(data: dict[str, Any], capability: dict[str, Any], reason: str) -> None:
+    failure_class = classify_failure(reason)
     capability["failureCount"] = int(capability.get("failureCount", 0)) + 1
     capability["lastFailure"] = reason[:1000]
-    if capability["failureCount"] >= 2:
+    quality = capability.setdefault("quality", {})
+    quality["failureClass"] = failure_class
+    quality["lastFailureReason"] = reason[:1000]
+    if should_quarantine(failure_class, capability["failureCount"]):
         capability["status"] = "quarantined"
     capability["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     capabilities = data.setdefault("capabilities", [])
@@ -310,14 +369,26 @@ class KnowledgeRepository:
         store["origin"] = origin
         return path, store
 
-    def find_capability(self, step: str, current_url: str) -> dict[str, Any] | None:
-        for data in self._lookup_stores(current_url):
-            found = find_capability(data, step, current_url)
+    def find_capability(
+        self,
+        step: str,
+        current_url: str,
+        page_state: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        from .knowledge_merge import find_with_cross_scenario_fallback
+
+        stores = self._lookup_stores(current_url)
+        if self.scope == "global" and self.storage == "partitioned":
+            return find_with_cross_scenario_fallback(stores, step, current_url, page_state)
+        for data in stores:
+            found = find_capability(data, step, current_url, page_state)
             if found:
                 return found
         return None
 
     def promote(self, capability: dict[str, Any]) -> None:
+        from .knowledge_merge import merge_capability_into_page_store
+
         if self.storage != "partitioned":
             data = load_knowledge()
             _promote_in_store(data, capability)
@@ -326,6 +397,15 @@ class KnowledgeRepository:
         path, data = self._writable_store(capability)
         _promote_in_store(data, capability)
         _write_store_file(path, data)
+        if self.scope == "global":
+            origin = capability.get("origin") or origin_for_url(
+                (capability.get("before") or {}).get("urlPattern", "")
+            )
+            page_path = self._page_path(origin)
+            page_store = self._load_partitioned_store(page_path, "page")
+            page_store["origin"] = origin
+            if merge_capability_into_page_store(page_store, capability):
+                _write_store_file(page_path, page_store)
 
     def record_failure(self, capability: dict[str, Any], reason: str) -> None:
         if self.storage != "partitioned":
@@ -357,19 +437,49 @@ def save_knowledge(data: dict[str, Any]) -> None:
         json.dump(data, handle, indent=2)
 
 
-def find_capability(data: dict[str, Any], step: str, current_url: str) -> dict[str, Any] | None:
+def _capability_stale(capability: dict[str, Any]) -> bool:
+    if KNOWLEDGE_TTL_DAYS <= 0:
+        return False
+    stamp = capability.get("lastValidatedAt") or capability.get("updatedAt")
+    if not stamp:
+        return False
+    try:
+        validated = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+        if validated.tzinfo is None:
+            validated = validated.replace(tzinfo=datetime.timezone.utc)
+        age = datetime.datetime.now(datetime.timezone.utc) - validated
+        return age.days > KNOWLEDGE_TTL_DAYS
+    except Exception:
+        return False
+
+
+def find_capability(
+    data: dict[str, Any],
+    step: str,
+    current_url: str,
+    page_state: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     signature = step_signature(step)
     current_pattern = url_pattern(current_url)
+    page_state = page_state or {"url": current_url, "urlPattern": current_pattern, "bodyText": ""}
     candidates = [
         item
         for item in data.get("capabilities", [])
         if item.get("stepSignature") == signature
         and item.get("status") != "quarantined"
-        and item.get("before", {}).get("urlPattern") == current_pattern
+        and not _capability_stale(item)
+        and _url_pattern_matches(item.get("before", {}).get("urlPattern", ""), current_url)
     ]
-    candidates.sort(key=lambda item: (item.get("successCount", 0), item.get("updatedAt", "")), reverse=True)
     if candidates:
-        return candidates[0]
+        ranked = sorted(
+            candidates,
+            key=lambda item: capability_match_score(migrate_legacy_capability(item), step, page_state),
+            reverse=True,
+        )
+        best = migrate_legacy_capability(ranked[0])
+        if capability_match_score(best, step, page_state) < 0:
+            return None
+        return best
     if _is_verification_step(step):
         # Assertion-only replay: if the page fingerprint is stable enough, avoid an
         # LLM call for repeated "verify page visible" checks.
@@ -407,26 +517,57 @@ def _locator_candidates(node: Any) -> list[dict[str, str]]:
         text = _clean_accessible_text(node.get_meaningful_text_for_llm())
     except Exception:
         text = ""
-    if tag == "a" and text:
-        candidates.append({"kind": "role", "value": "link", "name": text})
-    if tag == "button" and text:
-        candidates.append({"kind": "role", "value": "button", "name": text})
+    input_type = (attrs.get("type") or "").lower()
+    submit_value = (attrs.get("value") or "").strip()
+    accessible_name = attrs.get("aria-label") or attrs.get("ax_name") or text or submit_value
+
+    if tag == "a" and accessible_name:
+        candidates.append({"kind": "role", "value": "link", "name": accessible_name})
+    if tag == "button" and accessible_name:
+        candidates.append({"kind": "role", "value": "button", "name": accessible_name})
+    if tag == "input" and input_type in ("submit", "button") and accessible_name:
+        candidates.append({"kind": "role", "value": "button", "name": accessible_name})
+    role = attrs.get("role")
+    if role and accessible_name:
+        candidates.append({"kind": "role", "value": role, "name": accessible_name})
+    placeholder = attrs.get("placeholder")
+    if placeholder:
+        candidates.append({"kind": "placeholder", "value": placeholder})
+    for test_attr in ("data-testid", "data-test", "data-cy"):
+        value = attrs.get(test_attr)
+        if value:
+            candidates.append({"kind": "testid", "value": value})
     href = attrs.get("href")
     if tag == "a" and href:
         candidates.append({"kind": "css", "value": f'a[href="{href}"]'})
         if href.startswith("/"):
             candidates.append({"kind": "css", "value": f'a[href*="{href}"]'})
-    for attr in ("data-testid", "data-test", "data-cy", "id", "name", "aria-label", "placeholder"):
+    for attr in ("id", "name", "aria-label"):
         value = attrs.get(attr)
         if value:
             candidates.append({"kind": "css", "value": f'{tag}[{attr}="{value}"]'})
-    role = attrs.get("role")
-    accessible_name = attrs.get("aria-label") or attrs.get("ax_name")
-    if role and accessible_name:
-        candidates.append({"kind": "role", "value": role, "name": accessible_name})
     if text and len(text) <= 120:
         candidates.append({"kind": "text", "value": text, "tag": tag})
-    return candidates[:5]
+
+    seen: set[tuple[str, str, str]] = set()
+    unique: list[dict[str, str]] = []
+    for candidate in sorted(
+        candidates,
+        key=lambda item: (
+            _LOCATOR_KIND_PRIORITY.get(item.get("kind", "css"), 99),
+            len(item.get("name", item.get("value", ""))),
+        ),
+    ):
+        key = (
+            candidate.get("kind", ""),
+            candidate.get("value", candidate.get("name", "")),
+            candidate.get("name", ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(candidate)
+    return unique[:6]
 
 
 def _step_mentions_modal(step: str) -> bool:
@@ -514,7 +655,8 @@ async def compact_page_state(browser_session: Any) -> dict[str, Any]:
             if (text && text.length <= 160) evidence.push({tag: el.tagName.toLowerCase(), text});
             if (evidence.length >= 30) break;
           }
-          return JSON.stringify({url: location.href, title: document.title, anchors, evidence});
+          return JSON.stringify({url: location.href, title: document.title, anchors, evidence,
+            bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 5000)});
         }"""
     )
     state = json.loads(raw)
@@ -552,11 +694,13 @@ def capability_from_step(
         if len(required_evidence) < minimum_evidence:
             return None
     signature = step_signature(step)
-    identity = f"{signature}|{before.get('urlPattern')}|{after.get('urlPattern')}"
+    page_type = detect_page_type(before)
+    identity = build_capability_identity(step, before, after, page_type)
     if _step_mentions_modal(step) and not any(action.get("type") == "wait_for_modal" for action in actionable):
         actionable = [{"type": "wait_for_modal", "seconds": 5}, *actionable]
-    return {
-        "id": hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20],
+    capability = enrich_capability(
+        {
+        "id": capability_id_from_identity(identity),
         "step": step,
         "stepSignature": signature,
         "origin": origin_for_url(after.get("url") or before.get("url") or ""),
@@ -571,7 +715,12 @@ def capability_from_step(
             "evidence": required_evidence,
         },
         "failureCount": 0,
-    }
+        },
+        step=step,
+        before=before,
+        after=after,
+    )
+    return attach_intent_descriptor(capability, step, before)
 
 
 async def _evaluate_json(page: Any, function: str, arg: Any) -> Any:
@@ -580,54 +729,80 @@ async def _evaluate_json(page: Any, function: str, arg: Any) -> Any:
 
 
 async def fingerprint_matches(browser_session: Any, fingerprint: dict[str, Any]) -> bool:
+    """Legacy binary fingerprint check — prefer validate_capability_phase."""
     current = await compact_page_state(browser_session)
-    if current.get("urlPattern") != fingerprint.get("urlPattern"):
+    if fingerprint.get("urlPattern") and not _url_pattern_matches(
+        fingerprint.get("urlPattern", ""), current.get("url", "")
+    ):
         return False
-    anchors = [anchor for anchor in (fingerprint.get("anchors") or []) if not _is_consent_anchor(anchor)]
-    evidence = fingerprint.get("evidence") or []
-    if not anchors and not evidence:
-        return True
     page = await browser_session.must_get_current_page()
-    result = await _evaluate_json(
+    contract = contract_from_legacy_fingerprint(fingerprint)
+    ok, _, _, _ = await validate_contract(page, contract, phase="pre", min_confidence=0.55)
+    return ok
+
+
+def contract_from_legacy_fingerprint(fingerprint: dict[str, Any]) -> dict[str, Any]:
+    from .capability_contract import contract_from_legacy_fingerprint as _convert
+
+    return _convert(fingerprint)
+
+
+async def validate_capability_phase(
+    browser_session: Any,
+    capability: dict[str, Any],
+    phase: str,
+) -> tuple[bool, str, str | None]:
+    capability = migrate_legacy_capability(capability)
+    page = await browser_session.must_get_current_page()
+    current = await compact_page_state(browser_session)
+    contract = resolve_validation_contract(capability, "pre" if phase == "pre" else "post")
+    expected_page_type = contract.get("pageType") or capability.get("pageType")
+    if expected_page_type:
+        from .intent_resolver import detect_page_type
+
+        actual_page_type = detect_page_type(current)
+        if actual_page_type != expected_page_type and phase == "pre":
+            reason = f"pageType mismatch: expected {expected_page_type}, got {actual_page_type}"
+            return False, reason, classify_failure(reason)
+    if phase == "pre" and contract.get("urlPattern"):
+        if not _url_pattern_matches(contract.get("urlPattern", ""), current.get("url", "")):
+            reason = "current page fingerprint does not match learned precondition"
+            return False, reason, classify_failure(reason)
+    intent = capability.get("intent") or infer_intent(capability.get("step", ""))
+    min_confidence = 0.55 if capability.get("schemaVersion", 2) < SCHEMA_VERSION else 0.65
+    if intent in ("interact", "input", "generic"):
+        min_confidence = 0.5
+    if intent == "verify":
+        min_confidence = 0.6
+    ok, _confidence, reason, failure_class = await validate_contract(
         page,
-        """(payload) => {
-          const visible = (el) => {
-            const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
-            return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
-          };
-          let matched = 0;
-          for (const anchor of payload.anchors || []) {
-            const attrs = Object.entries(anchor.attrs || {}).map(([k,v]) => `[${k}="${CSS.escape(v)}"]`).join('');
-            const found = [...document.querySelectorAll(`${anchor.tag}${attrs}`)].some(visible);
-            if (found) matched++;
-          }
-          let evidenceMatched = 0;
-          for (const item of payload.evidence || []) {
-            const found = [...document.querySelectorAll(item.tag || '*')].some(el =>
-              visible(el) && (el.getAttribute('alt') || el.getAttribute('aria-label') ||
-                el.getAttribute('placeholder') || el.textContent || '').trim().replace(/\\s+/g,' ') === item.text
-            );
-            if (found) evidenceMatched++;
-          }
-          return JSON.stringify({
-            matched,
-            total: (payload.anchors || []).length,
-            evidenceMatched,
-            evidenceTotal: (payload.evidence || []).length,
-            bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 5000)
-          });
-        }""",
-        {"anchors": anchors, "evidence": evidence},
+        contract,
+        phase="pre" if phase == "pre" else "post",
+        min_confidence=min_confidence,
     )
-    anchors_ok = result["total"] == 0 or result["matched"] >= min(2, result["total"])
-    evidence_ok = result["evidenceTotal"] == 0 or result["evidenceMatched"] == result["evidenceTotal"]
-    expected_url = fingerprint.get("urlPattern", "")
-    if not evidence_ok and "view_cart" in expected_url:
-        body_text = (result.get("bodyText") or "").lower()
-        evidence_ok = "cart is empty" not in body_text and (
-            "shopping cart" in body_text or "blue top" in body_text or "product image" in body_text
-        )
-    return anchors_ok and evidence_ok
+    return ok, reason, failure_class
+
+
+async def ensure_auth_context_ready(browser_session: Any) -> tuple[bool, str]:
+    """Clear generic auth interstitials before business steps (auth state machine)."""
+    from .auth_state import ensure_session_ready
+
+    return await ensure_session_ready(browser_session, compact_page_state=compact_page_state)
+
+
+async def validate_step_outcome(
+    browser_session: Any,
+    step: str,
+    before: dict[str, Any],
+    after: dict[str, Any],
+    actions: list[dict[str, Any]],
+) -> tuple[bool, str]:
+    """Runner-owned business outcome check before saving a learned capability."""
+    capability = capability_from_step(step, before, after, actions)
+    if not capability:
+        return True, ""
+    ok, reason, _ = await validate_capability_phase(browser_session, capability, "post")
+    return ok, reason
 
 
 async def dismiss_cookie_consent_if_present(browser_session: Any) -> None:
@@ -682,6 +857,141 @@ async def assert_visible_page(browser_session: Any) -> tuple[bool, str]:
         return (True, "") if result.get("ok") else (False, result.get("error", "page is not visibly loaded"))
     except Exception as exc:
         return False, str(exc)
+
+
+_MICROSOFT_KMSI_CLICK_JS = """(payload) => {
+  const visible = (el) => {
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+  };
+  const normalize = (s) => (s || '').replace(/\\s+/g, ' ').trim();
+  const nameMatches = (el, target) => {
+    const label = normalize(el.getAttribute('aria-label') || el.value || el.textContent || '');
+    const wanted = normalize(target || '');
+    if (!wanted) return false;
+    return label.toLowerCase() === wanted.toLowerCase() || label.toLowerCase().includes(wanted.toLowerCase());
+  };
+  const bodyText = normalize(document.body?.innerText || '').toLowerCase();
+  const onKmsi = bodyText.includes('stay signed in');
+  if (!onKmsi && !payload.force) return false;
+  const wanted = payload.buttonName || 'Yes';
+  const selectors = payload.buttonName === 'No'
+    ? ['#idBtn_Back', 'input[type="submit"][value="No"]']
+    : ['#idSIButton9', 'input[type="submit"][value="Yes"]'];
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    if (el && visible(el)) {
+      el.click();
+      return true;
+    }
+  }
+  const controls = [...document.querySelectorAll('button, input[type="submit"], input[type="button"], [role="button"]')]
+    .filter(visible);
+  const match = controls.find((el) => nameMatches(el, wanted));
+  if (match) {
+    match.click();
+    return true;
+  }
+  return false;
+}"""
+
+
+def _is_microsoft_auth_url(url: str) -> bool:
+    return origin_for_url(url) in AUTH_RELAXED_ORIGINS
+
+
+def _step_requests_stay_signed_in_choice(step: str, choice: str) -> bool:
+    lowered = step.lower()
+    if choice.lower() == "yes":
+        return bool(
+            re.search(r"\bclick\b.*\byes\b", lowered)
+            or re.search(r"\byes\b", lowered) and "stay signed" in lowered
+            or re.search(r"\bconfirm\b", lowered) and "stay signed" in lowered
+            or re.search(r"\bcontinue\b", lowered) and "stay signed" in lowered
+        )
+    return bool(re.search(r"\bclick\b.*\bno\b", lowered) and "stay signed" in lowered)
+
+
+async def try_microsoft_login_recipe(
+    browser_session: Any,
+    step: str,
+    action_type: str,
+) -> tuple[bool, bool, str]:
+    """Replay Microsoft Entra login interstitials (Stay signed in?, Sign in, etc.)."""
+    current_url = await browser_session.get_current_page_url()
+    if not _is_microsoft_auth_url(current_url):
+        return False, False, ""
+    if action_type != "click":
+        return False, False, ""
+
+    page = await browser_session.must_get_current_page()
+    lowered = step.lower()
+    try:
+        if _step_requests_stay_signed_in_choice(step, "yes") or (
+            re.search(r"\b(yes|confirm|continue)\b", lowered)
+            and not re.search(r"\bno\b", lowered)
+        ):
+            on_kmsi = await page.evaluate(
+                """() => (document.body?.innerText || '').toLowerCase().includes('stay signed in')"""
+            )
+            if on_kmsi or _step_requests_stay_signed_in_choice(step, "yes"):
+                ok = await page.evaluate(
+                    _MICROSOFT_KMSI_CLICK_JS,
+                    {"buttonName": "Yes", "force": _step_requests_stay_signed_in_choice(step, "yes")},
+                )
+                import asyncio
+                await asyncio.sleep(1.0)
+                return True, bool(ok), "" if ok else "Microsoft Stay signed in Yes button not found"
+        if _step_requests_stay_signed_in_choice(step, "no"):
+            ok = await page.evaluate(_MICROSOFT_KMSI_CLICK_JS, {"buttonName": "No", "force": True})
+            import asyncio
+            await asyncio.sleep(1.0)
+            return True, bool(ok), "" if ok else "Microsoft Stay signed in No button not found"
+        if re.search(r"\b(sign in|submit|next|continue)\b", lowered):
+            ok = await page.evaluate(
+                """() => {
+                  const visible = (el) => {
+                    const r = el.getBoundingClientRect();
+                    const s = getComputedStyle(el);
+                    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+                  };
+                  const selectors = ['#idSIButton9', '#idSIButton', 'input[type="submit"]', 'button[type="submit"]'];
+                  for (const selector of selectors) {
+                    const el = document.querySelector(selector);
+                    if (el && visible(el)) { el.click(); return true; }
+                  }
+                  return false;
+                }"""
+            )
+            if ok:
+                import asyncio
+                await asyncio.sleep(1.0)
+                return True, True, ""
+    except Exception as exc:
+        return True, False, str(exc)
+    return False, False, ""
+
+
+async def complete_microsoft_login_if_needed(browser_session: Any, step: str = "") -> tuple[bool, str]:
+    """Dismiss KMSI ('Stay signed in?') when login left the session on that interstitial."""
+    current_url = await browser_session.get_current_page_url()
+    if not _is_microsoft_auth_url(current_url):
+        return True, ""
+    page = await browser_session.must_get_current_page()
+    on_kmsi = await page.evaluate(
+        """() => (document.body?.innerText || '').toLowerCase().includes('stay signed in')"""
+    )
+    if not on_kmsi:
+        return True, ""
+    if step and not is_credential_step(step) and not _step_requests_stay_signed_in_choice(step, "yes"):
+        return True, ""
+    ok = await page.evaluate(_MICROSOFT_KMSI_CLICK_JS, {"buttonName": "Yes", "force": True})
+    if not ok:
+        return False, "Microsoft Stay signed in Yes button not found"
+    import asyncio
+    await asyncio.sleep(1.5)
+    return True, ""
 
 
 async def try_booking_recipe(browser_session: Any, step: str, action_type: str) -> tuple[bool, bool, str]:
@@ -974,18 +1284,25 @@ async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, 
         ok, reason = await assert_visible_page(browser_session)
         return True, ok, reason
     for action_type in ("click", "input"):
+        handled, ok, reason = await try_microsoft_login_recipe(browser_session, step, action_type)
+        if handled:
+            return True, ok, reason
         handled, ok, reason = await try_booking_recipe(browser_session, step, action_type)
         if handled:
             return True, ok, reason
         handled, ok, reason = await try_app_page_recipe(browser_session, step, action_type)
         if handled:
             return True, ok, reason
+        handled, ok, reason = await try_app_switcher_recipe(browser_session, step, action_type)
+        if handled:
+            return True, ok, reason
     return False, False, ""
 
 
 async def execute_capability(browser_session: Any, capability: dict[str, Any]) -> tuple[bool, str]:
-    if not await fingerprint_matches(browser_session, capability.get("before", {})):
-        return False, "current page fingerprint does not match learned precondition"
+    pre_ok, pre_reason, _ = await validate_capability_phase(browser_session, capability, "pre")
+    if not pre_ok:
+        return False, pre_reason
     step_text = capability.get("step", "")
     if _step_mentions_modal(step_text):
         await wait_for_modal(browser_session)
@@ -1016,6 +1333,15 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                 if action.get("modal") or _step_mentions_modal(step_text):
                     await wait_for_modal(browser_session)
                     await dismiss_blocking_modals(browser_session)
+                handled, ok, reason = await try_microsoft_login_recipe(
+                    browser_session,
+                    capability.get("step", ""),
+                    action_type,
+                )
+                if handled:
+                    if ok:
+                        continue
+                    return False, reason
                 handled, ok, reason = await try_booking_recipe(
                     browser_session,
                     capability.get("step", ""),
@@ -1034,10 +1360,16 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                     if ok:
                         continue
                     return False, reason
-                locators = [
-                    *registry_locators_for_step(await browser_session.get_current_page_url(), capability.get("step", "")),
-                    *(action.get("locators") or []),
-                ]
+                locators = sorted(
+                    [
+                        *registry_locators_for_step(
+                            await browser_session.get_current_page_url(),
+                            capability.get("step", ""),
+                        ),
+                        *(action.get("locators") or []),
+                    ],
+                    key=lambda item: _LOCATOR_KIND_PRIORITY.get(item.get("kind", "css"), 99),
+                )
                 allow_first_match = bool(re.search(r"\bfirst\b", capability.get("step", ""), re.IGNORECASE))
                 allow_first_match = allow_first_match or any(
                     _clean_accessible_text(str(locator.get("value", ""))).lower() == "view cart"
@@ -1057,6 +1389,13 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                         return r.width>0 && r.height>0 && s.visibility!=='hidden' && s.display!=='none';
                       };
                       const normalize = (s) => (s || '').replace(/[\ue000-\uf8ff]/g, ' ').replace(/\\s+/g, ' ').trim();
+                      const nameMatches = (el, target) => {
+                        const label = normalize(el.getAttribute('aria-label') || el.value || el.textContent || '');
+                        const wanted = normalize(target || '');
+                        if (!wanted) return true;
+                        return label.toLowerCase() === wanted.toLowerCase()
+                          || label.toLowerCase().includes(wanted.toLowerCase());
+                      };
                       const roots = payload.modal
                         ? [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.modal.show,.modal.in')].filter(visible)
                         : [document];
@@ -1065,16 +1404,22 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
                         let els = [];
                         if (locator.kind === 'css') els = [...root.querySelectorAll(locator.value)];
                         if (locator.kind === 'role') els = [...root.querySelectorAll(`[role="${CSS.escape(locator.value)}"]`)]
-                          .filter(el => !locator.name || normalize(el.getAttribute('aria-label') || el.textContent) === locator.name);
+                          .filter(el => nameMatches(el, locator.name));
                         if (locator.kind === 'role' && locator.value === 'link') els.push(...[...root.querySelectorAll('a')]
-                          .filter(el => !locator.name || normalize(el.getAttribute('aria-label') || el.textContent) === locator.name));
-                        if (locator.kind === 'role' && locator.value === 'button') els.push(...[...root.querySelectorAll('button')]
-                          .filter(el => !locator.name || normalize(el.getAttribute('aria-label') || el.textContent) === locator.name));
+                          .filter(el => nameMatches(el, locator.name)));
+                        if (locator.kind === 'role' && locator.value === 'button') els.push(
+                          ...[...root.querySelectorAll('button, input[type="submit"], input[type="button"]')]
+                            .filter(el => nameMatches(el, locator.name))
+                        );
                         if (locator.kind === 'label') els = [...root.querySelectorAll('label')]
-                          .filter(el => normalize(el.textContent) === locator.value)
+                          .filter(el => nameMatches(el, locator.value))
                           .map(label => label.control).filter(Boolean);
                         if (locator.kind === 'placeholder') els = [...root.querySelectorAll(`[placeholder="${CSS.escape(locator.value)}"]`)];
-                        if (locator.kind === 'testid') els = [...root.querySelectorAll(`[data-testid="${CSS.escape(locator.value)}"]`)];
+                        if (locator.kind === 'testid') els = [
+                          ...root.querySelectorAll(
+                            `[data-testid="${CSS.escape(locator.value)}"],[data-test="${CSS.escape(locator.value)}"],[data-cy="${CSS.escape(locator.value)}"]`
+                          )
+                        ];
                         if (locator.kind === 'text') els = [...root.querySelectorAll(locator.tag || '*')]
                           .filter(el => normalize(el.textContent) === normalize(locator.value));
                         return [...new Set(els)].filter(visible);
@@ -1114,6 +1459,11 @@ async def execute_capability(browser_session: Any, capability: dict[str, Any]) -
     step = capability.get("step", "")
     if re.search(r"\bverify\b", step, re.IGNORECASE) and "product" in step.lower() and "cart" in step.lower():
         return await assert_cart_contains_product(browser_session)
-    if not await fingerprint_matches(browser_session, capability.get("after", {})):
-        return False, "learned postcondition did not match"
+    if is_credential_step(step):
+        kmsi_ok, kmsi_reason = await complete_microsoft_login_if_needed(browser_session, step)
+        if not kmsi_ok:
+            return False, kmsi_reason
+    post_ok, post_reason, _ = await validate_capability_phase(browser_session, capability, "post")
+    if not post_ok:
+        return False, post_reason
     return True, ""
