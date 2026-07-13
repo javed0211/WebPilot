@@ -4,6 +4,7 @@ import base64
 import io
 import logging
 import math
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -53,6 +54,7 @@ class VideoRecorderService:
 		self._writer: Optional['Format.Writer'] = None
 		self._is_active = False
 		self.padded_size = _get_padded_size(self.size)
+		self._frame_error_logged = False
 
 	def start(self) -> None:
 		"""
@@ -66,6 +68,17 @@ class VideoRecorderService:
 				'MP4 recording requires optional dependencies. Please install them with: pip install "browser-use[video]"'
 			)
 			return
+
+		# Ensure imageio can find the imageio-ffmpeg bundled binary (Windows especially).
+		if not os.environ.get('IMAGEIO_FFMPEG_EXE'):
+			try:
+				import imageio_ffmpeg
+
+				ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+				if ffmpeg_exe:
+					os.environ['IMAGEIO_FFMPEG_EXE'] = ffmpeg_exe
+			except Exception as e:
+				logger.warning(f'Could not resolve bundled ffmpeg executable: {e}')
 
 		try:
 			self.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +133,21 @@ class VideoRecorderService:
 
 			self._writer.append_data(img_array)
 		except Exception as e:
-			logger.warning(f'Could not process and add video frame: {e}')
+			# Stop hammering the event loop / Windows handles when ffmpeg is broken.
+			if not self._frame_error_logged:
+				logger.warning(
+					f'Could not process and add video frame: {e}. '
+					'Disabling further frame capture for this run. '
+					'Install ffmpeg or set IMAGEIO_FFMPEG_EXE, or set browser.video: off.'
+				)
+				self._frame_error_logged = True
+			self._is_active = False
+			try:
+				if self._writer:
+					self._writer.close()
+			except Exception:
+				pass
+			self._writer = None
 
 	def stop_and_save(self) -> None:
 		"""

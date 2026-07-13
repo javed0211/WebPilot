@@ -11,6 +11,23 @@ os.environ.setdefault('BROWSER_USE_DISABLE_EXTENSIONS', 'true')
 os.environ.setdefault('TIMEOUT_BrowserStartEvent', '120')
 os.environ.setdefault('TIMEOUT_BrowserLaunchEvent', '120')
 
+
+def _ensure_imageio_ffmpeg_exe() -> None:
+    """Point imageio at the pip-bundled ffmpeg binary (critical on Windows)."""
+    if os.environ.get('IMAGEIO_FFMPEG_EXE'):
+        return
+    try:
+        import imageio_ffmpeg
+
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if ffmpeg_exe and os.path.isfile(ffmpeg_exe):
+            os.environ['IMAGEIO_FFMPEG_EXE'] = ffmpeg_exe
+    except Exception:
+        pass
+
+
+_ensure_imageio_ffmpeg_exe()
+
 import json
 import asyncio
 import re
@@ -74,6 +91,7 @@ from .knowledge import (
     KnowledgeRepository,
     load_knowledge_config,
     prepare_page_for_interaction,
+    progressive_outcome_indicates_success,
     try_recipe_step,
     validate_step_outcome,
 )
@@ -936,6 +954,16 @@ async def run_intelligent_steps(
         if step_ok and not outcome_ok:
             print(f"[Validation] Step {step_index} agent reported success but outcome check failed: {outcome_reason}")
             step_ok = False
+        elif (
+            not step_ok
+            and progressive_outcome_indicates_success(step, before, after, captured_actions)
+        ):
+            print(
+                f"[Validation] Step {step_index} agent reported failure but UI advanced after the action — "
+                "accepting as success (single-step false negative)."
+            )
+            step_ok = True
+            outcome_reason = ""
 
         if not step_ok:
             blocking_unknown_steps.append(step_index)

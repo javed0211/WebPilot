@@ -856,6 +856,90 @@ async def validate_step_outcome(
     return ok, reason
 
 
+def _state_has_password_field(state: dict[str, Any]) -> bool:
+    for anchor in state.get("anchors") or []:
+        attrs = anchor.get("attrs") or {}
+        blob = " ".join(str(v) for v in attrs.values()).lower()
+        tag = str(anchor.get("tag") or "").lower()
+        if tag == "input" and ("password" in blob or attrs.get("type", "").lower() == "password"):
+            return True
+        if "password" in blob and tag in ("input", "label"):
+            return True
+    for item in state.get("evidence") or []:
+        text = str(item.get("text") or "").lower()
+        tag = str(item.get("tag") or "").lower()
+        if "password" in text and tag in ("input", "label"):
+            return True
+    return False
+
+
+def progressive_outcome_indicates_success(
+    step: str,
+    before: dict[str, Any],
+    after: dict[str, Any],
+    actions: list[dict[str, Any]],
+) -> bool:
+    """True when the agent called done(false) but the UI clearly advanced after its action.
+
+    Common WebPilot false-negative: click Continue succeeds → password page loads → agent
+    re-scans for Continue, cannot find it, and wrongly reports failure. Raw browser-use
+    avoids this because it keeps the full multi-step task in one agent run.
+    """
+    actionable = [a for a in actions if a.get("type") in ("click", "input", "navigate", "press")]
+    lowered = step.lower()
+    looks_like_click_step = bool(
+        re.search(r"\b(click|press|tap|select|continue|next|confirm|submit|sign\s*in)\b", lowered)
+    )
+
+    before_url = (before.get("url") or "").split("#", 1)[0]
+    after_url = (after.get("url") or "").split("#", 1)[0]
+    url_changed = bool(before_url and after_url and before_url != after_url)
+    has_click = any(a.get("type") == "click" for a in actionable)
+    has_input = any(a.get("type") == "input" for a in actionable)
+
+    # Auth wizard: Continue/Next → password field appears (even if action capture missed locators).
+    if looks_like_click_step and not _state_has_password_field(before) and _state_has_password_field(after):
+        return True
+
+    if not actionable:
+        return False
+
+    # Click caused a real navigation / route change.
+    if has_click and url_changed:
+        return True
+
+    # Click steps naming a CTA: surface advanced from email → sign-in shell.
+    if has_click and re.search(r"\b(continue|next|confirm|submit|sign\s*in)\b", lowered):
+        before_blob = json.dumps(
+            {"anchors": before.get("anchors") or [], "evidence": before.get("evidence") or []},
+            ensure_ascii=False,
+        ).lower()
+        after_blob = json.dumps(
+            {"anchors": after.get("anchors") or [], "evidence": after.get("evidence") or []},
+            ensure_ascii=False,
+        ).lower()
+        if before_blob != after_blob and (
+            "sign in" in after_blob
+            or "password" in after_blob
+            or "verification" in after_blob
+            or "otp" in after_blob
+        ):
+            return True
+
+    # Input step: value was typed and a matching field still/now exists.
+    if has_input and re.search(r"\b(enter|type|fill|input)\b", lowered):
+        for action in actionable:
+            if action.get("type") != "input":
+                continue
+            value = str(action.get("value") or "").strip()
+            if value and value.lower() in (after.get("bodyText") or "").lower():
+                return True
+            if action.get("locators"):
+                return True
+
+    return False
+
+
 async def dismiss_cookie_consent_if_present(browser_session: Any) -> bool:
     """Click common cookie/consent accept controls when visible. Returns True if a click was attempted."""
     import asyncio

@@ -9,6 +9,7 @@ from integrations.browser_use.knowledge import (
     _url_pattern_matches,
     capability_from_step,
     find_capability,
+    progressive_outcome_indicates_success,
     step_signature,
 )
 
@@ -102,6 +103,37 @@ class SiteKnowledgeTests(unittest.TestCase):
         self.assertTrue(_is_consent_anchor({"attrs": {"aria-label": "Accept all cookies"}}))
         self.assertFalse(_is_consent_anchor({"attrs": {"aria-label": "Sign in"}}))
         self.assertIn("onetrust", CONSENT_TERMS)
+
+    def test_progressive_outcome_recovers_continue_to_password(self):
+        before = {
+            "url": "https://example.com/login",
+            "anchors": [{"tag": "input", "attrs": {"aria-label": "Email address", "name": "email"}}],
+            "evidence": [{"tag": "label", "text": "Email address"}],
+            "bodyText": "Email address Continue",
+        }
+        after = {
+            "url": "https://example.com/login",
+            "anchors": [{"tag": "input", "attrs": {"aria-label": "Password", "type": "password", "name": "password"}}],
+            "evidence": [{"tag": "label", "text": "Password"}],
+            "bodyText": "Password Sign in",
+        }
+        actions = [{"type": "click", "locators": [{"kind": "role", "value": "button", "name": "Continue"}]}]
+        self.assertTrue(
+            progressive_outcome_indicates_success(
+                "And click on Continue button",
+                before,
+                after,
+                actions,
+            )
+        )
+        self.assertFalse(
+            progressive_outcome_indicates_success(
+                "And click on Continue button",
+                before,
+                before,
+                actions,
+            )
+        )
 
 
 if __name__ == "__main__":

@@ -60,6 +60,7 @@ class PhaseThreeTests(unittest.TestCase):
         )
         self.assertIn("REPAIR MODE", task)
         self.assertIn("missing_text", task)
+        self.assertIn("UI advanced", task)
 
     def test_trust_requires_fresh_context_or_high_confidence(self):
         capability = {"successCount": 2, "failureCount": 0, "quality": {"confidence": 0.55}}

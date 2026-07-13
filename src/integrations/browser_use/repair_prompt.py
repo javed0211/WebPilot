@@ -94,6 +94,8 @@ def build_scoped_task(
         "- Preserve the current browser session state (cookies, cart, form data).",
         "- If a cookie/consent banner overlays the page, dismiss it first (Accept / Accept all cookies / Consent) before the primary action.",
         "- Call done(success=true) only when this step's observable outcome is satisfied.",
+        "- After you click/type, if the UI advanced (target control gone because the form progressed, password field appeared, URL changed), that IS success — call done(success=true) immediately.",
+        "- Never call done(success=false) only because the clicked control is missing AFTER a successful click or navigation.",
         "- If the UI is ambiguous, prefer the smallest action sequence that completes this step.",
         "- The step instruction describes USER INTENT — it is NOT an element label.",
         "- Your memory must reflect the CURRENT page state only — not invented prior sessions.",

@@ -26,3 +26,9 @@ When choosing which element to interact with, think like **Playwright semantic l
 
 Confirm the step's observable outcome on the page (navigation, field value, visible heading, etc.).
 - **Login steps:** not complete until past Microsoft "Stay signed in?" (click **Yes**) and the target app shell is loading or visible.
+
+## After performing the step action (critical)
+
+- If you **clicked** Continue / Next / Sign in / Confirm and the form **progressed** (e.g. password field appears, Continue disappears, URL changes), call `done(success=true)` immediately.
+- Do **not** search again for the same button and treat its absence as failure — that usually means the click already worked.
+- If you **entered** a value into the intended field, call `done(success=true)` — do not continue to the next scenario step.
