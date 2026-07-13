@@ -1,0 +1,2154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bupa BrowserAgent — Implementation Tracker</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --border: #dce3ed;
+      --text: #1a2332;
+      --muted: #5c6b7f;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --success: #059669;
+      --success-soft: #d1fae5;
+      --warning: #d97706;
+      --warning-soft: #fef3c7;
+      --danger: #dc2626;
+      --danger-soft: #fee2e2;
+      --radius: 10px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      width: 100%;
+      max-width: 148px;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+    }
+
+    .brand h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .brand p {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin-top: 0.2rem;
+    }
+
+    .nav { display: flex; flex-direction: column; gap: 0.25rem; }
+
+    .nav button {
+      background: transparent;
+      border: none;
+      color: #cbd5e1;
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      opacity: 0.75;
+    }
+
+    .nav button:hover .nav-icon,
+    .nav button.active .nav-icon { opacity: 1; }
+
+    .nav button:hover { background: rgba(255,255,255,0.08); }
+    .nav button.active { background: var(--accent); color: white; font-weight: 600; }
+
+    .sidebar-meta {
+      margin-top: auto;
+      font-size: 0.75rem;
+      color: #64748b;
+      border-top: 1px solid #1e293b;
+      padding-top: 1rem;
+    }
+
+    .sidebar-tip {
+      margin-top: 0.65rem;
+      font-size: 0.65rem;
+      color: #475569;
+      line-height: 1.35;
+    }
+
+    .main { padding: 1.5rem 2rem; overflow-x: auto; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .page-header h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; }
+    .page-header p { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    button, .btn {
+      font-family: inherit;
+      font-size: 0.85rem;
+      border-radius: 8px;
+      padding: 0.5rem 0.9rem;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+
+    button.danger { color: var(--danger); border-color: #fecaca; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+      gap: 0.6rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.65rem;
+    }
+
+    .stat-card .label {
+      font-size: 0.62rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+    }
+
+    .stat-card .value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-top: 0.15rem;
+      line-height: 1.2;
+    }
+
+    .stat-card .sub {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.1rem;
+      line-height: 1.3;
+    }
+
+    .overview-dashboard {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.35rem;
+      margin-bottom: 1rem;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.1rem;
+      padding-bottom: 1.1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dashboard-progress-block {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      min-width: 0;
+    }
+
+    .progress-ring {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .progress-ring::after {
+      content: '';
+      position: absolute;
+      inset: 16%;
+      background: var(--surface);
+      border-radius: 50%;
+    }
+
+    .progress-ring span {
+      position: relative;
+      z-index: 1;
+      font-size: 1.15rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .dashboard-headline h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .dashboard-headline p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .dashboard-milestones {
+      display: flex;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .milestone-pill {
+      padding: 0.55rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      min-width: 128px;
+    }
+
+    .milestone-pill.accent {
+      border-color: #fecdd3;
+      background: #fff1f2;
+    }
+
+    .milestone-pill .pill-label {
+      display: block;
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .milestone-pill.accent .pill-label { color: #be123c; }
+
+    .milestone-pill .pill-value {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-top: 0.2rem;
+      line-height: 1.2;
+    }
+
+    .milestone-pill .pill-sub {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.1rem;
+    }
+
+    .dashboard-status-bar { margin-bottom: 1.1rem; }
+
+    .seg-bar {
+      display: flex;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e8edf4;
+    }
+
+    .seg-bar span { height: 100%; min-width: 2px; }
+
+    .seg-legend {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.5rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .seg-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .seg-legend i {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .pie-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .pie-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .pie-card h4 {
+      font-size: 0.82rem;
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .pie-wrap {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 0.75rem;
+    }
+
+    .pie-donut {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    .pie-hole {
+      position: absolute;
+      inset: 24%;
+      background: var(--surface);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .pie-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.65rem;
+      justify-content: center;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .pie-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+    .pie-legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+    @media (max-width: 900px) {
+      .dashboard-milestones { margin-left: 0; width: 100%; }
+      .pie-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h3 { font-size: 1rem; margin-bottom: 1rem; }
+
+    .progress-bar {
+      height: 10px;
+      background: #e8edf4;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar span {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
+    .progress-bar.success span { background: var(--success); }
+    .progress-bar.warning span { background: var(--warning); }
+    .progress-bar.danger span { background: var(--danger); }
+
+    .group-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .group-row {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      background: var(--surface);
+    }
+
+    .group-row-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+
+    .group-title { display: flex; align-items: center; gap: 0.6rem; font-weight: 600; }
+    .group-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge.not-started { background: #f1f5f9; color: #64748b; }
+    .badge.in-progress { background: var(--accent-soft); color: var(--accent); }
+    .badge.blocked { background: var(--danger-soft); color: var(--danger); }
+    .badge.complete { background: var(--success-soft); color: var(--success); }
+    .badge.overdue { background: var(--danger-soft); color: var(--danger); }
+    .badge.on-track { background: var(--success-soft); color: var(--success); }
+    .badge.at-risk { background: var(--warning-soft); color: var(--warning); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    tr:hover td { background: #f8fafc; }
+    tr.task-group-header:hover td { background: #f1f5f9; }
+
+    .task-group-header td {
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 0.75rem;
+    }
+
+    .task-group-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .task-group-header-inner .group-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .task-group-header-inner .actions {
+      margin-left: auto;
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .task-group-header-inner .mini-bar {
+      width: 60px;
+    }
+
+    .mini-bar {
+      width: 80px;
+      height: 6px;
+      background: #e8edf4;
+      border-radius: 999px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 0.4rem;
+    }
+
+    .mini-bar span { display: block; height: 100%; background: var(--accent); }
+
+    .timeline-wrap { overflow-x: auto; }
+
+    .timeline {
+      min-width: 900px;
+      position: relative;
+    }
+
+    .timeline-header {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      margin-bottom: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .timeline-months {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+
+    .timeline-month {
+      flex: 1;
+      text-align: center;
+      border-left: 1px dashed var(--border);
+      padding: 0.25rem;
+    }
+
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #eef2f7;
+      font-size: 0.8rem;
+    }
+
+    .timeline-track {
+      position: relative;
+      height: 28px;
+      background: #f8fafc;
+      border-radius: 6px;
+    }
+
+    .timeline-bar {
+      position: absolute;
+      top: 4px;
+      height: 20px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 0.4rem;
+      white-space: nowrap;
+      overflow: hidden;
+      min-width: 4px;
+    }
+
+    .timeline-today {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--danger);
+      z-index: 2;
+    }
+
+    .timeline-today::after {
+      content: "Today";
+      position: absolute;
+      top: -18px;
+      left: -14px;
+      font-size: 0.65rem;
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 12px;
+      width: min(520px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .modal h3 { margin-bottom: 1rem; }
+
+    .form-grid { display: grid; gap: 0.85rem; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      color: var(--muted);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+
+    textarea { min-height: 70px; resize: vertical; }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+    }
+
+    .owner-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+
+    .owner-chip {
+      background: #f1f5f9;
+      border-radius: 999px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    .filter-bar select, .filter-bar input { width: auto; min-width: 140px; }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+    }
+
+    .plan-section { margin-bottom: 1.5rem; }
+    .plan-section h4 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent); }
+    .plan-section ul { margin-left: 1.25rem; color: var(--muted); font-size: 0.85rem; }
+    .plan-section li { margin-bottom: 0.35rem; }
+
+    .date-hint {
+      font-size: 0.62rem;
+      color: var(--muted);
+      margin-top: 0.1rem;
+    }
+
+    /* Gantt */
+    .gantt-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .gantt {
+      min-width: 960px;
+      position: relative;
+      user-select: none;
+    }
+
+    .gantt-scale {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      border-bottom: 1px solid var(--border);
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .gantt-scale-label {
+      padding: 0.6rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .gantt-days {
+      display: flex;
+      position: relative;
+      min-height: 36px;
+    }
+
+    .gantt-day {
+      flex: 1;
+      min-width: 28px;
+      border-left: 1px solid #eef2f7;
+      font-size: 0.62rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 0.35rem 0;
+    }
+
+    .gantt-day.weekend { background: #f1f5f9; }
+
+    .gantt-group-header {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    .gantt-group-label {
+      padding: 0.55rem 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .gantt-row {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      border-bottom: 1px solid #eef2f7;
+      min-height: 36px;
+      font-size: 0.8rem;
+    }
+
+    .gantt-row:hover { background: #fafbfc; }
+
+    .gantt-row-label {
+      padding: 0.45rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.1rem;
+      border-right: 1px solid #eef2f7;
+    }
+
+    .gantt-row-label small { color: var(--muted); font-size: 0.7rem; }
+
+    .gantt-track {
+      position: relative;
+      min-height: 36px;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent calc(100% / var(--day-count, 30) - 1px),
+        #f8fafc calc(100% / var(--day-count, 30) - 1px),
+        #f8fafc calc(100% / var(--day-count, 30))
+      );
+    }
+
+    .gantt-today-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--danger);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .gantt-today-line::before {
+      content: "Today";
+      position: absolute;
+      top: -16px;
+      left: -16px;
+      font-size: 0.6rem;
+      color: var(--danger);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .gantt-bar {
+      position: absolute;
+      top: 7px;
+      height: 22px;
+      border-radius: 4px;
+      color: white;
+      font-size: 0.62rem;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      overflow: hidden;
+      white-space: nowrap;
+      cursor: grab;
+      z-index: 2;
+      min-width: 6px;
+      box-sizing: border-box;
+    }
+
+    .gantt-bar.group-bar {
+      top: 5px;
+      height: 26px;
+      opacity: 0.85;
+      font-weight: 600;
+    }
+
+    .gantt-bar.dragging { cursor: grabbing; opacity: 0.92; z-index: 10; }
+
+    .gantt-bar .handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      cursor: ew-resize;
+      z-index: 1;
+    }
+
+    .gantt-bar .handle.left { left: 0; border-radius: 4px 0 0 4px; }
+    .gantt-bar .handle.right { right: 0; border-radius: 0 4px 4px 0; }
+
+    .gantt-row-label .gantt-phase-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .gantt-row-label .gantt-phase-name:hover { color: var(--accent); }
+
+    .gantt-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .gantt-hint kbd {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.1rem 0.35rem;
+      font-size: 0.75rem;
+    }
+
+    .gantt-milestone-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: #e11d48;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .gantt-milestone-line::before {
+      content: attr(data-label);
+      position: absolute;
+      top: -18px;
+      left: -28px;
+      font-size: 0.6rem;
+      color: #e11d48;
+      font-weight: 700;
+      white-space: nowrap;
+      background: #fff1f2;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      border: 1px solid #fecdd3;
+    }
+
+    .gantt-bar.milestone-bar {
+      background: repeating-linear-gradient(
+        45deg,
+        #e11d48,
+        #e11d48 6px,
+        #f43f5e 6px,
+        #f43f5e 12px
+      ) !important;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    @media (max-width: 800px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { flex-direction: row; flex-wrap: wrap; align-items: center; }
+      .nav { flex-direction: row; flex-wrap: wrap; }
+      .sidebar-meta { display: none; }
+      .main { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="assets/bupa-logo-sidebar.png" alt="Bupa" />
+        <div>
+          <h1>Bupa BrowserAgent</h1>
+          <p>Implementation &amp; rollout plan</p>
+        </div>
+      </div>
+      <nav class="nav" id="nav">
+        <button class="active" data-page="overview">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Overview
+        </button>
+        <button data-page="tasks">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Task Tracker
+        </button>
+        <button data-page="timeline">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h4M8 18h8"/></svg>
+          Timeline
+        </button>
+        <button data-page="plan">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          Implementation Plan
+        </button>
+      </nav>
+      <div class="sidebar-meta">
+        <div>Today: <strong id="sidebarToday"></strong></div>
+        <div>Project start: <strong id="sidebarStart"></strong></div>
+        <div>Deadline: <strong id="sidebarDeadline">30 Jul 2026</strong> · <span id="sidebarDeadlineCount"></span></div>
+        <div>Show &amp; Tell: <strong id="sidebarShowTell">30 Jul 2026</strong> · <span id="sidebarShowTellCount"></span></div>
+        <div>Last saved: <span id="lastSaved">—</span></div>
+        <div class="sidebar-tip">Tip: Export JSON regularly — edits live in this browser only.</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- OVERVIEW -->
+      <section class="page active" id="page-overview">
+        <div class="page-header">
+          <div>
+            <h2>Overview</h2>
+            <p>All phases complete by <strong>30 July 2026</strong> — Show &amp; Tell on <strong>30 July</strong></p>
+          </div>
+          <div class="actions">
+            <button onclick="exportData()">Export JSON</button>
+            <button onclick="document.getElementById('importFile').click()">Import JSON</button>
+            <input type="file" id="importFile" accept=".json" hidden onchange="importData(event)" />
+          </div>
+        </div>
+
+        <div class="overview-dashboard" id="overviewDashboard"></div>
+
+        <div class="card">
+          <h3>Progress by phase</h3>
+          <div class="pie-grid" id="overviewGroups"></div>
+        </div>
+
+        <div class="card">
+          <h3>Owner workload</h3>
+          <table>
+            <thead>
+              <tr><th>Owner</th><th>Tasks</th><th>Complete</th><th>In progress</th><th>Blocked</th><th>Overdue</th></tr>
+            </thead>
+            <tbody id="ownerTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TASK TRACKER -->
+      <section class="page" id="page-tasks">
+        <div class="page-header">
+          <div>
+            <h2>Task Tracker</h2>
+            <p>Subtasks grouped by phase — owners, dates, and completion</p>
+          </div>
+          <div class="actions">
+            <button onclick="openGroupModal()">+ Add task group</button>
+            <button class="primary" onclick="openTaskModal()">+ Add subtask</button>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <label>Owner <select id="filterOwner" onchange="renderTasks()"><option value="">All owners</option></select></label>
+          <label>Status <select id="filterStatus" onchange="renderTasks()">
+            <option value="">All statuses</option>
+            <option value="not-started">Not started</option>
+            <option value="in-progress">In progress</option>
+            <option value="blocked">Blocked</option>
+            <option value="complete">Complete</option>
+          </select></label>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table>
+            <thead>
+              <tr>
+                <th>Subtask</th>
+                <th>Owner</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Health</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tasksTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TIMELINE -->
+      <section class="page" id="page-timeline">
+        <div class="page-header">
+          <div>
+            <h2>Timeline</h2>
+            <p>Phase-wise rollout — one bar per task group from earliest start to latest end</p>
+          </div>
+        </div>
+        <p class="gantt-hint">Click a phase name or bar to edit the group · subtask dates are managed in Task Tracker</p>
+        <div class="gantt-wrap">
+          <div class="gantt" id="timeline"></div>
+        </div>
+      </section>
+
+      <!-- IMPLEMENTATION PLAN -->
+      <section class="page" id="page-plan">
+        <div class="page-header">
+          <div>
+            <h2>Implementation Plan</h2>
+            <p>6 phases — Foundation through Show &amp; Tell, all complete by 30 July 2026</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="plan-section">
+            <h4>Target dates</h4>
+            <ul>
+              <li><strong>Project start:</strong> 8 July 2026</li>
+              <li><strong>All phases complete:</strong> 30 July 2026</li>
+              <li><strong>Show &amp; Tell:</strong> 30 July 2026 — live BrowserAgent demo to stakeholders</li>
+            </ul>
+          </div>
+          <div class="plan-section">
+            <h4>Phase 1 — Foundation (8–11 July)</h4>
+            <ul>
+              <li>Install Node.js, Python 3.12+, virtualenv, and <code>@qubiqlabs/webpilot</code> on all machines</li>
+              <li>Configure <code>qa.json</code>, <code>.env</code> credentials, and Azure LLM (<code>llm.json</code>)</li>
+              <li>Validate environments and browser-use stack end-to-end</li>
+            </ul>
+          </div>
+          <div class="plan-section">
+            <h4>Phase 2 — Browser Agent, Data &amp; Dry Run (11–16 July)</h4>
+            <ul>
+              <li>Browser Agent creation — configure Bupa BrowserAgent for target apps</li>
+              <li>Basic data management — knowledge store, credentials, runtime artifacts</li>
+              <li>Scenario identification — catalogue priority NL test scenarios</li>
+              <li>Dry run — smoke discovery, knowledge replay, first automated pass</li>
+            </ul>
+          </div>
+          <div class="plan-section">
+            <h4>Phase 3 — CRM &amp; Clinics Digital (16–23 July)</h4>
+            <ul>
+              <li>CRM (Dynamics) scenarios — login, navigation, full flows with HTML reports</li>
+              <li>Clinics (Digital) scenarios — identify, automate, and report</li>
+              <li>Complete automation with execution reports for both streams</li>
+            </ul>
+          </div>
+          <div class="plan-section">
+            <h4>Phase 4 — Repo Integration (22–26 July)</h4>
+            <ul>
+              <li>Codegen — generate Playwright tests and POMs into the repo</li>
+              <li>Wire GitHub Actions / Azure Pipelines for <code>webpilot run</code></li>
+              <li>Publish reports and artifacts from pipeline runs</li>
+            </ul>
+          </div>
+          <div class="plan-section">
+            <h4>Phase 5 — Results &amp; Token Dashboard (26–29 July)</h4>
+            <ul>
+              <li>Dashboard for test results — pass/fail, trends, execution history</li>
+              <li>Token usage dashboard — LLM calls, cost, and usage metrics</li>
+            </ul>
+          </div>
+          <div class="plan-section">
+            <h4>Phase 6 — Show &amp; Tell (30 July)</h4>
+            <ul>
+              <li><strong>29 July:</strong> Dry run — full demo across all phases</li>
+              <li><strong>30 July:</strong> Show &amp; Tell presentation and project sign-off</li>
+              <li>Demo: NL scenarios → BrowserAgent → CRM &amp; Clinics automation → repo CI → dashboards</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Tracker usage</h3>
+          <table>
+            <thead><tr><th>Action</th><th>How</th></tr></thead>
+            <tbody>
+              <tr><td>Add phase</td><td>Task Tracker → Add task group</td></tr>
+              <tr><td>Add work item</td><td>Task Tracker → Add subtask, or + Subtask on a group row</td></tr>
+              <tr><td>Reschedule subtasks</td><td>Task Tracker → edit subtask start/end dates</td></tr>
+              <tr><td>View phase timeline</td><td>Timeline → one bar per task group (phase)</td></tr>
+              <tr><td>View progress</td><td>Overview → dashboard summary and phase pie charts</td></tr>
+              <tr><td>Share plan</td><td>Overview → Export JSON; teammates Import JSON</td></tr>
+              <tr><td>Reset to template</td><td>Clear browser localStorage for this page, reload</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Group modal -->
+  <div class="modal-backdrop" id="groupModal">
+    <div class="modal">
+      <h3 id="groupModalTitle">Add task group</h3>
+      <form class="form-grid" onsubmit="saveGroup(event)">
+        <input type="hidden" id="groupId" />
+        <div><label>Name</label><input id="groupName" required placeholder="e.g. Environment Setup" /></div>
+        <div><label>Owner (lead)</label><input id="groupOwner" placeholder="e.g. QE Lead" /></div>
+        <div><label>Description</label><textarea id="groupDesc" placeholder="What this phase delivers"></textarea></div>
+        <div><label>Color</label><input type="color" id="groupColor" value="#2563eb" /></div>
+        <div class="form-actions">
+          <button type="button" onclick="closeModal('groupModal')">Cancel</button>
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Task modal -->
+  <div class="modal-backdrop" id="taskModal">
+    <div class="modal">
+      <h3 id="taskModalTitle">Add subtask</h3>
+      <form class="form-grid" onsubmit="saveTask(event)">
+        <input type="hidden" id="taskId" />
+        <div><label>Task group</label><select id="taskGroupId" required></select></div>
+        <div><label>Subtask title</label><input id="taskTitle" required /></div>
+        <div><label>Owner</label><input id="taskOwner" placeholder="Assignee name" /></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div><label>Start date</label><input type="date" id="taskStart" required /></div>
+          <div><label>End date</label><input type="date" id="taskEnd" required /></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div><label>Status</label>
+            <select id="taskStatus">
+              <option value="not-started">Not started</option>
+              <option value="in-progress">In progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="complete">Complete</option>
+            </select>
+          </div>
+          <div><label>% complete</label><input type="number" id="taskPct" min="0" max="100" value="0" /></div>
+        </div>
+        <div><label>Notes</label><textarea id="taskNotes" placeholder="Blockers, commands run, links to reports"></textarea></div>
+        <div class="form-actions">
+          <button type="button" onclick="closeModal('taskModal')">Cancel</button>
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const SCHEMA_VERSION = 6;
+    const STORAGE_KEY = 'webpilot-implementation-tracker-v6';
+    const LEGACY_STORAGE_KEYS = [
+      'webpilot-implementation-tracker-v5',
+      'webpilot-implementation-tracker-v4',
+      'webpilot-implementation-tracker-v3',
+      'webpilot-implementation-tracker-v2',
+      'webpilot-implementation-tracker-v1',
+    ];
+    const PROJECT_START = '2026-07-08';
+    const PROJECT_DEADLINE = '2026-07-30';
+    const SHOW_AND_TELL_DATE = '2026-07-30';
+    const SHOW_AND_TELL_GROUP = 'g6';
+
+    const DEFAULT_DATA = {
+      projectStart: PROJECT_START,
+      projectDeadline: PROJECT_DEADLINE,
+      showAndTellDate: SHOW_AND_TELL_DATE,
+      projectName: 'Bupa BrowserAgent Rollout',
+      groups: [
+        { id: 'g1', name: 'Phase 1 — Foundation', owner: 'DevOps / QE Lead', color: '#2563eb', description: 'Setup — tooling, environments, credentials, LLM — due 11 Jul' },
+        { id: 'g2', name: 'Phase 2 — Browser Agent & Scenarios', owner: 'Automation Engineer', color: '#7c3aed', description: 'Browser Agent, basic data mgmt, scenario ID, dry run — due 16 Jul' },
+        { id: 'g3', name: 'Phase 3 — CRM & Clinics (Digital)', owner: 'Functional QE', color: '#d97706', description: 'CRM + Clinics Digital full automation with reports — due 23 Jul' },
+        { id: 'g4', name: 'Phase 4 — Repo Integration', owner: 'DevOps', color: '#059669', description: 'Codegen, repo structure, CI/CD pipeline — due 26 Jul' },
+        { id: 'g5', name: 'Phase 5 — Results & Token Dashboard', owner: 'Automation Engineer', color: '#0891b2', description: 'Execution results + LLM token usage dashboards — due 29 Jul' },
+        { id: 'g6', name: 'Phase 6 — Show & Tell', owner: 'QE Lead', color: '#e11d48', description: 'Dry run 29 Jul · Presentation & sign-off 30 Jul' },
+      ],
+      tasks: [
+        { id: 't1', groupId: 'g1', title: 'Install Node.js 20+, Python 3.12+, and project virtualenv', owner: 'DevOps', start: '2026-07-08', end: '2026-07-09', status: 'in-progress', pct: 50, notes: 'Windows + Mac; py -3.13, npx webpilot --version' },
+        { id: 't2', groupId: 'g1', title: 'Install @qubiqlabs/webpilot and browser-use[video]', owner: 'DevOps', start: '2026-07-09', end: '2026-07-10', status: 'not-started', pct: 0, notes: '' },
+        { id: 't3', groupId: 'g1', title: 'Configure resources/config/environments/qa.json', owner: 'QE Lead', start: '2026-07-10', end: '2026-07-11', status: 'not-started', pct: 0, notes: 'baseUrl, credentials → ${QA_USERNAME}' },
+        { id: 't4', groupId: 'g1', title: 'Add QA_USERNAME, QA_PASSWORD, AZURE_* to .env', owner: 'QE Lead', start: '2026-07-10', end: '2026-07-11', status: 'not-started', pct: 0, notes: 'Never commit secrets' },
+        { id: 't5', groupId: 'g1', title: 'Validate llm.json and browser stack end-to-end', owner: 'Automation Engineer', start: '2026-07-11', end: '2026-07-11', status: 'not-started', pct: 0, notes: 'Azure provider smoke' },
+        { id: 't6', groupId: 'g2', title: 'Browser Agent creation — configure Bupa BrowserAgent', owner: 'QE Lead', start: '2026-07-11', end: '2026-07-13', status: 'not-started', pct: 0, notes: 'Target apps, headless, branding, performance tuning' },
+        { id: 't7', groupId: 'g2', title: 'Basic data management — knowledge, credentials, artifacts', owner: 'Automation Engineer', start: '2026-07-12', end: '2026-07-14', status: 'not-started', pct: 0, notes: 'runtime/site-knowledge, reports paths, secret handling' },
+        { id: 't8', groupId: 'g2', title: 'Scenario identification — catalogue priority NL tests', owner: 'QE Manager', start: '2026-07-13', end: '2026-07-15', status: 'not-started', pct: 0, notes: 'Smoke, CRM, Clinics Digital candidates' },
+        { id: 't9', groupId: 'g2', title: 'Dry run — discovery + knowledge replay pass', owner: 'Automation Engineer', start: '2026-07-15', end: '2026-07-16', status: 'not-started', pct: 0, notes: 'npx webpilot run smoke scenario --env qa' },
+        { id: 't10', groupId: 'g3', title: 'CRM — login, app switcher, navigation flows', owner: 'Functional QE', start: '2026-07-16', end: '2026-07-19', status: 'not-started', pct: 0, notes: 'CRM.txt discovery through Contacts' },
+        { id: 't11', groupId: 'g3', title: 'CRM — full scenario automation + HTML report', owner: 'Functional QE', start: '2026-07-19', end: '2026-07-21', status: 'not-started', pct: 0, notes: 'End-to-end pass with runtime/reports/html' },
+        { id: 't12', groupId: 'g3', title: 'Clinics (Digital) — scenario identification', owner: 'Functional QE', start: '2026-07-18', end: '2026-07-20', status: 'not-started', pct: 0, notes: 'Author NL .txt scenarios for digital clinics' },
+        { id: 't13', groupId: 'g3', title: 'Clinics (Digital) — complete automation + report', owner: 'Functional QE', start: '2026-07-21', end: '2026-07-23', status: 'not-started', pct: 0, notes: 'Full automated run with HTML report' },
+        { id: 't14', groupId: 'g4', title: 'Codegen — generate Playwright tests and POMs', owner: 'Automation Engineer', start: '2026-07-22', end: '2026-07-24', status: 'not-started', pct: 0, notes: 'npx webpilot run --codegen on passed scenarios' },
+        { id: 't15', groupId: 'g4', title: 'Repo integration — tests, POMs, config in source control', owner: 'DevOps', start: '2026-07-23', end: '2026-07-25', status: 'not-started', pct: 0, notes: 'packages/test-framework structure' },
+        { id: 't16', groupId: 'g4', title: 'CI/CD — webpilot run in GitHub Actions / ADO pipeline', owner: 'DevOps', start: '2026-07-24', end: '2026-07-26', status: 'not-started', pct: 0, notes: 'Pipeline artifacts for reports' },
+        { id: 't17', groupId: 'g5', title: 'Results dashboard — execution pass/fail and trends', owner: 'Automation Engineer', start: '2026-07-26', end: '2026-07-28', status: 'not-started', pct: 0, notes: 'Suite reports, execution history' },
+        { id: 't18', groupId: 'g5', title: 'Token usage dashboard — LLM calls and cost metrics', owner: 'Automation Engineer', start: '2026-07-28', end: '2026-07-29', status: 'not-started', pct: 0, notes: 'Token/cost tracking per run' },
+        { id: 't19', groupId: 'g6', title: 'Show & Tell dry run — all phases', owner: 'QE Lead', start: '2026-07-29', end: '2026-07-29', status: 'not-started', pct: 0, notes: 'CRM, Clinics, repo CI, dashboards' },
+        { id: 't20', groupId: 'g6', title: 'Show & Tell presentation to stakeholders', owner: 'QE Lead', start: '2026-07-30', end: '2026-07-30', status: 'not-started', pct: 0, notes: 'Live demo — 30 July 2026' },
+        { id: 't21', groupId: 'g6', title: 'Project sign-off — all phases complete', owner: 'QE Manager', start: '2026-07-30', end: '2026-07-30', status: 'not-started', pct: 0, notes: 'Deadline: 30 July 2026' },
+      ],
+    };
+
+    const LEGACY_GROUP_MAP = {
+      g2: 'g1',
+      g3: 'g2',
+      g4: 'g3',
+      g5: 'g4',
+      g6: 'g4',
+      g7: 'g2',
+      g8: 'g6',
+    };
+
+    function countUserEdits(data) {
+      const tasks = data?.tasks || [];
+      let score = 0;
+      tasks.forEach(t => {
+        if (t.status && t.status !== 'not-started') score += 2;
+        if ((t.pct || 0) > 0) score += 1;
+        if (t.notes && String(t.notes).trim()) score += 1;
+      });
+      return score;
+    }
+
+    function mergeTaskWithUserEdits(defaultTask, userTask) {
+      if (!userTask) return { ...defaultTask };
+      return {
+        ...defaultTask,
+        status: userTask.status ?? defaultTask.status,
+        pct: userTask.pct ?? defaultTask.pct,
+        notes: userTask.notes ?? defaultTask.notes,
+        owner: userTask.owner || defaultTask.owner,
+        title: userTask.title || defaultTask.title,
+        start: userTask.start || defaultTask.start,
+        end: userTask.end || defaultTask.end,
+        groupId: defaultTask.groupId,
+      };
+    }
+
+    function normalizeState(data, options = {}) {
+      const { upgradeStructure = false } = options;
+      const incoming = data || {};
+      const userTasks = Array.isArray(incoming.tasks) ? incoming.tasks : [];
+      const userTasksById = Object.fromEntries(userTasks.map(t => [t.id, t]));
+      const defaultIds = new Set(DEFAULT_DATA.tasks.map(t => t.id));
+      const schemaVersion = incoming.schemaVersion || 0;
+      const needsUpgrade = upgradeStructure || schemaVersion < SCHEMA_VERSION;
+
+      const merged = {
+        projectName: incoming.projectName || DEFAULT_DATA.projectName,
+        projectStart: incoming.projectStart || PROJECT_START,
+        projectDeadline: incoming.projectDeadline || PROJECT_DEADLINE,
+        showAndTellDate: incoming.showAndTellDate || SHOW_AND_TELL_DATE,
+        schemaVersion: SCHEMA_VERSION,
+        groups: [],
+        tasks: [],
+      };
+
+      if (needsUpgrade) {
+        merged.groups = JSON.parse(JSON.stringify(DEFAULT_DATA.groups));
+        merged.tasks = DEFAULT_DATA.tasks.map(dt => mergeTaskWithUserEdits(dt, userTasksById[dt.id]));
+        userTasks.forEach(ut => {
+          if (!defaultIds.has(ut.id)) {
+            const groupId = LEGACY_GROUP_MAP[ut.groupId] || ut.groupId;
+            const validGroup = merged.groups.some(g => g.id === groupId);
+            merged.tasks.push({ ...ut, groupId: validGroup ? groupId : ut.groupId });
+          }
+        });
+      } else {
+        merged.groups = incoming.groups?.length
+          ? JSON.parse(JSON.stringify(incoming.groups))
+          : JSON.parse(JSON.stringify(DEFAULT_DATA.groups));
+        merged.tasks = JSON.parse(JSON.stringify(userTasks));
+
+        const groupIds = new Set(merged.groups.map(g => g.id));
+        DEFAULT_DATA.groups.forEach(g => {
+          if (!groupIds.has(g.id)) merged.groups.push({ ...g });
+        });
+        const taskIds = new Set(merged.tasks.map(t => t.id));
+        DEFAULT_DATA.tasks.forEach(t => {
+          if (!taskIds.has(t.id)) merged.tasks.push({ ...t });
+        });
+      }
+
+      return merged;
+    }
+
+    let migratedOnLoad = false;
+
+    function loadState() {
+      try {
+        const current = localStorage.getItem(STORAGE_KEY);
+        if (current) {
+          const parsed = JSON.parse(current);
+          if ((parsed.schemaVersion || 0) >= SCHEMA_VERSION) {
+            return normalizeState(parsed, { upgradeStructure: false });
+          }
+          migratedOnLoad = true;
+          return normalizeState(parsed, { upgradeStructure: true });
+        }
+
+        let bestRaw = null;
+        let bestScore = -1;
+        let bestKey = '';
+        for (const key of LEGACY_STORAGE_KEYS) {
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          const score = countUserEdits(parsed);
+          if (score > bestScore) {
+            bestScore = score;
+            bestRaw = parsed;
+            bestKey = key;
+          }
+        }
+        if (bestRaw) {
+          migratedOnLoad = true;
+          if (bestKey && bestKey !== STORAGE_KEY) {
+            console.info('[Bupa BrowserAgent Tracker] Restored edits from', bestKey);
+          }
+          return normalizeState(bestRaw, { upgradeStructure: true });
+        }
+      } catch (_) {}
+      migratedOnLoad = true;
+      return normalizeState({}, { upgradeStructure: true });
+    }
+
+    let state = loadState();
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      document.getElementById('lastSaved').textContent = new Date().toLocaleString();
+      renderAll();
+    }
+
+    function uid() {
+      return 'id_' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function parseDate(s) {
+      return new Date(s + 'T12:00:00');
+    }
+
+    function today() {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    function daysBetween(a, b) {
+      return Math.round((b - a) / 86400000);
+    }
+
+    function taskHealth(task) {
+      if (task.status === 'complete') return { label: 'Complete', cls: 'complete' };
+      if (task.status === 'blocked') return { label: 'Blocked', cls: 'blocked' };
+      const end = parseDate(task.end);
+      const t = today();
+      if (t > end) return { label: 'Overdue', cls: 'overdue' };
+      const start = parseDate(task.start);
+      const total = Math.max(1, daysBetween(start, end));
+      const elapsed = Math.max(0, daysBetween(start, t));
+      const expected = Math.min(100, Math.round((elapsed / total) * 100));
+      if (task.pct >= expected - 10) return { label: 'On track', cls: 'on-track' };
+      if (task.pct >= expected - 25) return { label: 'At risk', cls: 'at-risk' };
+      return { label: 'Behind', cls: 'overdue' };
+    }
+
+    function groupById(id) {
+      return state.groups.find(g => g.id === id);
+    }
+
+    function allTasks() {
+      return state.tasks;
+    }
+
+    function calcOverallProgress() {
+      const tasks = allTasks();
+      if (!tasks.length) return 0;
+      return Math.round(tasks.reduce((s, t) => s + (t.status === 'complete' ? 100 : t.pct), 0) / tasks.length);
+    }
+
+    function groupProgress(groupId) {
+      const tasks = allTasks().filter(t => t.groupId === groupId);
+      if (!tasks.length) return 0;
+      return Math.round(tasks.reduce((s, t) => s + (t.status === 'complete' ? 100 : t.pct), 0) / tasks.length);
+    }
+
+    function projectDayCount() {
+      const start = parseDate(state.projectStart);
+      return Math.max(0, daysBetween(start, today())) + 1;
+    }
+
+    // Navigation
+    document.getElementById('nav').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-page]');
+      if (!btn) return;
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + btn.dataset.page).classList.add('active');
+      renderAll();
+    });
+
+    function renderAll() {
+      document.getElementById('sidebarToday').textContent = todayLabel();
+      document.getElementById('sidebarStart').textContent = formatDisplayDate(state.projectStart);
+      document.getElementById('sidebarDeadline').textContent = formatDisplayDate(state.projectDeadline);
+      document.getElementById('sidebarShowTell').textContent = formatDisplayDate(state.showAndTellDate);
+      document.getElementById('sidebarDeadlineCount').textContent = daysUntilLabel(state.projectDeadline);
+      document.getElementById('sidebarShowTellCount').textContent = daysUntilLabel(state.showAndTellDate);
+      renderOverview();
+      renderTasks();
+      renderTimeline();
+      populateFilters();
+    }
+
+    function groupStatusBreakdown(groupId) {
+      const tasks = allTasks().filter(t => t.groupId === groupId);
+      const counts = { complete: 0, 'in-progress': 0, 'not-started': 0, blocked: 0 };
+      tasks.forEach(t => { counts[t.status] = (counts[t.status] || 0) + 1; });
+      return counts;
+    }
+
+    const STATUS_COLORS = {
+      complete: '#059669',
+      'in-progress': '#2563eb',
+      'not-started': '#cbd5e1',
+      blocked: '#dc2626',
+    };
+
+    function conicGradient(segments) {
+      const total = segments.reduce((s, x) => s + x.value, 0);
+      if (!total) return 'conic-gradient(#e8edf4 0% 100%)';
+      let acc = 0;
+      const stops = segments.filter(s => s.value > 0).map(s => {
+        const start = acc;
+        acc += (s.value / total) * 100;
+        return `${s.color} ${start}% ${acc}%`;
+      });
+      return `conic-gradient(${stops.join(', ')})`;
+    }
+
+    function renderSegBar(segments) {
+      const total = segments.reduce((s, x) => s + x.value, 0);
+      if (!total) return '<div class="seg-bar"><span style="width:100%;background:#e8edf4"></span></div>';
+      const bars = segments.filter(s => s.value > 0).map(s =>
+        `<span style="width:${(s.value / total) * 100}%;background:${s.color}" title="${s.label}: ${s.value}"></span>`
+      ).join('');
+      const legend = segments.filter(s => s.value > 0).map(s =>
+        `<span><i style="background:${s.color}"></i>${s.label} <strong>${s.value}</strong></span>`
+      ).join('');
+      return `<div class="seg-bar">${bars}</div><div class="seg-legend">${legend}</div>`;
+    }
+
+    function renderPieCard(title, segments, centerLabel, subtitle) {
+      const legend = segments.filter(s => s.value > 0).map(s =>
+        `<span><i style="background:${s.color}"></i>${s.label} (${s.value})</span>`
+      ).join('');
+      const subtitleHtml = subtitle
+        ? `<p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.5rem">${subtitle}</p>`
+        : '';
+      return `<div class="pie-card">
+        <h4>${title}</h4>
+        <div class="pie-wrap">
+          <div class="pie-donut" style="background:${conicGradient(segments)}"></div>
+          <div class="pie-hole">${centerLabel}</div>
+        </div>
+        ${subtitleHtml}
+        <div class="pie-legend">${legend || '<span>No tasks</span>'}</div>
+      </div>`;
+    }
+
+    function renderOverviewDashboard(tasks, pct, complete, statusTotals, opts) {
+      const segments = [
+        { label: 'Complete', value: statusTotals.complete, color: STATUS_COLORS.complete },
+        { label: 'In progress', value: statusTotals['in-progress'], color: STATUS_COLORS['in-progress'] },
+        { label: 'Not started', value: statusTotals['not-started'], color: STATUS_COLORS['not-started'] },
+        { label: 'Blocked', value: statusTotals.blocked, color: STATUS_COLORS.blocked },
+      ];
+      return `
+        <div class="dashboard-header">
+          <div class="dashboard-progress-block">
+            <div class="progress-ring" style="background:${conicGradient(segments)}" aria-hidden="true"><span>${pct}%</span></div>
+            <div class="dashboard-headline">
+              <h3>${complete} of ${tasks.length} tasks complete</h3>
+              <p>${pct}% overall progress · Day ${opts.projectDay} of rollout</p>
+            </div>
+          </div>
+          <div class="dashboard-milestones">
+            <div class="milestone-pill">
+              <span class="pill-label">Project day</span>
+              <span class="pill-value">${opts.projectDay}</span>
+              <span class="pill-sub">Since ${opts.startDate}</span>
+            </div>
+            <div class="milestone-pill accent">
+              <span class="pill-label">Deadline</span>
+              <span class="pill-value" style="color:${opts.deadlineValueStyle}">${opts.deadlineLabel}</span>
+              <span class="pill-sub">${opts.deadlineDate}</span>
+            </div>
+            <div class="milestone-pill">
+              <span class="pill-label">Show &amp; Tell</span>
+              <span class="pill-value" style="color:${opts.showTellValueStyle}">${opts.showTellLabel}</span>
+              <span class="pill-sub">${opts.showTellDate}</span>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-status-bar">${renderSegBar(segments)}</div>`;
+    }
+
+    function formatDateISO(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function getTimelineRange() {
+      const start = parseDate(state.projectStart);
+      const deadline = parseDate(state.projectDeadline || PROJECT_DEADLINE);
+      let end = deadline;
+      allTasks().forEach(t => {
+        const te = parseDate(t.end);
+        if (te > end) end = te;
+      });
+      const totalDays = Math.max(19, daysBetween(start, end) + 1);
+      return { start, end, totalDays, deadline, showAndTell: parseDate(state.showAndTellDate || SHOW_AND_TELL_DATE) };
+    }
+
+    function milestoneMarkers(range) {
+      const markers = [];
+      if (state.showAndTellDate) {
+        const off = (dateToOffset(parseDate(state.showAndTellDate), range.start, range.totalDays) / range.totalDays) * 100;
+        markers.push({ left: off, label: 'Show & Tell', cls: 'gantt-milestone-line' });
+      }
+      if (state.projectDeadline) {
+        const off = (dateToOffset(parseDate(state.projectDeadline), range.start, range.totalDays) / range.totalDays) * 100;
+        markers.push({ left: off, label: 'Deadline', cls: 'gantt-milestone-line' });
+      }
+      return markers.map(m =>
+        `<div class="${m.cls}" style="left:${m.left}%" data-label="${m.label}"></div>`
+      ).join('');
+    }
+
+    function daysUntil(dateStr) {
+      if (!dateStr) return 0;
+      return daysBetween(today(), parseDate(dateStr));
+    }
+
+    function daysUntilLabel(dateStr) {
+      if (!dateStr) return '—';
+      const n = daysUntil(dateStr);
+      if (n === 0) return 'Today';
+      if (n === 1) return 'Tomorrow';
+      if (n > 1) return `${n} days`;
+      const overdue = Math.abs(n);
+      return `Overdue by ${overdue} day${overdue === 1 ? '' : 's'}`;
+    }
+
+    function todayLabel() {
+      return today().toLocaleDateString('default', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+      });
+    }
+
+    function dateToOffset(date, rangeStart, totalDays) {
+      return Math.max(0, Math.min(totalDays, daysBetween(rangeStart, date)));
+    }
+
+    function offsetToDate(offset, rangeStart) {
+      const d = new Date(rangeStart);
+      d.setDate(d.getDate() + offset);
+      return d;
+    }
+
+    function barPosition(task, range) {
+      const ts = parseDate(task.start);
+      const te = parseDate(task.end);
+      const left = (dateToOffset(ts, range.start, range.totalDays) / range.totalDays) * 100;
+      const width = Math.max(0.8, (Math.max(1, daysBetween(ts, te)) / range.totalDays) * 100);
+      return { left, width };
+    }
+
+    function buildGanttScale(range, label) {
+      const days = [];
+      for (let i = 0; i < range.totalDays; i++) {
+        const d = offsetToDate(i, range.start);
+        const dow = d.getDay();
+        days.push({
+          label: i % 7 === 0 || i === 0 ? d.toLocaleDateString('default', { month: 'short', day: 'numeric' }) : '',
+          weekend: dow === 0 || dow === 6,
+        });
+      }
+      return `<div class="gantt-scale">
+        <div class="gantt-scale-label">${label || 'Task / Group'}</div>
+        <div class="gantt-days">${days.map(d =>
+          `<div class="gantt-day${d.weekend ? ' weekend' : ''}">${d.label}</div>`
+        ).join('')}</div>
+      </div>`;
+    }
+
+    function buildGanttBar(task, range, { editable, color, isGroup }) {
+      const pos = barPosition(task, range);
+      const pct = task.status === 'complete' ? 100 : task.pct;
+      const isMilestone = task.groupId === SHOW_AND_TELL_GROUP || task.start === task.end;
+      const handles = editable && !isMilestone
+        ? `<span class="handle left" data-handle="start"></span><span class="handle right" data-handle="end"></span>`
+        : '';
+      const cls = isGroup ? 'gantt-bar group-bar' : (isMilestone ? 'gantt-bar milestone-bar' : 'gantt-bar');
+      const label = isGroup ? `${pct}%` : (isMilestone ? task.title.replace('Show & Tell ', '') : pct + '%');
+      return `<div class="${cls}${editable && !isMilestone ? ' editable' : ''}"
+        data-task-id="${task.id}"
+        style="left:${pos.left}%;width:${Math.max(pos.width, isMilestone ? 1.2 : pos.width)}%;background:${isMilestone ? '' : color}"
+        title="${task.start} → ${task.end} (${pct}%)">
+        ${handles}
+        <span class="bar-label">${label}</span>
+      </div>`;
+    }
+
+    function groupDateSpan(groupId) {
+      const tasks = allTasks().filter(t => t.groupId === groupId);
+      if (!tasks.length) return { start: state.projectStart, end: state.projectStart, count: 0 };
+      let gStart = tasks[0].start;
+      let gEnd = tasks[0].end;
+      tasks.forEach(t => {
+        if (t.start < gStart) gStart = t.start;
+        if (t.end > gEnd) gEnd = t.end;
+      });
+      return { start: gStart, end: gEnd, count: tasks.length };
+    }
+
+    function renderGantt(containerId, { grouped = false, phasesOnly = false, editable = false }) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const range = getTimelineRange();
+      const todayPct = (dateToOffset(today(), range.start, range.totalDays) / range.totalDays) * 100;
+      const scaleLabel = phasesOnly ? 'Phase' : 'Task / Group';
+      let html = buildGanttScale(range, scaleLabel);
+      const markers = milestoneMarkers(range);
+
+      if (phasesOnly) {
+        state.groups.forEach(g => {
+          const span = groupDateSpan(g.id);
+          if (!span.count) return;
+          const gp = groupProgress(g.id);
+          const groupBar = {
+            id: g.id,
+            title: g.name,
+            start: span.start,
+            end: span.end,
+            pct: gp,
+            status: 'in-progress',
+          };
+          html += `<div class="gantt-row">
+            <div class="gantt-row-label">
+              <span class="gantt-phase-name" onclick="openGroupModal('${g.id}')">
+                <span class="group-dot" style="background:${g.color}"></span>
+                ${g.name}
+              </span>
+              <small>${g.owner || '—'} · ${gp}% · ${span.count} tasks · ${span.start} → ${span.end}</small>
+            </div>
+            <div class="gantt-track" style="--day-count:${range.totalDays}">
+              <div class="gantt-today-line" style="left:${todayPct}%"></div>
+              ${markers}
+              ${buildGanttBar(groupBar, range, { editable: false, color: g.color, isGroup: true })}
+            </div>
+          </div>`;
+        });
+      } else if (grouped) {
+        state.groups.forEach(g => {
+          const span = groupDateSpan(g.id);
+          if (!span.count) return;
+          const groupBar = {
+            id: g.id,
+            title: g.name,
+            start: span.start,
+            end: span.end,
+            pct: groupProgress(g.id),
+            status: 'in-progress',
+          };
+          const tasks = allTasks().filter(t => t.groupId === g.id);
+          html += `<div class="gantt-group-header">
+            <div class="gantt-group-label" style="cursor:pointer" onclick="openGroupModal('${g.id}')">
+              <span class="group-dot" style="background:${g.color}"></span>
+              ${g.name}
+              <span class="badge in-progress" style="margin-left:auto">${groupProgress(g.id)}%</span>
+            </div>
+            <div class="gantt-track" style="--day-count:${range.totalDays}">
+              <div class="gantt-today-line" style="left:${todayPct}%"></div>
+              ${milestoneMarkers(range)}
+              ${buildGanttBar(groupBar, range, { editable: false, color: g.color, isGroup: true })}
+            </div>
+          </div>`;
+          tasks.forEach(t => {
+            html += `<div class="gantt-row">
+              <div class="gantt-row-label">
+                <span>${t.title}</span>
+                <small>${t.owner || '—'} · ${t.start} → ${t.end}</small>
+              </div>
+              <div class="gantt-track" style="--day-count:${range.totalDays}">
+                <div class="gantt-today-line" style="left:${todayPct}%"></div>
+                ${milestoneMarkers(range)}
+                ${buildGanttBar(t, range, { editable, color: g.color, isGroup: false })}
+              </div>
+            </div>`;
+          });
+        });
+      } else {
+        allTasks().forEach(t => {
+          const g = groupById(t.groupId);
+          const color = g ? g.color : '#64748b';
+          html += `<div class="gantt-row">
+            <div class="gantt-row-label">
+              <span>${t.title}</span>
+              <small>${g ? g.name : '—'} · ${t.owner || '—'}</small>
+            </div>
+            <div class="gantt-track" style="--day-count:${range.totalDays}">
+              <div class="gantt-today-line" style="left:${todayPct}%"></div>
+              ${milestoneMarkers(range)}
+              ${buildGanttBar(t, range, { editable, color, isGroup: false })}
+            </div>
+          </div>`;
+        });
+      }
+
+      el.innerHTML = html;
+      el.style.setProperty('--day-count', range.totalDays);
+      if (editable) attachGanttDrag(el, range);
+      attachGanttClick(el);
+    }
+
+    let dragState = null;
+
+    function attachGanttClick(container) {
+      container.querySelectorAll('.gantt-bar[data-task-id]').forEach(bar => {
+        bar.addEventListener('click', e => {
+          if (dragState && dragState.moved) return;
+          const id = bar.dataset.taskId;
+          if (state.tasks.some(t => t.id === id)) openTaskModal(id);
+          else if (state.groups.some(g => g.id === id)) openGroupModal(id);
+        });
+      });
+    }
+
+    function attachGanttDrag(container, range) {
+      container.querySelectorAll('.gantt-bar.editable').forEach(bar => {
+        const onDown = (e, mode) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = bar.dataset.taskId;
+          const task = state.tasks.find(t => t.id === id);
+          if (!task) return;
+          const track = bar.parentElement;
+          const trackRect = track.getBoundingClientRect();
+          dragState = {
+            id, mode, bar, trackRect, range,
+            startX: e.clientX,
+            origStart: task.start,
+            origEnd: task.end,
+            moved: false,
+          };
+          bar.classList.add('dragging');
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        };
+        bar.addEventListener('mousedown', e => {
+          if (e.target.classList.contains('handle')) {
+            onDown(e, e.target.dataset.handle === 'start' ? 'resize-start' : 'resize-end');
+          } else {
+            onDown(e, 'move');
+          }
+        });
+      });
+    }
+
+    function onMove(e) {
+      if (!dragState) return;
+      const task = state.tasks.find(t => t.id === dragState.id);
+      if (!task) return;
+      const dx = e.clientX - dragState.startX;
+      if (Math.abs(dx) > 3) dragState.moved = true;
+      const dayPx = dragState.trackRect.width / dragState.range.totalDays;
+      const dayDelta = Math.round(dx / dayPx);
+      let start = parseDate(dragState.origStart);
+      let end = parseDate(dragState.origEnd);
+
+      if (dragState.mode === 'move') {
+        const origStartOff = dateToOffset(parseDate(dragState.origStart), dragState.range.start, dragState.range.totalDays);
+        const origEndOff = dateToOffset(parseDate(dragState.origEnd), dragState.range.start, dragState.range.totalDays);
+        start = offsetToDate(origStartOff + dayDelta, dragState.range.start);
+        end = offsetToDate(origEndOff + dayDelta, dragState.range.start);
+      } else if (dragState.mode === 'resize-start') {
+        start = offsetToDate(dateToOffset(parseDate(dragState.origStart), dragState.range.start, dragState.range.totalDays) + dayDelta, dragState.range.start);
+        if (start >= end) start = offsetToDate(daysBetween(end, dragState.range.start) - 1, dragState.range.start);
+      } else if (dragState.mode === 'resize-end') {
+        end = offsetToDate(dateToOffset(parseDate(dragState.origEnd), dragState.range.start, dragState.range.totalDays) + dayDelta, dragState.range.start);
+        if (end <= start) end = offsetToDate(daysBetween(start, dragState.range.start) + 1, dragState.range.start);
+      }
+
+      task.start = formatDateISO(start);
+      task.end = formatDateISO(end);
+      const pos = barPosition(task, dragState.range);
+      dragState.bar.style.left = pos.left + '%';
+      dragState.bar.style.width = pos.width + '%';
+      dragState.bar.title = `${task.start} → ${task.end}`;
+    }
+
+    function onUp() {
+      if (!dragState) return;
+      dragState.bar.classList.remove('dragging');
+      if (dragState.moved) saveState();
+      dragState = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+
+    function formatDisplayDate(iso) {
+      if (!iso) return '—';
+      return parseDate(iso).toLocaleDateString('default', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function renderOverview() {
+      const tasks = allTasks();
+      const complete = tasks.filter(t => t.status === 'complete').length;
+      const pct = calcOverallProgress();
+
+      const daysToDeadline = daysUntil(state.projectDeadline);
+      const daysToShowTell = daysUntil(state.showAndTellDate);
+      const deadlineLabel = daysUntilLabel(state.projectDeadline);
+      const showTellLabel = daysUntilLabel(state.showAndTellDate);
+      const deadlineValueStyle = daysToDeadline < 0 ? 'var(--danger)' : (daysToDeadline <= 7 ? 'var(--danger)' : 'var(--text)');
+      const showTellValueStyle = daysToShowTell <= 1 ? '#e11d48' : 'var(--text)';
+
+      const statusTotals = { complete: 0, 'in-progress': 0, 'not-started': 0, blocked: 0 };
+      tasks.forEach(t => { statusTotals[t.status] = (statusTotals[t.status] || 0) + 1; });
+
+      document.getElementById('overviewDashboard').innerHTML = renderOverviewDashboard(
+        tasks, pct, complete, statusTotals, {
+          projectDay: projectDayCount(),
+          startDate: formatDisplayDate(state.projectStart),
+          deadlineLabel,
+          deadlineDate: formatDisplayDate(state.projectDeadline),
+          deadlineValueStyle,
+          showTellLabel,
+          showTellDate: formatDisplayDate(state.showAndTellDate),
+          showTellValueStyle,
+        }
+      );
+
+      document.getElementById('overviewGroups').innerHTML = state.groups.map(g => {
+        const gp = groupProgress(g.id);
+        const breakdown = groupStatusBreakdown(g.id);
+        const tc = tasks.filter(t => t.groupId === g.id).length;
+        return renderPieCard(
+          g.name,
+          [
+            { label: 'Done', value: breakdown.complete, color: STATUS_COLORS.complete },
+            { label: 'Active', value: breakdown['in-progress'], color: STATUS_COLORS['in-progress'] },
+            { label: 'Pending', value: breakdown['not-started'], color: STATUS_COLORS['not-started'] },
+            { label: 'Blocked', value: breakdown.blocked, color: STATUS_COLORS.blocked },
+          ],
+          gp + '%',
+          `${tc} tasks · ${g.owner || '—'}`
+        );
+      }).join('');
+
+      const owners = {};
+      tasks.forEach(t => {
+        const o = t.owner || 'Unassigned';
+        if (!owners[o]) owners[o] = { total: 0, complete: 0, inprog: 0, blocked: 0, overdue: 0 };
+        owners[o].total++;
+        if (t.status === 'complete') owners[o].complete++;
+        else if (t.status === 'blocked') owners[o].blocked++;
+        else if (t.status === 'in-progress') owners[o].inprog++;
+        if (taskHealth(t).cls === 'overdue' && t.status !== 'complete') owners[o].overdue++;
+      });
+
+      document.getElementById('ownerTable').innerHTML = Object.entries(owners).map(([name, s]) =>
+        `<tr><td><strong>${name}</strong></td><td>${s.total}</td><td>${s.complete}</td><td>${s.inprog}</td><td>${s.blocked}</td><td>${s.overdue}</td></tr>`
+      ).join('');
+    }
+
+    function populateFilters() {
+      const oSel = document.getElementById('filterOwner');
+      const oVal = oSel.value;
+      const owners = [...new Set(allTasks().map(t => t.owner).filter(Boolean))].sort();
+      oSel.innerHTML = '<option value="">All owners</option>' +
+        owners.map(o => `<option value="${o}">${o}</option>`).join('');
+      oSel.value = oVal;
+
+      const tg = document.getElementById('taskGroupId');
+      tg.innerHTML = state.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    }
+
+    function renderTaskRow(t) {
+      const h = taskHealth(t);
+      const pct = t.status === 'complete' ? 100 : t.pct;
+      return `<tr>
+        <td><strong>${t.title}</strong>${t.notes ? `<br><span style="font-size:0.75rem;color:var(--muted)">${t.notes.slice(0, 60)}${t.notes.length > 60 ? '…' : ''}</span>` : ''}</td>
+        <td>${t.owner || '—'}</td>
+        <td>${t.start}</td>
+        <td>${t.end}</td>
+        <td><span class="badge ${t.status}">${t.status.replace('-', ' ')}</span></td>
+        <td><span class="mini-bar"><span style="width:${pct}%"></span></span>${pct}%</td>
+        <td><span class="badge ${h.cls}">${h.label}</span></td>
+        <td>
+          <button onclick="openTaskModal('${t.id}')">Edit</button>
+          <button class="danger" onclick="deleteTask('${t.id}')">×</button>
+        </td>
+      </tr>`;
+    }
+
+    function renderTasks() {
+      const fo = document.getElementById('filterOwner').value;
+      const fs = document.getElementById('filterStatus').value;
+      const tbody = document.getElementById('tasksTable');
+      const colSpan = 8;
+
+      const groupsWithTasks = state.groups.map(g => {
+        let tasks = allTasks().filter(t => t.groupId === g.id);
+        if (fo) tasks = tasks.filter(t => t.owner === fo);
+        if (fs) tasks = tasks.filter(t => t.status === fs);
+        return { group: g, tasks };
+      }).filter(entry => entry.tasks.length > 0);
+
+      if (!groupsWithTasks.length) {
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" class="empty-state">No subtasks match filters</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = groupsWithTasks.map(({ group: g, tasks }) => {
+        const gp = groupProgress(g.id);
+        const header = `<tr class="task-group-header">
+          <td colspan="${colSpan}">
+            <div class="task-group-header-inner">
+              <span class="group-dot" style="background:${g.color}"></span>
+              <strong>${g.name}</strong>
+              <span class="badge ${gp === 100 ? 'complete' : 'in-progress'}">${gp}%</span>
+              <span class="mini-bar"><span style="width:${gp}%;background:${g.color}"></span></span>
+              <span class="group-meta">${g.owner || '—'} · ${tasks.length} task${tasks.length === 1 ? '' : 's'}</span>
+              <div class="actions">
+                <button onclick="openGroupModal('${g.id}')">Edit group</button>
+                <button class="primary" onclick="openTaskModal(null, '${g.id}')">+ Subtask</button>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+        return header + tasks.map(renderTaskRow).join('');
+      }).join('');
+    }
+
+    function renderTimeline() {
+      renderGantt('timeline', { phasesOnly: true });
+    }
+
+    // Modals
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    function openGroupModal(id) {
+      document.getElementById('groupModalTitle').textContent = id ? 'Edit task group' : 'Add task group';
+      document.getElementById('groupId').value = id || '';
+      if (id) {
+        const g = groupById(id);
+        document.getElementById('groupName').value = g.name;
+        document.getElementById('groupOwner').value = g.owner || '';
+        document.getElementById('groupDesc').value = g.description || '';
+        document.getElementById('groupColor').value = g.color || '#2563eb';
+      } else {
+        document.getElementById('groupName').value = '';
+        document.getElementById('groupOwner').value = '';
+        document.getElementById('groupDesc').value = '';
+        document.getElementById('groupColor').value = '#2563eb';
+      }
+      openModal('groupModal');
+    }
+
+    function saveGroup(e) {
+      e.preventDefault();
+      const id = document.getElementById('groupId').value || uid();
+      const payload = {
+        id,
+        name: document.getElementById('groupName').value.trim(),
+        owner: document.getElementById('groupOwner').value.trim(),
+        description: document.getElementById('groupDesc').value.trim(),
+        color: document.getElementById('groupColor').value,
+      };
+      const idx = state.groups.findIndex(g => g.id === id);
+      if (idx >= 0) state.groups[idx] = payload;
+      else state.groups.push(payload);
+      closeModal('groupModal');
+      saveState();
+    }
+
+    function deleteGroup(id) {
+      if (!confirm('Delete this group and all its subtasks?')) return;
+      state.groups = state.groups.filter(g => g.id !== id);
+      state.tasks = state.tasks.filter(t => t.groupId !== id);
+      saveState();
+    }
+
+    function openTaskModal(id, presetGroupId) {
+      document.getElementById('taskModalTitle').textContent = id ? 'Edit subtask' : 'Add subtask';
+      document.getElementById('taskId').value = id || '';
+      populateFilters();
+      if (id) {
+        const t = state.tasks.find(x => x.id === id);
+        document.getElementById('taskGroupId').value = t.groupId;
+        document.getElementById('taskTitle').value = t.title;
+        document.getElementById('taskOwner').value = t.owner || '';
+        document.getElementById('taskStart').value = t.start;
+        document.getElementById('taskEnd').value = t.end;
+        document.getElementById('taskStatus').value = t.status;
+        document.getElementById('taskPct').value = t.pct;
+        document.getElementById('taskNotes').value = t.notes || '';
+      } else {
+        document.getElementById('taskTitle').value = '';
+        document.getElementById('taskOwner').value = '';
+        document.getElementById('taskStart').value = state.projectStart;
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        document.getElementById('taskEnd').value = d.toISOString().slice(0, 10);
+        document.getElementById('taskStatus').value = 'not-started';
+        document.getElementById('taskPct').value = 0;
+        document.getElementById('taskNotes').value = '';
+        if (presetGroupId) {
+          document.getElementById('taskGroupId').value = presetGroupId;
+        }
+      }
+      openModal('taskModal');
+    }
+
+    function saveTask(e) {
+      e.preventDefault();
+      const id = document.getElementById('taskId').value || uid();
+      const status = document.getElementById('taskStatus').value;
+      let pct = parseInt(document.getElementById('taskPct').value, 10) || 0;
+      if (status === 'complete') pct = 100;
+      const payload = {
+        id,
+        groupId: document.getElementById('taskGroupId').value,
+        title: document.getElementById('taskTitle').value.trim(),
+        owner: document.getElementById('taskOwner').value.trim(),
+        start: document.getElementById('taskStart').value,
+        end: document.getElementById('taskEnd').value,
+        status,
+        pct: Math.min(100, Math.max(0, pct)),
+        notes: document.getElementById('taskNotes').value.trim(),
+      };
+      const idx = state.tasks.findIndex(t => t.id === id);
+      if (idx >= 0) state.tasks[idx] = payload;
+      else state.tasks.push(payload);
+      closeModal('taskModal');
+      saveState();
+    }
+
+    function deleteTask(id) {
+      if (!confirm('Delete this subtask?')) return;
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      saveState();
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'bupa-browseragent-tracker-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          state = normalizeState(parsed, {
+            upgradeStructure: (parsed.schemaVersion || 0) < SCHEMA_VERSION,
+          });
+          saveState();
+          alert('Import successful');
+        } catch (err) {
+          alert('Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    // Auto status sync: pct 100 → complete
+    document.getElementById('taskPct').addEventListener('change', function() {
+      if (parseInt(this.value, 10) >= 100) {
+        document.getElementById('taskStatus').value = 'complete';
+        this.value = 100;
+      }
+    });
+
+    renderAll();
+    if (migratedOnLoad || !localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      document.getElementById('lastSaved').textContent = migratedOnLoad
+        ? 'Restored & saved — use Export JSON to backup'
+        : 'Initial schedule saved';
+    } else {
+      document.getElementById('lastSaved').textContent = 'Loaded';
+    }
+  </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 #
 # Browser Use is vendored from upstream tag 0.12.9 so WebPilot can customize
 # the agent, browser, DOM, tools, and observability internals. Keep this editable.
--e ./packages/browser-use
+-e "./packages/browser-use[video]"
 openai>=1.0.0
 PyYAML>=6.0
 python-dotenv>=1.0.0

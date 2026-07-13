@@ -532,6 +532,18 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
     keep_alive=True is required during multi-step discovery so agent.run() does not
     kill Chrome between steps, but the window must be closed when the job finishes.
     """
+    # browser-use only flushes MP4 files when the ffmpeg writer closes (BrowserStopEvent
+    # or an explicit stop_recording call). Finalize before kill so artifact collection
+    # can find the file on disk.
+    watchdog = getattr(browser, '_recording_watchdog', None)
+    if watchdog is not None and getattr(watchdog, 'is_recording', False):
+        try:
+            saved = await watchdog.stop_recording()
+            if saved:
+                print(f"Finalized execution video: {saved}")
+        except Exception as rec_err:
+            print(f"Warning: could not finalize video recording: {rec_err}")
+
     profile = getattr(browser, 'browser_profile', None)
     if profile is not None:
         profile.keep_alive = False
@@ -1600,6 +1612,10 @@ async def main():
     finally:
         history_path = str(execution_history_path(base_file_name))
         screenshot_paths = persist_screenshots(base_file_name, history_path)
+        try:
+            await shutdown_browser(browser, scoped_agent)
+        except Exception as close_error:
+            print(f"Warning: browser cleanup did not finish cleanly: {close_error}")
         artifact_paths = finalize_artifacts(
             base_file_name,
             browser_cfg['video_dir'] if browser_cfg['record_video'] else None,
@@ -1619,10 +1635,6 @@ async def main():
                 }
             with open(report_path, 'w', encoding='utf-8') as f_rep:
                 json.dump(report_summary, f_rep, indent=2)
-        try:
-            await shutdown_browser(browser, scoped_agent)
-        except Exception as close_error:
-            print(f"Warning: browser cleanup did not finish cleanly: {close_error}")
         trigger_html_reports(base_file_name, env_name, test_file_path, skip_ai=True)
 
 if __name__ == "__main__":
