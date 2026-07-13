@@ -92,6 +92,7 @@ def build_scoped_task(
         "\nRules:",
         "- Do not execute any other steps from the scenario.",
         "- Preserve the current browser session state (cookies, cart, form data).",
+        "- If a cookie/consent banner overlays the page, dismiss it first (Accept / Accept all cookies / Consent) before the primary action.",
         "- Call done(success=true) only when this step's observable outcome is satisfied.",
         "- If the UI is ambiguous, prefer the smallest action sequence that completes this step.",
         "- The step instruction describes USER INTENT — it is NOT an element label.",

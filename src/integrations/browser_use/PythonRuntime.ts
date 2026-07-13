@@ -89,25 +89,55 @@ export function resolvePythonPath(): string {
   return process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 }
 
+function pythonEnv() {
+  return {
+    ...process.env,
+    WEBPILOT_PROJECT_ROOT: projectRoot(),
+    WEBPILOT_INSTALL_ROOT: installRoot(),
+    PYTHONPATH: [
+      path.join(installRoot(), 'packages', 'browser-use'),
+      path.join(installRoot(), 'src'),
+    ].join(path.delimiter),
+  };
+}
+
 export function hasBrowserUse(pythonPath: string): boolean {
   try {
     execSync(`"${pythonPath}" -c "import browser_use; assert browser_use.__file__"`, {
       stdio: 'pipe',
       cwd: projectRoot(),
-      env: {
-        ...process.env,
-        WEBPILOT_PROJECT_ROOT: projectRoot(),
-        WEBPILOT_INSTALL_ROOT: installRoot(),
-        PYTHONPATH: [
-          path.join(installRoot(), 'packages', 'browser-use'),
-          path.join(installRoot(), 'src'),
-        ].join(path.delimiter),
-      }
+      env: pythonEnv(),
     });
     return true;
   } catch {
     return false;
   }
+}
+
+/** browser-use[video] extra — imageio + ffmpeg for MP4 recording. */
+export function hasBrowserUseVideo(pythonPath: string): boolean {
+  try {
+    execSync(`"${pythonPath}" -c "import imageio; import imageio_ffmpeg"`, {
+      stdio: 'pipe',
+      cwd: projectRoot(),
+      env: pythonEnv(),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function installBrowserUseRequirements(pythonPath: string): void {
+  const cliRoot = installRoot();
+  const reqPath = path.join(cliRoot, REQUIREMENTS);
+  if (!fs.existsSync(reqPath)) {
+    throw new Error(`Missing ${REQUIREMENTS} in the WebPilot CLI installation: ${cliRoot}`);
+  }
+  execSync(`"${pythonPath}" -m pip install -r "${reqPath}"`, {
+    stdio: 'inherit',
+    cwd: cliRoot,
+  });
 }
 
 export function findCompatibleSystemPython(): string | null {
@@ -169,10 +199,7 @@ export function setupPythonVenv(systemPython?: string): string {
   }
 
   execSync(`"${venvPy}" -m pip install -U pip`, { stdio: 'inherit', cwd: root });
-  execSync(`"${venvPy}" -m pip install -r "${reqPath}"`, {
-    stdio: 'inherit',
-    cwd: cliRoot,
-  });
+  installBrowserUseRequirements(venvPy);
   return venvPy;
 }
 
@@ -184,6 +211,10 @@ export function ensureBrowserUsePython(): string {
   let pythonPath = resolvePythonPath();
 
   if (hasBrowserUse(pythonPath)) {
+    if (!hasBrowserUseVideo(pythonPath) && process.env.WEBPILOT_SKIP_PYTHON_SETUP !== '1') {
+      console.log('[WebPilot] Installing browser-use[video] optional dependencies for MP4 recording...');
+      installBrowserUseRequirements(pythonPath);
+    }
     return pythonPath;
   }
 

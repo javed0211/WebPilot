@@ -18,6 +18,7 @@ When choosing which element to interact with, think like **Playwright semantic l
 - Prefer the element whose **accessible name** matches the step intent (e.g. step says "Click Yes" → role=button name="Yes", not a nearby div).
 - On **Microsoft login** (`login.microsoftonline.com`): "Stay signed in?" → click **Yes** via `#idSIButton9` or role=button name="Yes" (`input[type=submit][value="Yes"]`).
 - Scope to the active dialog/modal when one is visible — do not click footer or background duplicates.
+- **Cookie / consent overlays:** If a banner blocks inputs or navigation, dismiss it first (e.g. **Accept**, **Accept all cookies**, **Consent**, OneTrust `#onetrust-accept-btn-handler`). Do not call done(success=true) while the overlay still covers the target control.
 - For submit controls, treat `input[type="submit"]` and `input[type="button"]` as buttons when they have a visible label/value.
 - Never pick an element only because it is first in the DOM tree; match **meaning** first.
 

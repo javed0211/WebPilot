@@ -63,6 +63,56 @@ _LOCATOR_KIND_PRIORITY = {
     "css": 5,
 }
 
+CONSENT_TERMS = (
+    "cookie",
+    "consent",
+    "onetrust",
+    "fc-consent",
+    "privacy preference",
+    "accept all",
+    "accept cookies",
+)
+
+_COOKIE_DISMISS_JS = """() => {
+  const visible = (el) => {
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+  };
+  const label = (el) => (el.getAttribute('aria-label') || el.textContent || el.value || '').trim().replace(/\\s+/g, ' ');
+  const consentRe = /^(accept( all)?( cookies)?|allow( all)?( cookies)?|agree( to (all )?cookies)?|i agree|consent|ok,? thanks|got it)$/i;
+  const consentRoot = (el) => el.closest(
+    '#onetrust-banner-sdk, #onetrust-consent-sdk, .fc-consent-root, [class*="cookie"], [id*="cookie"], [class*="consent"], [id*="consent"]'
+  );
+  const candidates = [
+    '#onetrust-accept-btn-handler',
+    'button.fc-cta-consent',
+    'button[aria-label="Consent"]',
+    '[role="button"][aria-label="Consent"]',
+    '#onetrust-banner-sdk button[id*="accept"]',
+    '.fc-consent-root button',
+  ];
+  for (const selector of candidates) {
+    const el = [...document.querySelectorAll(selector)].find(visible);
+    if (el) {
+      el.click();
+      return true;
+    }
+  }
+  const buttons = [...document.querySelectorAll('button,[role="button"],a,input[type="button"],input[type="submit"]')];
+  const preferred = buttons.find((el) => visible(el) && consentRe.test(label(el)));
+  if (preferred) {
+    preferred.click();
+    return true;
+  }
+  const inBanner = buttons.find((el) => visible(el) && consentRoot(el) && /accept|agree|consent|allow/i.test(label(el)));
+  if (inBanner) {
+    inBanner.click();
+    return true;
+  }
+  return false;
+}"""
+
 
 def step_signature(step: str) -> str:
     return re.sub(r"\s+", " ", step.strip().lower())
@@ -806,39 +856,28 @@ async def validate_step_outcome(
     return ok, reason
 
 
-async def dismiss_cookie_consent_if_present(browser_session: Any) -> None:
+async def dismiss_cookie_consent_if_present(browser_session: Any) -> bool:
+    """Click common cookie/consent accept controls when visible. Returns True if a click was attempted."""
+    import asyncio
+
     page = await browser_session.must_get_current_page()
-    try:
-        await page.evaluate(
-            """() => {
-              const visible = (el) => {
-                const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
-                return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
-              };
-              const candidates = [
-                '#onetrust-accept-btn-handler',
-                'button.fc-cta-consent',
-                'button[aria-label="Consent"]',
-                '[role="button"][aria-label="Consent"]',
-              ];
-              for (const selector of candidates) {
-                const el = [...document.querySelectorAll(selector)].find(visible);
-                if (el) {
-                  el.click();
-                  return true;
-                }
-              }
-              const textMatch = [...document.querySelectorAll('button,[role="button"],a')]
-                .find(el => visible(el) && /^(accept all|accept|agree|consent)$/i.test((el.textContent || el.getAttribute('aria-label') || '').trim()));
-              if (textMatch) {
-                textMatch.click();
-                return true;
-              }
-              return false;
-            }"""
-        )
-    except Exception:
-        return
+    for _ in range(3):
+        try:
+            clicked = await page.evaluate(_COOKIE_DISMISS_JS)
+            if clicked:
+                await asyncio.sleep(0.4)
+                return True
+        except Exception:
+            return False
+        await asyncio.sleep(0.15)
+    return False
+
+
+async def prepare_page_for_interaction(browser_session: Any) -> bool:
+    """Clear cookie banners and blocking dialogs before deterministic replay or LLM discovery."""
+    dismissed = await dismiss_cookie_consent_if_present(browser_session)
+    await dismiss_blocking_modals(browser_session)
+    return dismissed
 
 
 async def assert_visible_page(browser_session: Any) -> tuple[bool, str]:

@@ -2,6 +2,8 @@ import unittest
 from types import SimpleNamespace
 
 from integrations.browser_use.knowledge import (
+    CONSENT_TERMS,
+    _is_consent_anchor,
     _locator_candidates,
     _step_requests_stay_signed_in_choice,
     _url_pattern_matches,
@@ -95,6 +97,11 @@ class SiteKnowledgeTests(unittest.TestCase):
         self.assertEqual(candidates[0]["kind"], "role")
         self.assertEqual(candidates[0]["value"], "button")
         self.assertEqual(candidates[0]["name"], "Yes")
+
+    def test_consent_anchor_detection(self):
+        self.assertTrue(_is_consent_anchor({"attrs": {"aria-label": "Accept all cookies"}}))
+        self.assertFalse(_is_consent_anchor({"attrs": {"aria-label": "Sign in"}}))
+        self.assertIn("onetrust", CONSENT_TERMS)
 
 
 if __name__ == "__main__":

@@ -73,6 +73,7 @@ from .knowledge import (
     execute_capability,
     KnowledgeRepository,
     load_knowledge_config,
+    prepare_page_for_interaction,
     try_recipe_step,
     validate_step_outcome,
 )
@@ -712,6 +713,11 @@ async def run_intelligent_steps(
         current_url = await browser.get_current_page_url()
         if not url_sequence or url_sequence[-1] != current_url:
             url_sequence.append(current_url)
+
+        if await prepare_page_for_interaction(browser):
+            current_url = await browser.get_current_page_url()
+            if not url_sequence or url_sequence[-1] != current_url:
+                url_sequence.append(current_url)
 
         page_state = await compact_page_state(browser)
         capability = None if force_discovery else knowledge_repo.find_capability(step, current_url, page_state)
