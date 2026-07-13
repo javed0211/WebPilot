@@ -52,6 +52,49 @@ export class CodegenSanitizer {
     });
   }
 
+  private static isFullPageObject(content: string): boolean {
+    return /extends\s+(BasePage|AutomationExerciseBasePage)/.test(content);
+  }
+
+  private static incomingMethodNames(incomingContent: string): string[] {
+    const names: string[] = [];
+    const methodRe = /public\s+async\s+(\w+)\s*\(/g;
+    let match: RegExpExecArray | null;
+    while ((match = methodRe.exec(incomingContent)) !== null) {
+      names.push(match[1]);
+    }
+    return names;
+  }
+
+  private static existingDefinesMethods(existingContent: string, methodNames: string[]): boolean {
+    if (methodNames.length === 0) {
+      return true;
+    }
+    return methodNames.every((name) => new RegExp(`\\b${name}\\s*\\(`).test(existingContent));
+  }
+
+  private static appendPartialMethods(existingContent: string, incomingContent: string): string | null {
+    const methodBlocks = incomingContent.match(
+      /public\s+async\s+\w+\s*\(\)\s*:\s*Promise<void>\s*\{[\s\S]*?\n\s*\}/g
+    );
+    if (!methodBlocks?.length) {
+      return null;
+    }
+    const newBlocks = methodBlocks.filter((block) => {
+      const nameMatch = block.match(/public\s+async\s+(\w+)\s*\(/);
+      return nameMatch && !new RegExp(`\\b${nameMatch[1]}\\s*\\(`).test(existingContent);
+    });
+    if (newBlocks.length === 0) {
+      return existingContent;
+    }
+    const closingBrace = existingContent.lastIndexOf('}');
+    if (closingBrace === -1) {
+      return null;
+    }
+    const candidate = `${existingContent.slice(0, closingBrace)}\n\n${newBlocks.join('\n\n')}\n${existingContent.slice(closingBrace)}`;
+    return CodegenSanitizer.isParsableTypeScript(candidate) ? candidate : null;
+  }
+
   public static chooseMergeContent(
     filePath: string,
     existingPath: string,
@@ -61,23 +104,56 @@ export class CodegenSanitizer {
     if (CodegenSanitizer.isParsableTypeScript(mergedContent)) {
       return mergedContent;
     }
+
+    const repairedMerge = CodegenSanitizer.repairTruncatedSource(mergedContent);
+    if (
+      repairedMerge !== mergedContent &&
+      CodegenSanitizer.isParsableTypeScript(repairedMerge)
+    ) {
+      console.warn(
+        `\x1b[33m[CodegenSanitizer] Repaired invalid AST merge for ${filePath}.\x1b[0m`
+      );
+      return repairedMerge;
+    }
+
+    if (CodegenSanitizer.isParsableTypeScript(incomingContent)) {
+      if (CodegenSanitizer.isFullPageObject(incomingContent)) {
+        console.warn(
+          `\x1b[33m[CodegenSanitizer] AST merge failed for ${filePath}; replacing with incoming page object.\x1b[0m`
+        );
+        return incomingContent;
+      }
+    }
+
     try {
       const existing = fs.readFileSync(existingPath, 'utf8');
+      const incomingMethods = CodegenSanitizer.incomingMethodNames(incomingContent);
       if (CodegenSanitizer.isParsableTypeScript(existing)) {
-        console.warn(
-          `\x1b[33m[CodegenSanitizer] AST merge produced invalid TS for ${filePath}; keeping existing file.\x1b[0m`
-        );
-        return existing;
+        const appended = CodegenSanitizer.appendPartialMethods(existing, incomingContent);
+        if (appended && appended !== existing) {
+          console.warn(
+            `\x1b[33m[CodegenSanitizer] AST merge failed for ${filePath}; appended ${incomingMethods.length} new method(s) to existing page object.\x1b[0m`
+          );
+          return appended;
+        }
+        if (CodegenSanitizer.existingDefinesMethods(existing, incomingMethods)) {
+          console.warn(
+            `\x1b[33m[CodegenSanitizer] AST merge produced invalid TS for ${filePath}; keeping existing file (methods already present).\x1b[0m`
+          );
+          return existing;
+        }
       }
     } catch {
       /* ignore */
     }
+
     if (CodegenSanitizer.isParsableTypeScript(incomingContent)) {
       console.warn(
         `\x1b[33m[CodegenSanitizer] AST merge produced invalid TS for ${filePath}; using incoming codegen only.\x1b[0m`
       );
       return incomingContent;
     }
+
     return CodegenSanitizer.repairTruncatedSource(mergedContent);
   }
 }

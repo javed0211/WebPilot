@@ -251,6 +251,46 @@ export class SymbolGraphQuery {
   }
 }
 
+function typeNodeFromText(typeText: string): ts.TypeNode {
+  const trimmed = (typeText || 'Promise<void>').trim();
+  if (trimmed === 'void') {
+    return ts.factory.createKeywordTypeNode(ts.SyntaxKind.VoidKeyword);
+  }
+  if (trimmed === 'string') {
+    return ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
+  }
+  if (trimmed === 'number') {
+    return ts.factory.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
+  }
+  if (trimmed === 'boolean') {
+    return ts.factory.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
+  }
+  const genericMatch = trimmed.match(/^(\w+)<(.+)>$/);
+  if (genericMatch) {
+    return ts.factory.createTypeReferenceNode(genericMatch[1], [
+      typeNodeFromText(genericMatch[2]),
+    ]);
+  }
+  return ts.factory.createTypeReferenceNode(trimmed, undefined);
+}
+
+function methodBodyStatements(bodyCode: string): ts.Statement[] {
+  const wrapped = `async function __webpilotMergeBody() {\n${bodyCode}\n}`;
+  const tempFile = ts.createSourceFile(
+    'tempBody.ts',
+    wrapped,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+  for (const statement of tempFile.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.body) {
+      return [...statement.body.statements];
+    }
+  }
+  return [];
+}
+
 /**
  * ASTMerger
  * Uses the TypeScript AST Compiler API to safely extend existing Page Object classes.
@@ -303,11 +343,7 @@ export class ASTMerger {
             const methodNodes = newMethods
               .filter((m) => !existingMethodNames.has(m.name))
               .map((m) => {
-                let bodyStatements: ts.Statement[] = [];
-                if (m.bodyCode) {
-                  const tempFile = ts.createSourceFile('tempBody.ts', m.bodyCode, ts.ScriptTarget.Latest, true);
-                  bodyStatements = [...tempFile.statements];
-                }
+                const bodyStatements = m.bodyCode ? methodBodyStatements(m.bodyCode) : [];
 
                 const params = m.parameters.map((p) =>
                   ts.factory.createParameterDeclaration(
@@ -315,7 +351,7 @@ export class ASTMerger {
                     undefined,
                     p.name,
                     undefined,
-                    ts.factory.createTypeReferenceNode(p.type || 'string', undefined),
+                    typeNodeFromText(p.type || 'string'),
                     undefined
                   )
                 );
@@ -330,7 +366,7 @@ export class ASTMerger {
                   undefined,
                   undefined,
                   params,
-                  ts.factory.createTypeReferenceNode(m.returnType || 'Promise<void>', undefined),
+                  typeNodeFromText(m.returnType || 'Promise<void>'),
                   ts.factory.createBlock(bodyStatements, true)
                 );
               });
@@ -360,6 +396,7 @@ export class ASTMerger {
    * Parses newClassContent, extracts non-duplicate members, and merges them into an existing class file.
    */
   public static mergeClassContent(filePath: string, newClassContent: string): string {
+    const existingContent = fs.readFileSync(filePath, 'utf8');
     const newSourceFile = ts.createSourceFile(
       'temp.ts',
       newClassContent,
@@ -367,39 +404,27 @@ export class ASTMerger {
       true
     );
 
-    const properties: PropertyInfo[] = [];
-    const methods: MethodInfo[] = [];
-
+    const methodTexts: string[] = [];
     const visit = (node: ts.Node) => {
-      if (ts.isClassDeclaration(node)) {
-        node.members.forEach((member) => {
-          if (ts.isPropertyDeclaration(member) && member.name) {
-            const name = member.name.getText(newSourceFile);
-            const type = member.type ? member.type.getText(newSourceFile) : 'string';
-            const value = member.initializer ? member.initializer.getText(newSourceFile) : undefined;
-            properties.push({ name, type, value });
-          } else if (ts.isMethodDeclaration(member) && member.name) {
-            const name = member.name.getText(newSourceFile);
-            const parameters = member.parameters.map((p) => ({
-              name: p.name.getText(newSourceFile),
-              type: p.type ? p.type.getText(newSourceFile) : 'string',
-            }));
-            const returnType = member.type ? member.type.getText(newSourceFile) : 'Promise<void>';
-            
-            let bodyCode: string | undefined;
-            if (member.body) {
-              const fullBodyText = member.body.getText(newSourceFile);
-              // Strip outer braces
-              bodyCode = fullBodyText.substring(1, fullBodyText.length - 1).trim();
-            }
-            methods.push({ name, parameters, returnType, bodyCode });
-          }
-        });
+      if (ts.isMethodDeclaration(node) && node.name) {
+        const name = node.name.getText(newSourceFile);
+        if (!new RegExp(`\\b${name}\\s*\\(`).test(existingContent)) {
+          methodTexts.push(node.getText(newSourceFile).replace(/\n/g, '\n  '));
+        }
       }
       ts.forEachChild(node, visit);
     };
-
     visit(newSourceFile);
-    return ASTMerger.mergeClass(filePath, properties, methods);
+
+    if (methodTexts.length === 0) {
+      return existingContent;
+    }
+
+    const closingBrace = existingContent.lastIndexOf('}');
+    if (closingBrace === -1) {
+      return existingContent;
+    }
+
+    return `${existingContent.slice(0, closingBrace)}\n\n  ${methodTexts.join('\n\n  ')}\n${existingContent.slice(closingBrace)}`;
   }
 }

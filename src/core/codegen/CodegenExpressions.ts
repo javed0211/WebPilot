@@ -57,6 +57,8 @@ function selectorMetadataComment(selector: TraceSelector | undefined): string[] 
   return comments;
 }
 
+const STEP_PREFIX_STOP_WORDS = new Set(['and', 'then', 'when', 'given', 'but', 'also']);
+
 export function methodNameFromStep(step: TraceStep, used: Set<string>): string {
   if (step.action === 'navigate') return ensureUnique('goto', used, step.index);
 
@@ -65,6 +67,9 @@ export function methodNameFromStep(step: TraceStep, used: Set<string>): string {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+  while (words.length > 0 && STEP_PREFIX_STOP_WORDS.has(words[0].toLowerCase())) {
+    words.shift();
+  }
   let base =
     words.length > 0
       ? words
