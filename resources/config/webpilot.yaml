@@ -62,10 +62,14 @@ intelligentRunner:
   knowledgeScope: global
   # partitioned: pages/*.json (global) or scenarios/*.json (test). legacy: single knowledge.json
   knowledgeStorage: partitioned
+  # native = one browser-use Agent for the full scenario (default — preserves engine intelligence).
+  # scoped = one Agent per NL step (legacy wrapper; use for knowledge repair / WEBPILOT_KNOWLEDGE_ONLY).
+  engineMode: native
   scopedAgentMaxSteps: 12
-  # Fresh agent per discovery step avoids LLM context drift on 15+ step scenarios.
+  nativeAgentMaxSteps: 80
+  # Fresh agent per discovery step avoids LLM context drift on 15+ step scenarios (scoped mode only).
   freshAgentPerStep: true
-  maxHistoryItems: 6
+  maxHistoryItems: 12
   longScenarioStepWarning: 15
   # auto: tune agent for single-file 15+ step flows (fresh agent, retries, higher step budget)
   longScenarioMode: auto

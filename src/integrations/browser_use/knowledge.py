@@ -685,29 +685,54 @@ async def compact_page_state(browser_session: Any) -> dict[str, Any]:
             const s = getComputedStyle(el);
             return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
           };
-          const selectors = ['[data-testid]','[data-test]','[data-cy]','input[name]','button[aria-label]',
-            'a[aria-label]','[role][aria-label]','input[placeholder]'];
+          // Light DOM + open shadow roots (auth widgets often mount inputs in shadow DOM).
+          const deepQuery = (root, selector) => {
+            const out = [];
+            const visit = (node) => {
+              if (!node) return;
+              if (node.querySelectorAll) {
+                out.push(...node.querySelectorAll(selector));
+                for (const el of node.querySelectorAll('*')) {
+                  if (el.shadowRoot) visit(el.shadowRoot);
+                }
+              }
+            };
+            visit(root);
+            return out;
+          };
+          const selectors = ['[data-testid]','[data-test]','[data-cy]','input[name]','input[type]',
+            'button[aria-label]','a[aria-label]','[role][aria-label]','input[placeholder]'];
           const anchors = [];
-          for (const el of document.querySelectorAll(selectors.join(','))) {
+          for (const el of deepQuery(document, selectors.join(','))) {
             if (!visible(el)) continue;
             const attrs = {};
-            for (const key of ['data-testid','data-test','data-cy','id','name','aria-label','placeholder','role']) {
+            for (const key of ['data-testid','data-test','data-cy','id','name','aria-label','placeholder','role','type']) {
               const value = el.getAttribute(key);
               if (value) attrs[key] = value;
             }
             if (Object.keys(attrs).length) anchors.push({tag: el.tagName.toLowerCase(), attrs});
-            if (anchors.length >= 12) break;
+            if (anchors.length >= 20) break;
           }
           const evidence = [];
-          for (const el of document.querySelectorAll('img[alt],h1,h2,h3,label,input[aria-label],input[placeholder],[role="heading"]')) {
+          for (const el of deepQuery(document, 'img[alt],h1,h2,h3,label,input[aria-label],input[placeholder],input[type="password"],[role="heading"]')) {
             if (!visible(el)) continue;
             const text = (el.getAttribute('alt') || el.getAttribute('aria-label') ||
-              el.getAttribute('placeholder') || el.textContent || '').trim().replace(/\\s+/g,' ');
+              el.getAttribute('placeholder') || el.getAttribute('type') || el.textContent || '').trim().replace(/\\s+/g,' ');
             if (text && text.length <= 160) evidence.push({tag: el.tagName.toLowerCase(), text});
             if (evidence.length >= 30) break;
           }
-          return JSON.stringify({url: location.href, title: document.title, anchors, evidence,
-            bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 5000)});
+          // Exclude WebPilot branding overlay text from body samples used for progression checks.
+          const branding = document.getElementById('webpilot-agent-ui');
+          let bodyText = '';
+          if (branding) {
+            const clone = document.body.cloneNode(true);
+            const brand = clone.querySelector('#webpilot-agent-ui');
+            if (brand) brand.remove();
+            bodyText = (clone.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 5000);
+          } else {
+            bodyText = (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 5000);
+          }
+          return JSON.stringify({url: location.href, title: document.title, anchors, evidence, bodyText});
         }"""
     )
     state = json.loads(raw)
@@ -878,6 +903,7 @@ def progressive_outcome_indicates_success(
     before: dict[str, Any],
     after: dict[str, Any],
     actions: list[dict[str, Any]],
+    history: Any | None = None,
 ) -> bool:
     """True when the agent called done(false) but the UI clearly advanced after its action.
 
@@ -885,6 +911,10 @@ def progressive_outcome_indicates_success(
     re-scans for Continue, cannot find it, and wrongly reports failure. Raw browser-use
     avoids this because it keeps the full multi-step task in one agent run.
     """
+    # Strongest signal: browser-use already reported the matching click/type succeeded.
+    if history_indicates_step_action_succeeded(history, step):
+        return True
+
     actionable = [a for a in actions if a.get("type") in ("click", "input", "navigate", "press")]
     lowered = step.lower()
     looks_like_click_step = bool(
@@ -937,6 +967,65 @@ def progressive_outcome_indicates_success(
             if action.get("locators"):
                 return True
 
+    return False
+
+
+def _step_cta_tokens(step: str) -> list[str]:
+    lowered = step.lower()
+    tokens: list[str] = []
+    for phrase in (
+        "sign in",
+        "log in",
+        "accept all cookies",
+        "accept cookies",
+        "stay signed in",
+        "continue",
+        "confirm",
+        "submit",
+        "next",
+        "accept",
+        "yes",
+    ):
+        if phrase in lowered:
+            tokens.append(phrase)
+    quoted = re.findall(r"[\"']([^\"']{1,40})[\"']", step)
+    tokens.extend(q.strip().lower() for q in quoted if q.strip())
+    return tokens
+
+
+def history_indicates_step_action_succeeded(history: Any | None, step: str) -> bool:
+    """Recover from done(false) when browser-use already logged a matching successful click/type."""
+    if history is None:
+        return False
+    try:
+        results = history.action_results()
+    except Exception:
+        return False
+
+    parts: list[str] = []
+    for result in results or []:
+        if getattr(result, "error", None):
+            continue
+        for attr in ("extracted_content", "long_term_memory"):
+            value = getattr(result, attr, None)
+            if value:
+                parts.append(str(value).lower())
+    if not parts:
+        return False
+    blob = " | ".join(parts)
+    lowered = step.lower()
+
+    # Click Continue / Sign in / Confirm: history says Clicked … Continue
+    if "clicked" in blob:
+        for token in _step_cta_tokens(step):
+            if token in blob:
+                return True
+        # Generic click step with any successful click is weaker but common when label is long.
+        if re.search(r"\b(click|press|tap)\b", lowered) and re.search(r"\b(continue|next|confirm|sign in|submit)\b", lowered):
+            return True
+
+    if re.search(r"\b(enter|type|fill|input)\b", lowered) and ("typed" in blob or "input" in blob):
+        return True
     return False
 
 
@@ -1401,8 +1490,8 @@ async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, 
     stripped = step.strip()
     url = resolve_navigate_target(stripped)
     if url:
-        await browser_session.navigate_to(url, new_tab=False)
-        return True, True, ""
+        ok, reason = await navigate_tolerantly(browser_session, url)
+        return True, ok, reason
     if _is_verification_step(step):
         ok, reason = await assert_visible_page(browser_session)
         return True, ok, reason
@@ -1422,6 +1511,38 @@ async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, 
     return False, False, ""
 
 
+async def navigate_tolerantly(browser_session: Any, url: str, *, new_tab: bool = False) -> tuple[bool, str]:
+    """Navigate and tolerate EventBus timeouts when the target URL already loaded.
+
+    Enterprise SSO sites often exceed browser-use's default 30s NavigateToUrlEvent
+    timeout even after the document is usable. If we already landed on the target
+    host, treat the navigation as successful and continue the scenario.
+    """
+    target_host = (urlparse(url).netloc or "").lower()
+    try:
+        await browser_session.navigate_to(url, new_tab=new_tab)
+        return True, ""
+    except Exception as exc:
+        current = ""
+        try:
+            current = await browser_session.get_current_page_url()
+        except Exception:
+            current = ""
+        current_host = (urlparse(current).netloc or "").lower()
+        landed = bool(
+            target_host
+            and current
+            and (target_host == current_host or target_host in current.lower() or url.rstrip("/") in current)
+        )
+        if landed:
+            print(
+                f"[WebPilot] Navigation handler timed out but page reached {current} — continuing "
+                f"({type(exc).__name__}: {exc})"
+            )
+            return True, ""
+        return False, f"navigate failed: {type(exc).__name__}: {exc}"
+
+
 async def execute_capability(
     browser_session: Any,
     capability: dict[str, Any],
@@ -1438,7 +1559,13 @@ async def execute_capability(
         action_type = action.get("type")
         try:
             if action_type == "navigate":
-                await browser_session.navigate_to(action["url"], new_tab=bool(action.get("newTab", False)))
+                ok, reason = await navigate_tolerantly(
+                    browser_session,
+                    action["url"],
+                    new_tab=bool(action.get("newTab", False)),
+                )
+                if not ok:
+                    return False, reason
             elif action_type == "switch_tab":
                 await _switch_tab(browser_session, str(action.get("tabId", "")))
             elif action_type == "close_tab":

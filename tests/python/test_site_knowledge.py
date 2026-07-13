@@ -9,6 +9,7 @@ from integrations.browser_use.knowledge import (
     _url_pattern_matches,
     capability_from_step,
     find_capability,
+    history_indicates_step_action_succeeded,
     progressive_outcome_indicates_success,
     step_signature,
 )
@@ -132,6 +133,53 @@ class SiteKnowledgeTests(unittest.TestCase):
                 before,
                 before,
                 actions,
+            )
+        )
+
+    def test_history_recovers_when_continue_click_logged_even_if_dom_unchanged(self):
+        """Shadow-DOM auth pages often look identical to compact_page_state light DOM."""
+        before = {
+            "url": "https://example.com/login",
+            "anchors": [],
+            "evidence": [],
+            "bodyText": "Enter Password as ... Continue",  # branding also mentions password
+        }
+        after = dict(before)
+        history = SimpleNamespace(
+            action_results=lambda: [
+                SimpleNamespace(
+                    error=None,
+                    extracted_content='Clicked button "Continue"',
+                    long_term_memory='Clicked button "Continue"',
+                ),
+                SimpleNamespace(
+                    error=None,
+                    extracted_content="Unable to find Continue",
+                    long_term_memory="done",
+                    is_done=True,
+                    success=False,
+                ),
+            ]
+        )
+        self.assertTrue(
+            history_indicates_step_action_succeeded(history, "And click on Continue button")
+        )
+        self.assertTrue(
+            progressive_outcome_indicates_success(
+                "And click on Continue button",
+                before,
+                after,
+                actions=[],
+                history=history,
+            )
+        )
+        # Without history / DOM progress, do not invent success.
+        self.assertFalse(
+            progressive_outcome_indicates_success(
+                "And click on Continue button",
+                before,
+                after,
+                actions=[],
             )
         )
 

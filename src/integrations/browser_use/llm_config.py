@@ -147,6 +147,18 @@ def resolve_provider_config(provider: str | None = None) -> tuple[str, dict[str,
             else os.environ.get('ANTHROPIC_API_KEY', '')
         )
 
+    elif prov == 'ollama':
+        block['model'] = (
+            os.environ.get('WEBPILOT_OLLAMA_MODEL')
+            or block.get('model')
+            or 'qwen2.5:3b'
+        )
+        block['endpoint'] = (
+            os.environ.get('WEBPILOT_OLLAMA_HOST')
+            or block.get('endpoint')
+            or 'http://localhost:11434'
+        )
+
     return prov, block
 
 
@@ -179,6 +191,11 @@ def validate_provider_config(provider: str, cfg: dict[str, Any]) -> None:
             raise ValueError(
                 'Gemini API key missing. Set GEMINI_API_KEY in .env or google.apiKey in config/llm.json.'
             )
+    elif provider == 'ollama':
+        if _is_placeholder(cfg.get('model')):
+            raise ValueError(
+                'Ollama model missing. Set ollama.model in config/llm.json or WEBPILOT_OLLAMA_MODEL.'
+            )
 
 
 def apply_azure_env(cfg: dict[str, Any]) -> None:
@@ -209,8 +226,13 @@ def create_browser_use_llm(provider: str, cfg: dict[str, Any]):
 
         return ChatOpenAI(model=cfg['model'], api_key=cfg['apiKey'], temperature=0.0)
 
+    if provider == 'ollama':
+        from browser_use import ChatOllama
+
+        return ChatOllama(model=cfg['model'], host=cfg.get('endpoint') or 'http://localhost:11434')
+
     raise ValueError(
-        f'browser-use runner supports activeProvider "azure" or "openai" (got "{provider}"). '
+        f'browser-use runner supports activeProvider "azure", "openai", or "ollama" (got "{provider}"). '
         'Set framework.activeProvider in config/webpilot.yaml or use Azure/OpenAI credentials.'
     )
 

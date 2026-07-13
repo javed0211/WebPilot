@@ -8,13 +8,18 @@ opaque package installed into `.venv`.
 - Engine source: `packages/browser-use`
 - WebPilot adapter: `src/integrations/browser_use`
 - Upstream: `browser-use/browser-use`
-- Version: `0.12.9`
+- Version: `0.13.4`
 - Runtime entry point: `python -m integrations.browser_use`
 
-The version is intentionally pinned to the API WebPilot currently uses. Browser
-Use `0.13.x` also contains an opt-in Rust-powered beta agent. That is a separate
-migration because its runtime, event transport, tool behavior, and dependency
-requirements differ from the stable Python agent.
+The Python Agent API remains the supported surface. Optional Rust
+`browser-use-core` extras are **not** required for WebPilot.
+
+## Design rule
+
+**browser-use owns browsing intelligence.** WebPilot wrappers should not change
+core click/navigate/consent behavior unless required for product concerns
+(credentials, reports, branding, CI). Prefer `engineMode: native` so one Agent
+runs the full NL scenario the way raw browser-use would.
 
 ## Architecture
 
@@ -24,30 +29,15 @@ WebPilot CLI / Engine
         v
 src/integrations/browser_use/runner.py
         |
-        +--> packages/browser-use
-        |      +--> Agent
-        |      +--> BrowserSession / CDP
-        |      +--> Tools and DOM engine
+        +--> packages/browser-use  (Agent, BrowserSession, Tools, DOM)
         |
-        +--> WebPilot adapter services
-        |      +--> LLM configuration
-        |      +--> TestMu and branding
-        |      +--> history export
-        |
-        +--> Agent
-        |      +--> prompt and message manager
-        |      +--> Tools registry and ActionResult
-        |      +--> lifecycle callbacks and AgentHistoryList
-        |
-        +--> Browser / BrowserSession
-        |      +--> CDP session and browser events
-        |      +--> watchdogs (DOM, downloads, popups, security, recording)
-        |      +--> DOM serialization and screenshots
-        |
-        +--> LLM adapters
-        |
-        +--> WebPilot reporting, branding, TestMu, and code generation
+        +--> WebPilot adapter (LLM config, branding, history, knowledge, codegen)
 ```
+
+Default path: `run_native_browser_use_scenario` → `AgentHistoryList` /
+locator-rich action captures → execution history → codegen / site knowledge.
+
+Opt-in path: `engineMode: scoped` → one Agent per NL step (legacy).
 
 ## Supported customization points
 

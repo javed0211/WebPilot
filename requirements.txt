@@ -1,7 +1,7 @@
 # Python deps for the WebPilot Browser Use adapter.
 # Requires Python 3.11+ — use: npm run setup  (creates .venv with python3.12)
 #
-# Browser Use is vendored from upstream tag 0.12.9 so WebPilot can customize
+# Browser Use is vendored from upstream tag 0.13.4 so WebPilot can customize
 # the agent, browser, DOM, tools, and observability internals. Keep this editable.
 -e "./packages/browser-use[video]"
 openai>=1.0.0

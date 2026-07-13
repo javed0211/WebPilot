@@ -12,7 +12,7 @@
     "apiKey": "${ANTHROPIC_API_KEY}"
   },
   "ollama": {
-    "model": "llama3",
+    "model": "qwen2.5:3b",
     "endpoint": "http://localhost:11434"
   },
   "azure": {

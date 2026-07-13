@@ -87,6 +87,145 @@
       "successCount": 3,
       "status": "trusted",
       "updatedAt": "2026-06-23T08:18:06.816778+00:00"
+    },
+    {
+      "id": "d1b87b40286fb61f7e86",
+      "step": "Verify the Wikipedia logo and search input are visible",
+      "stepSignature": "verify the wikipedia logo and search input are visible",
+      "origin": "www.wikipedia.org",
+      "before": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "successCount": 1,
+      "status": "candidate",
+      "quality": {
+        "validationContexts": [
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-13T20:37:34.705156+00:00"
+          }
+        ],
+        "environments": [
+          "qa"
+        ],
+        "confidence": 0.43
+      },
+      "lastValidatedAt": "2026-07-13T20:37:34.705172+00:00",
+      "updatedAt": "2026-07-13T20:37:34.705172+00:00"
+    },
+    {
+      "id": "79db01c6c47cd579f9e7",
+      "step": "Navigate to https://www.wikipedia.org/",
+      "stepSignature": "navigate to https://www.wikipedia.org/",
+      "origin": "www.wikipedia.org",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "navigate",
+          "url": "https://www.wikipedia.org/"
+        }
+      ],
+      "after": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "schemaVersion": 4,
+      "capabilityType": "site_capability",
+      "intent": "navigate",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "forbiddenText": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "pageType": "generic"
+      },
+      "postconditions": {
+        "urlPattern": "https://www.wikipedia.org/",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [],
+        "forbiddenText": [],
+        "urlRegex": "www\\.wikipedia\\.org"
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      },
+      "quality": {
+        "confidence": 0.43,
+        "failureClass": null,
+        "lastFailureReason": null,
+        "validationContexts": [
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-13T20:41:43.406797+00:00"
+          }
+        ],
+        "environments": [
+          "qa"
+        ]
+      },
+      "intentDescriptor": {
+        "intent": "navigate",
+        "action": "navigate",
+        "entity": "",
+        "targetLabel": "https://www.wikipedia.org/",
+        "pageTypeHint": "navigation",
+        "stepTokens": [
+          "https",
+          "navigate",
+          "org",
+          "wikipedia",
+          "www"
+        ]
+      },
+      "pageType": "generic",
+      "successCount": 1,
+      "status": "candidate",
+      "lastValidatedAt": "2026-07-13T20:41:43.406815+00:00",
+      "updatedAt": "2026-07-13T20:41:43.406815+00:00"
     }
   ],
   "origin": "www.wikipedia.org"

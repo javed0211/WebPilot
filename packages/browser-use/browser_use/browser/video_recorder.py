@@ -3,8 +3,8 @@
 import base64
 import io
 import logging
-import math
 import os
+import math
 from pathlib import Path
 from typing import Optional
 

@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 3,
+  "storeKind": "page",
+  "capabilities": [
+    {
+      "id": "19a1814df5803b2c2b5a",
+      "step": "Verify the Wikipedia logo and search input are visible",
+      "stepSignature": "verify the wikipedia logo and search input are visible",
+      "origin": "en.wikipedia.org",
+      "before": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "input",
+          "locators": [
+            {
+              "kind": "css",
+              "value": "input[name=\"search\"]"
+            },
+            {
+              "kind": "css",
+              "value": "input[id=\"searchInput\"]"
+            }
+          ],
+          "value": "Software testing",
+          "clear": true
+        }
+      ],
+      "after": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "vector-main-menu-dropdown-checkbox",
+              "aria-label": "Main menu",
+              "role": "button",
+              "type": "checkbox"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search",
+              "aria-label": "Search Wikipedia",
+              "placeholder": "Search Wikipedia",
+              "type": "search"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "p-lang-btn-checkbox",
+              "aria-label": "49 languages",
+              "role": "button",
+              "type": "checkbox"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "vector-page-tools-dropdown-checkbox",
+              "aria-label": "Tools",
+              "role": "button",
+              "type": "checkbox"
+            }
+          }
+        ],
+        "evidence": [
+          {
+            "tag": "img",
+            "text": "Wikipedia"
+          },
+          {
+            "tag": "input",
+            "text": "Search Wikipedia"
+          },
+          {
+            "tag": "h3",
+            "text": "Static, dynamic, and passive testing"
+          }
+        ]
+      },
+      "failureCount": 0,
+      "schemaVersion": 4,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "anchors": [],
+        "notAllowedAnchors": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "forbiddenText": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "pageType": "generic"
+      },
+      "postconditions": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [
+          {
+            "tag": "input",
+            "text": "Main menu"
+          },
+          {
+            "tag": "label",
+            "text": "Main menu"
+          },
+          {
+            "tag": "img",
+            "text": "Wikipedia"
+          },
+          {
+            "tag": "img",
+            "text": "The Free Encyclopedia"
+          }
+        ],
+        "requiredText": [
+          "Main menu",
+          "Wikipedia",
+          "The Free Encyclopedia",
+          "Search Wikipedia",
+          "Contents",
+          "Software testing"
+        ],
+        "urlContains": [
+          "wiki/Software_testing"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      },
+      "quality": {
+        "confidence": 0.43,
+        "failureClass": null,
+        "lastFailureReason": null,
+        "validationContexts": [
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-13T20:41:43.418939+00:00"
+          }
+        ],
+        "environments": [
+          "qa"
+        ]
+      },
+      "intentDescriptor": {
+        "intent": "verify",
+        "action": "search",
+        "entity": "",
+        "targetLabel": "",
+        "pageTypeHint": "verification",
+        "stepTokens": [
+          "input",
+          "logo",
+          "search",
+          "verify",
+          "visible",
+          "wikipedia"
+        ]
+      },
+      "pageType": "generic",
+      "successCount": 1,
+      "status": "candidate",
+      "lastValidatedAt": "2026-07-13T20:41:43.418962+00:00",
+      "updatedAt": "2026-07-13T20:41:43.418962+00:00"
+    },
+    {
+      "id": "5017e531be4adbc2e7b1",
+      "step": "Enter \"Software testing\" in the search input",
+      "stepSignature": "enter \"software testing\" in the search input",
+      "origin": "en.wikipedia.org",
+      "before": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "click",
+          "locators": [
+            {
+              "kind": "role",
+              "value": "button",
+              "name": "Search"
+            },
+            {
+              "kind": "text",
+              "value": "Search",
+              "tag": "button"
+            }
+          ]
+        }
+      ],
+      "after": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "anchors": [
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "vector-main-menu-dropdown-checkbox",
+              "aria-label": "Main menu",
+              "role": "button",
+              "type": "checkbox"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "searchInput",
+              "name": "search",
+              "aria-label": "Search Wikipedia",
+              "placeholder": "Search Wikipedia",
+              "type": "search"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "p-lang-btn-checkbox",
+              "aria-label": "49 languages",
+              "role": "button",
+              "type": "checkbox"
+            }
+          },
+          {
+            "tag": "input",
+            "attrs": {
+              "id": "vector-page-tools-dropdown-checkbox",
+              "aria-label": "Tools",
+              "role": "button",
+              "type": "checkbox"
+            }
+          }
+        ],
+        "evidence": []
+      },
+      "failureCount": 0,
+      "schemaVersion": 4,
+      "capabilityType": "site_capability",
+      "intent": "input",
+      "preconditions": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "anchors": [],
+        "notAllowedAnchors": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "forbiddenText": [
+          "stay signed in",
+          "sign in",
+          "pick an account",
+          "enter password",
+          "use another account",
+          "verify your identity",
+          "enter code"
+        ],
+        "pageType": "generic"
+      },
+      "postconditions": {
+        "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [
+          {
+            "tag": "input",
+            "text": "Main menu"
+          },
+          {
+            "tag": "label",
+            "text": "Main menu"
+          }
+        ],
+        "requiredText": [
+          "Main menu",
+          "Wikipedia",
+          "The Free Encyclopedia",
+          "Search Wikipedia",
+          "Contents",
+          "Software testing"
+        ],
+        "urlContains": [
+          "wiki/Software_testing"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      },
+      "quality": {
+        "confidence": 0.43,
+        "failureClass": null,
+        "lastFailureReason": null,
+        "validationContexts": [
+          {
+            "environment": "qa",
+            "freshContext": false,
+            "dataSet": "",
+            "browserProfile": "chromium",
+            "at": "2026-07-13T20:41:43.433712+00:00"
+          }
+        ],
+        "environments": [
+          "qa"
+        ]
+      },
+      "intentDescriptor": {
+        "intent": "input",
+        "action": "search",
+        "entity": "",
+        "targetLabel": "Software testing",
+        "pageTypeHint": "",
+        "stepTokens": [
+          "enter",
+          "input",
+          "search",
+          "software",
+          "testing"
+        ]
+      },
+      "pageType": "generic",
+      "successCount": 1,
+      "status": "candidate",
+      "lastValidatedAt": "2026-07-13T20:41:43.433727+00:00",
+      "updatedAt": "2026-07-13T20:41:43.433727+00:00"
+    }
+  ],
+  "origin": "en.wikipedia.org"
+}

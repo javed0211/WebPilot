@@ -10,23 +10,45 @@ os.environ.setdefault('BROWSER_USE_CLOUD_SYNC', 'false')
 os.environ.setdefault('BROWSER_USE_DISABLE_EXTENSIONS', 'true')
 os.environ.setdefault('TIMEOUT_BrowserStartEvent', '120')
 os.environ.setdefault('TIMEOUT_BrowserLaunchEvent', '120')
+# Enterprise SSO / Bupa-class sites regularly exceed the upstream 30s navigate timeout.
+os.environ.setdefault('TIMEOUT_NavigateToUrlEvent', '120')
+os.environ.setdefault('TIMEOUT_NavigationStartedEvent', '120')
+os.environ.setdefault('TIMEOUT_NavigationCompleteEvent', '120')
+os.environ.setdefault('TIMEOUT_BrowserStateRequestEvent', '90')
 
 
-def _ensure_imageio_ffmpeg_exe() -> None:
-    """Point imageio at the pip-bundled ffmpeg binary (critical on Windows)."""
-    if os.environ.get('IMAGEIO_FFMPEG_EXE'):
-        return
+def _ensure_imageio_ffmpeg_exe() -> bool:
+    """Point imageio at the pip-bundled ffmpeg binary (critical on Windows). Returns True when usable."""
+    existing = os.environ.get('IMAGEIO_FFMPEG_EXE')
+    if existing and os.path.isfile(existing):
+        return True
     try:
         import imageio_ffmpeg
+        from pathlib import Path
 
-        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        try:
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            ffmpeg_exe = None
         if ffmpeg_exe and os.path.isfile(ffmpeg_exe):
             os.environ['IMAGEIO_FFMPEG_EXE'] = ffmpeg_exe
+            return True
+        # Fallback: scan package binaries/ (some Windows installs fail get_ffmpeg_exe).
+        binaries = Path(imageio_ffmpeg.__file__).resolve().parent / 'binaries'
+        if binaries.is_dir():
+            for candidate in sorted(binaries.glob('ffmpeg*')):
+                if candidate.is_file() and os.access(candidate, os.X_OK | os.R_OK):
+                    os.environ['IMAGEIO_FFMPEG_EXE'] = str(candidate)
+                    return True
+                if candidate.is_file() and candidate.suffix.lower() in ('.exe', ''):
+                    os.environ['IMAGEIO_FFMPEG_EXE'] = str(candidate)
+                    return True
     except Exception:
-        pass
+        return False
+    return bool(os.environ.get('IMAGEIO_FFMPEG_EXE') and os.path.isfile(os.environ['IMAGEIO_FFMPEG_EXE']))
 
 
-_ensure_imageio_ffmpeg_exe()
+_FFMPEG_AVAILABLE = _ensure_imageio_ffmpeg_exe()
 
 import json
 import asyncio
@@ -37,6 +59,7 @@ import glob
 import shutil
 import tempfile
 from typing import Any
+from urllib.parse import urlparse
 
 from .paths import (
     ARTIFACTS_ROOT,
@@ -367,6 +390,9 @@ def _merge_agent_usage(totals: dict, history: Any, llm_cfg: dict) -> None:
 
 
 PERFORMANCE_DEFAULTS = {
+    # native = one browser-use Agent for the full scenario (default — preserves engine intelligence).
+    # scoped = one Agent per NL step (legacy WebPilot wrapper; use for knowledge repair only).
+    'engineMode': 'native',
     'judgeMode': 'verification',
     'maxActionsPerStep': 6,
     'useVision': 'auto',
@@ -376,7 +402,8 @@ PERFORMANCE_DEFAULTS = {
     'networkIdleWait': 0.3,
     'waitBetweenActions': 0.3,
     'scopedAgentMaxSteps': 12,
-    'maxHistoryItems': 6,
+    'nativeAgentMaxSteps': 80,
+    'maxHistoryItems': 12,
     'freshAgentPerStep': True,
     'longScenarioStepWarning': 15,
     'longScenarioMode': 'auto',  # auto | off — auto-tune agent settings for 15+ step files
@@ -399,6 +426,10 @@ def load_performance_config() -> dict:
         ir = yaml_config.get('intelligentRunner') or {}
         if ir.get('scopedAgentMaxSteps') is not None:
             cfg['scopedAgentMaxSteps'] = int(ir['scopedAgentMaxSteps'])
+        if ir.get('nativeAgentMaxSteps') is not None:
+            cfg['nativeAgentMaxSteps'] = int(ir['nativeAgentMaxSteps'])
+        if ir.get('engineMode') is not None:
+            cfg['engineMode'] = str(ir['engineMode']).strip().lower()
         if ir.get('maxHistoryItems') is not None:
             cfg['maxHistoryItems'] = _clamp_max_history_items(int(ir['maxHistoryItems']))
         if ir.get('freshAgentPerStep') is not None:
@@ -410,11 +441,13 @@ def load_performance_config() -> dict:
         if ir.get('stepRetryOnFailure') is not None:
             cfg['stepRetryOnFailure'] = int(ir['stepRetryOnFailure'])
         perf = ir.get('performance') or {}
-        for key in ('judgeMode', 'useVision'):
+        for key in ('judgeMode', 'useVision', 'engineMode'):
             if perf.get(key) is not None:
                 cfg[key] = str(perf[key]).strip().lower()
         if perf.get('maxActionsPerStep') is not None:
             cfg['maxActionsPerStep'] = int(perf['maxActionsPerStep'])
+        if perf.get('nativeAgentMaxSteps') is not None:
+            cfg['nativeAgentMaxSteps'] = int(perf['nativeAgentMaxSteps'])
         for key in ('useThinking', 'flashMode'):
             if perf.get(key) is not None:
                 cfg[key] = bool(perf[key])
@@ -440,6 +473,9 @@ def load_performance_config() -> dict:
     env_history = os.environ.get('WEBPILOT_MAX_HISTORY_ITEMS', '').strip()
     if env_history.isdigit():
         cfg['maxHistoryItems'] = _clamp_max_history_items(int(env_history))
+    env_engine = os.environ.get('WEBPILOT_ENGINE_MODE', '').strip().lower()
+    if env_engine in ('native', 'scoped'):
+        cfg['engineMode'] = env_engine
     return cfg
 
 
@@ -600,6 +636,240 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
             print(f"Warning: forced browser process cleanup failed: {force_error}")
 
 
+def build_native_scenario_task(steps: list[str], discovery_rules: str) -> str:
+    """Full-scenario task for stock browser-use — no per-step artificial stop rules."""
+    numbered = "\n".join(f"{i}. {step}" for i, step in enumerate(steps, start=1))
+    return "\n".join(
+        [
+            "Execute this test scenario end-to-end in the browser.",
+            "Handle cookie/consent banners, overlays, and auth flows yourself as needed.",
+            "Complete every step in order. Do not stop after a single step.",
+            "Prefer semantic locators (role, label, accessible name).",
+            "Call done(success=true) only when the full scenario outcome is satisfied.",
+            "",
+            "Test steps:",
+            numbered,
+            "",
+            "=== LOCATOR HINTS ===",
+            discovery_rules,
+        ]
+    )
+
+
+async def run_native_browser_use_scenario(
+    *,
+    browser: Any,
+    llm: Any,
+    llm_cfg: dict,
+    steps: list[str],
+    test_name: str,
+    test_slug: str,
+    env_name: str,
+    sensitive_data: dict,
+    upload_paths: list[str],
+    llm_usage_totals: dict,
+    perf: dict | None = None,
+) -> tuple[bool, dict, Any | None]:
+    """Run one browser-use Agent on the full scenario; history/codegen follow engine actions."""
+    from .capability_contract import resolve_navigate_target
+
+    perf = perf or dict(PERFORMANCE_DEFAULTS)
+    judge_mode = str(perf.get('judgeMode', 'verification')).strip().lower()
+    resolved_use_vision = _resolve_use_vision(perf.get('useVision', 'auto'))
+    knowledge_repo = KnowledgeRepository(load_knowledge_config(), test_slug)
+    discovery_rules = load_discovery_step_rules()
+
+    await browser.start()
+    if os.environ.get("WEBPILOT_RESET_AUTH") == "1" or os.environ.get("WEBPILOT_FRESH_CONTEXT") == "1":
+        try:
+            await browser.clear_cookies()
+            page = await browser.must_get_current_page()
+            await page.evaluate("() => { try { localStorage.clear(); sessionStorage.clear(); } catch (e) {} }")
+            label = "WEBPILOT_FRESH_CONTEXT" if os.environ.get("WEBPILOT_FRESH_CONTEXT") == "1" else "WEBPILOT_RESET_AUTH"
+            print(f"[WebPilot] {label}=1 — cleared cookies and web storage for fresh context")
+        except Exception as reset_error:
+            print(f"[WebPilot] Warning: could not reset browser context: {reset_error}")
+
+    await prepare_page_for_interaction(browser)
+
+    sanitized_steps: list[str] = []
+    step_sensitive_data = dict(sensitive_data or {})
+    for step in steps:
+        sanitized, step_sensitive = prepare_step(step, env_name)
+        sanitized_steps.append(sanitized)
+        step_sensitive_data = enrich_step_sensitive_data(
+            step, env_name, step_sensitive_data, step_sensitive
+        )
+
+    task = build_native_scenario_task(sanitized_steps, discovery_rules)
+    captured_actions: list[dict] = []
+    native_agent = None
+
+    async def on_native_step(state, output, _agent_step):
+        if output is not None:
+            captured_actions.extend(actions_from_output(state, output))
+        if native_agent is None:
+            return
+        try:
+            prompt, completion, cost, _calls = await read_browser_use_usage_snapshot(native_agent)
+            total = (
+                llm_usage_totals['promptTokens']
+                + llm_usage_totals['completionTokens']
+                + prompt
+                + completion
+            )
+            await push_branding_status(
+                browser,
+                {
+                    'currentIndex': min(len(steps), max(1, len(captured_actions))),
+                    'totalSteps': len(steps),
+                    'currentText': 'Native browser-use agent running full scenario',
+                    'tokens': total,
+                    'cost': f"{llm_usage_totals['estimatedCostUsd'] + cost:.4f}",
+                    'allSteps': [
+                        {'index': i + 1, 'text': s, 'done': False}
+                        for i, s in enumerate(steps)
+                    ],
+                },
+            )
+        except Exception:
+            pass
+
+    use_judge = judge_mode != 'off'
+    print(
+        f"[WebPilot] Engine mode=native (browser-use full-scenario agent, "
+        f"maxSteps={int(perf.get('nativeAgentMaxSteps', 80))})"
+    )
+    native_agent = Agent(
+        task=task,
+        llm=llm,
+        browser=browser,
+        calculate_cost=True,
+        register_new_step_callback=on_native_step,
+        use_vision=resolved_use_vision,
+        use_judge=use_judge,
+        ground_truth="\n".join(sanitized_steps),
+        enable_planning=True,
+        use_thinking=bool(perf.get('useThinking', True)),
+        flash_mode=bool(perf.get('flashMode', False)),
+        max_actions_per_step=int(perf.get('maxActionsPerStep', 6)),
+        max_history_items=_clamp_max_history_items(int(perf.get('maxHistoryItems', 12))),
+        directly_open_url=True,
+        llm_timeout=int(os.environ.get('WEBPILOT_LLM_TIMEOUT', '180') or 180),
+        extend_system_message=(
+            "You are executing a WebPilot QE scenario. Preserve session state. "
+            "Dismiss blocking cookie/consent UIs before interacting with forms."
+        ),
+        **(
+            {'sensitive_data': step_sensitive_data}
+            if step_sensitive_data
+            else {}
+        ),
+        **(
+            {'available_file_paths': upload_paths}
+            if upload_paths
+            else {}
+        ),
+    )
+
+    before_prompt, before_completion, before_cost, before_calls = await read_browser_use_usage_snapshot(native_agent)
+    max_steps = max(int(perf.get('nativeAgentMaxSteps', 80)), len(steps) * 3)
+    history = await native_agent.run(max_steps=max_steps)
+    after_prompt, after_completion, after_cost, after_calls = await read_browser_use_usage_snapshot(native_agent)
+    llm_usage_totals['promptTokens'] += max(0, after_prompt - before_prompt)
+    llm_usage_totals['completionTokens'] += max(0, after_completion - before_completion)
+    delta_cost = max(0.0, after_cost - before_cost)
+    llm_usage_totals['estimatedCostUsd'] += (
+        delta_cost
+        if delta_cost > 0
+        else estimate_cost_usd(
+            llm_cfg.get('model', ''),
+            max(0, after_prompt - before_prompt),
+            max(0, after_completion - before_completion),
+        )
+    )
+    llm_usage_totals['llmCalls'] += max(0, after_calls - before_calls)
+
+    agent_ok = bool(getattr(history, 'is_successful', lambda: False)())
+    context = build_full_execution_context(history, steps, test_name)
+    context['engineMode'] = 'native'
+    context['learnedSteps'] = 0
+    context['reusedSteps'] = 0
+
+    # Prefer locator-rich captures from live ActionModel dumps for codegen/replay learning.
+    if captured_actions:
+        enriched_history: list[dict] = []
+        for action in captured_actions:
+            enriched_history.append(
+                {
+                    'index': len(enriched_history) + 1,
+                    'action': action.get('type', 'browser-use'),
+                    'selector': json.dumps(action.get('locators')) if action.get('locators') else None,
+                    'value': redact_for_logs(str(action.get('value') or ''), step_sensitive_data) or None,
+                    'url': action.get('url'),
+                    'description': f"native:{action.get('type', 'action')}",
+                }
+            )
+        if enriched_history:
+            context['executionHistory'] = enriched_history
+            context['nativeCapturedActions'] = captured_actions
+
+    learned = 0
+    if agent_ok and captured_actions:
+        # Promote navigate recipes + action captures as reusable capabilities when possible.
+        after_state = await compact_page_state(browser)
+        url_now = after_state.get('url') or await browser.get_current_page_url()
+        action_idx = 0
+        for step in steps:
+            nav = resolve_navigate_target(step)
+            if nav:
+                before = {'url': 'about:blank', 'urlPattern': 'about:blank', 'anchors': [], 'evidence': []}
+                after = {'url': nav, 'urlPattern': nav, 'anchors': [], 'evidence': []}
+                cap = capability_from_step(step, before, after, [{'type': 'navigate', 'url': nav}])
+                if cap:
+                    knowledge_repo.promote(cap)
+                    learned += 1
+                continue
+            # Consume click/input captures for remaining steps in order.
+            while action_idx < len(captured_actions):
+                action = captured_actions[action_idx]
+                action_idx += 1
+                if action.get('type') not in ('click', 'input', 'press'):
+                    continue
+                before = {
+                    'url': url_now,
+                    'urlPattern': url_now,
+                    'anchors': [],
+                    'evidence': [],
+                }
+                after = await compact_page_state(browser)
+                cap = capability_from_step(step, before, after, [action])
+                if cap:
+                    knowledge_repo.promote(cap)
+                    learned += 1
+                break
+
+    context['learnedSteps'] = learned
+    context['knowledgeMetrics'] = {
+        'totalSteps': len(steps),
+        'reusedSteps': 0,
+        'recipeSteps': 0,
+        'discoverySteps': len(steps) if agent_ok else 0,
+        'repairSteps': 0,
+        'authGuardSteps': 0,
+        'unsafeSkipped': 0,
+        'quarantinedSkipped': 0,
+        'blockingUnknownSteps': [] if agent_ok else list(range(1, len(steps) + 1)),
+        'knowledgeCoverage': f"{round((learned / len(steps)) * 100, 1) if steps else 0.0}%",
+        'fullReplayEligible': False,
+        'engineMode': 'native',
+    }
+    if not agent_ok:
+        context['failure'] = 'Native browser-use agent did not complete the scenario successfully'
+        context['errors'] = [context['failure']]
+    return agent_ok, context, native_agent
+
+
 async def run_intelligent_steps(
     *,
     browser: Any,
@@ -708,7 +978,7 @@ async def run_intelligent_steps(
         step_intent = infer_intent(step)
         current_url = await browser.get_current_page_url()
 
-        if step_intent != "authenticate":
+        if step_intent not in ("authenticate", "navigate"):
             auth_ok, auth_reason = await ensure_auth_context_ready(browser)
             if not auth_ok:
                 auth_guard_steps += 1
@@ -956,7 +1226,9 @@ async def run_intelligent_steps(
             step_ok = False
         elif (
             not step_ok
-            and progressive_outcome_indicates_success(step, before, after, captured_actions)
+            and progressive_outcome_indicates_success(
+                step, before, after, captured_actions, history=history
+            )
         ):
             print(
                 f"[Validation] Step {step_index} agent reported failure but UI advanced after the action — "
@@ -1132,6 +1404,21 @@ def load_browser_artifact_config():
             pass
     except Exception as e:
         print("Warning: Could not parse config/webpilot.yaml for artifacts:", e)
+    if defaults.get('record_video') and not _FFMPEG_AVAILABLE:
+        defaults['record_video'] = False
+        print(
+            "[WebPilot] browser.video requested but ffmpeg is unavailable — "
+            "disabling video for this run (pip install \"browser-use[video]\" / fix IMAGEIO_FFMPEG_EXE, "
+            "or set browser.video: off)."
+        )
+    env_video = os.environ.get('WEBPILOT_VIDEO', '').strip().lower()
+    if env_video in ('off', '0', 'false', 'no'):
+        defaults['record_video'] = False
+    env_headless = os.environ.get('WEBPILOT_HEADLESS', '').strip().lower()
+    if env_headless in ('1', 'true', 'yes', 'on'):
+        defaults['headless'] = True
+    elif env_headless in ('0', 'false', 'no', 'off'):
+        defaults['headless'] = False
     os.makedirs(defaults['video_dir'], exist_ok=True)
     os.makedirs(defaults['traces_dir'], exist_ok=True)
     return defaults
@@ -1391,7 +1678,8 @@ async def main():
     browser_kwargs['keep_alive'] = True  # Required between scoped discovery steps; shutdown_browser() closes at end.
     browser = Browser(**browser_kwargs)
     print(
-        f"[WebPilot] Performance: judge={perf.get('judgeMode')} "
+        f"[WebPilot] Performance: engine={perf.get('engineMode', 'native')} "
+        f"judge={perf.get('judgeMode')} "
         f"vision={perf.get('useVision')} thinking={perf.get('useThinking')} "
         f"flash={perf.get('flashMode')} maxActions/step={perf.get('maxActionsPerStep')} "
         f"freshAgentPerStep={perf.get('freshAgentPerStep', True)} "
@@ -1422,19 +1710,38 @@ async def main():
         )
     scoped_agent = None
     try:
-        agent_ok, execution_context, scoped_agent = await run_intelligent_steps(
-            browser=browser,
-            llm=llm,
-            llm_cfg=llm_cfg,
-            steps=steps,
-            test_name=test_name,
-            test_slug=base_file_name,
-            env_name=env_name,
-            sensitive_data=sensitive_data,
-            upload_paths=upload_paths,
-            llm_usage_totals=llm_usage_totals,
-            perf=perf,
-        )
+        engine_mode = str(perf.get('engineMode', 'native')).strip().lower()
+        knowledge_only = os.environ.get('WEBPILOT_KNOWLEDGE_ONLY') == '1'
+        if engine_mode == 'native' and not knowledge_only:
+            agent_ok, execution_context, scoped_agent = await run_native_browser_use_scenario(
+                browser=browser,
+                llm=llm,
+                llm_cfg=llm_cfg,
+                steps=steps,
+                test_name=test_name,
+                test_slug=base_file_name,
+                env_name=env_name,
+                sensitive_data=sensitive_data,
+                upload_paths=upload_paths,
+                llm_usage_totals=llm_usage_totals,
+                perf=perf,
+            )
+        else:
+            if engine_mode == 'native' and knowledge_only:
+                print('[WebPilot] WEBPILOT_KNOWLEDGE_ONLY=1 — using scoped/deterministic runner')
+            agent_ok, execution_context, scoped_agent = await run_intelligent_steps(
+                browser=browser,
+                llm=llm,
+                llm_cfg=llm_cfg,
+                steps=steps,
+                test_name=test_name,
+                test_slug=base_file_name,
+                env_name=env_name,
+                sensitive_data=sensitive_data,
+                upload_paths=upload_paths,
+                llm_usage_totals=llm_usage_totals,
+                perf=perf,
+            )
         execution_history = execution_context.get('executionHistory', [])
         runtime_insights = execution_context.get('runtimeInsights', {})
         

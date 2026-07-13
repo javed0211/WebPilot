@@ -1,5 +1,8 @@
 # WebPilot Browser Use Changes
 
+Vendored from upstream **0.13.4**. Keep this list short — prefer adapter-layer
+behavior in `src/integrations/browser_use`.
+
 ## Headless-safe macOS display detection
 
 - Upstream file: `browser_use/browser/profile.py`
@@ -13,47 +16,33 @@
 ## WebPilot startup branding on blank tabs
 
 - Upstream file: `browser_use/browser/watchdogs/aboutblank_watchdog.py`
-- Reason: the `about:blank` loading screen showed the Browser-Use logo
-  (`https://cf.browser-use.com/logo.svg`) as a bouncing "DVD screensaver",
-  which is the first thing a user sees when the browser launches.
-- Change: replaced the remote Browser-Use logo with an inline WebPilot wordmark
-  (SVG data URI, brand blue `#2563eb`) and updated the tab title to
-  `Starting WebPilot agent ...`. No external host dependency.
+- Reason: replace Browser-Use splash logo with WebPilot wordmark offline.
+- Change: inline SVG data URI + tab title `Starting WebPilot agent ...`.
 
 ## WebPilot terminal and log branding
 
-- Upstream files:
-  - `browser_use/logging_config.py`
-  - `browser_use/agent/service.py`
-  - `integrations/browser_use/runner.py`
-- Reason: users saw `browser-use` in startup logs, agent banners, captcha nudges,
-  telemetry notices, and `[browser_use]` logger prefixes during WebPilot runs.
-- Changes:
-  - Disable upstream telemetry, cloud sync, and version-upgrade nags by default
-    in the WebPilot runner (`ANONYMIZED_TELEMETRY=false`, etc.).
-  - Rebrand user-facing log prefixes and messages to `WebPilot`.
-  - Remove `cloud.browser-use.com` captcha promo nudges.
-  - Downgrade upstream version-upgrade messaging to debug-only.
-  - Update WebPilot CLI/doctor/setup copy to say "WebPilot engine" instead of
-    "Browser Use".
+- Upstream file: `browser_use/logging_config.py`
+- Reason: user-facing logs showed `browser-use` / `Browser Use`.
+- Change: `WebPilotLogFormatter` rebrands logger names and common phrases.
+- Runner also sets `ANONYMIZED_TELEMETRY=false`, disables cloud sync / version nags.
 
-## Windows-friendly browser launch defaults
+## Video recorder robustness (Windows)
 
-- Upstream integration: `integrations/browser_use/runner.py`,
-  `integrations/browser_use/branding.py`
-- Reason: first browser launch on Windows often exceeded browser-use's 30s
-  `BrowserStartEvent` timeout while default extensions (uBlock, cookie
-  blockers) were downloaded and extracted.
-- Changes:
-  - Disable default browser-use extensions for WebPilot runs
-    (`BROWSER_USE_DISABLE_EXTENSIONS=true`, `enable_default_extensions=false`).
-  - Raise browser launch event timeouts to 120s by default.
-  - Users can still override via environment variables when needed.
+- Upstream file: `browser_use/browser/video_recorder.py`
+- Reason: missing ffmpeg flooded logs and stressed Windows process handles.
+- Change: resolve `IMAGEIO_FFMPEG_EXE` from `imageio_ffmpeg`; disable further
+  frame capture after the first encode failure.
 
-The initial integration vendors Browser Use `0.12.9` and makes it the editable
-runtime dependency. WebPilot continues to provide its existing runner,
-TestMu/CDP configuration, branding hooks, execution-history export, and
-Playwright code generation from `integrations/browser_use/`.
+## Windows-friendly browser launch defaults (adapter)
 
-The repository-level runner uses the upstream `sensitive_data` mechanism and
-domain restrictions rather than adding plaintext Azure credentials to tasks.
+- Integration: `integrations/browser_use/runner.py`, `branding.py`
+- Disable default extensions; raise BrowserStart/Launch and Navigate timeouts
+  via env (`TIMEOUT_*`) so enterprise SSO pages can finish loading.
+- Soft navigation tolerate: if EventBus times out but the target host already
+  loaded, continue the scenario.
+
+## Engine usage (adapter)
+
+- Default `intelligentRunner.engineMode: native` — full-scenario browser-use
+  Agent; history/codegen from native actions.
+- `engineMode: scoped` keeps the legacy one-Agent-per-NL-step path.
