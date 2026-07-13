@@ -1,0 +1,4 @@
+# Post-install security upgrades for transitive packages that still pin older
+# vulnerable versions (applied after `pip install -r requirements.txt`).
+# browser-harness==0.1.5 pins pillow==12.2.0; 12.3.0 fixes multiple PYSECs.
+pillow==12.3.0

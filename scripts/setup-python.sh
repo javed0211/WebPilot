@@ -44,5 +44,6 @@ rm -rf .venv
 "$PYTHON" -m venv .venv
 "$VENV_PY" -m pip install -U pip
 "$VENV_PY" -m pip install -r requirements.txt
+"$VENV_PY" -m pip install -r requirements-overrides.txt
 echo "Done. WebPilot's Browser Use engine source is installed editable in .venv"
 "$VENV_PY" -c "import browser_use; print(f'browser_use source: {browser_use.__file__}')"

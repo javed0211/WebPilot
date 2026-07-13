@@ -136,7 +136,10 @@ else
       "$PYTHON" -m venv "$AUDIT_VENV"
       "$AUDIT_VENV/bin/python" -m pip install -q -U pip pip-audit
       "$AUDIT_VENV/bin/python" -m pip install -q -r requirements.txt
-      "$AUDIT_VENV/bin/pip-audit" -r requirements.txt || die "pip-audit found vulnerable Python dependencies."
+      # Force secure upgrades where transitive packages still pin vulnerable versions.
+      "$AUDIT_VENV/bin/python" -m pip install -q -r requirements-overrides.txt
+      # Audit the resolved install (not a fresh requirements resolve).
+      "$AUDIT_VENV/bin/pip-audit" --local || die "pip-audit found vulnerable Python dependencies."
       rm -rf "$AUDIT_VENV"
       ok "pip-audit passed"
     fi

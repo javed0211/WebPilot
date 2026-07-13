@@ -30,6 +30,7 @@
     "packages/test-framework/core/BasePage.ts",
     ".env.example",
     "requirements.txt",
+    "requirements-overrides.txt",
     "scripts/setup-python.sh",
     "docs/*.md",
     "README.md",

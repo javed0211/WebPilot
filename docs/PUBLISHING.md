@@ -149,7 +149,8 @@ npm run build
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -U pip pip-audit
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/pip-audit -r requirements.txt
+.venv/bin/python -m pip install -r requirements-overrides.txt
+.venv/bin/pip-audit --local
 
 npm pack --dry-run
 npm publish --dry-run
@@ -158,7 +159,7 @@ npm publish --dry-run
 Current CI also enforces:
 
 - `npm audit --audit-level=high`
-- `pip-audit -r requirements.txt`
+- `pip-audit --local` (after install with `requirements-overrides.txt`)
 
 ---
 
@@ -167,7 +168,7 @@ Current CI also enforces:
 Do not publish if any of these are true:
 
 - `npm audit --audit-level=high` fails
-- `pip-audit -r requirements.txt` reports known vulnerabilities
+- `pip-audit --local` (after install with `requirements-overrides.txt`) reports known vulnerabilities
 - `npm run build` fails
 - `webpilot doctor` fails in a clean environment
 - `.env`, real API keys, cookies, traces, screenshots, or private URLs are present in publishable files

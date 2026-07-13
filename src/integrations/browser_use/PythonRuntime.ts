@@ -5,6 +5,7 @@ import { findCliInstallRoot, findProjectRoot } from '../../cli/ProjectContext';
 
 const VENV_DIR = '.venv';
 const REQUIREMENTS = 'requirements.txt';
+const REQUIREMENTS_OVERRIDES = 'requirements-overrides.txt';
 
 /** Unix and Windows launcher names, newest first. 3.11+ is required; 3.12 is not. */
 const SYSTEM_PYTHON_CANDIDATES = [
@@ -131,6 +132,7 @@ export function hasBrowserUseVideo(pythonPath: string): boolean {
 function installBrowserUseRequirements(pythonPath: string): void {
   const cliRoot = installRoot();
   const reqPath = path.join(cliRoot, REQUIREMENTS);
+  const overridePath = path.join(cliRoot, REQUIREMENTS_OVERRIDES);
   if (!fs.existsSync(reqPath)) {
     throw new Error(`Missing ${REQUIREMENTS} in the WebPilot CLI installation: ${cliRoot}`);
   }
@@ -138,6 +140,12 @@ function installBrowserUseRequirements(pythonPath: string): void {
     stdio: 'inherit',
     cwd: cliRoot,
   });
+  if (fs.existsSync(overridePath)) {
+    execSync(`"${pythonPath}" -m pip install -r "${overridePath}"`, {
+      stdio: 'inherit',
+      cwd: cliRoot,
+    });
+  }
 }
 
 export function findCompatibleSystemPython(): string | null {

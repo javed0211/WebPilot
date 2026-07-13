@@ -46,3 +46,9 @@ behavior in `src/integrations/browser_use`.
 - Default `intelligentRunner.engineMode: native` — full-scenario browser-use
   Agent; history/codegen from native actions.
 - `engineMode: scoped` keeps the legacy one-Agent-per-NL-step path.
+
+## Security dependency pins
+
+- `pyproject.toml`: `aiohttp==3.14.1`, `click==8.3.3`, `pypdf==6.13.3`.
+- Repo root `requirements-overrides.txt` upgrades `pillow` to `12.3.0` after
+  install because `browser-harness==0.1.5` still pins `pillow==12.2.0`.
