@@ -95,6 +95,7 @@ from .execution_history import (
     append_recipe_replay_history,
     append_replay_history_from_capability,
     build_full_execution_context,
+    build_nl_aligned_codegen_history,
     format_history_for_prompt,
 )
 from .branding import (
@@ -677,7 +678,9 @@ async def run_native_browser_use_scenario(
     judge_mode = str(perf.get('judgeMode', 'verification')).strip().lower()
     resolved_use_vision = _resolve_use_vision(perf.get('useVision', 'auto'))
     knowledge_repo = KnowledgeRepository(load_knowledge_config(), test_slug)
-    discovery_rules = load_discovery_step_rules()
+    from .prompt_loader import load_discovery_native_rules
+
+    discovery_rules = load_discovery_native_rules()
 
     await browser.start()
     if os.environ.get("WEBPILOT_RESET_AUTH") == "1" or os.environ.get("WEBPILOT_FRESH_CONTEXT") == "1":
@@ -753,12 +756,17 @@ async def run_native_browser_use_scenario(
         use_thinking=bool(perf.get('useThinking', True)),
         flash_mode=bool(perf.get('flashMode', False)),
         max_actions_per_step=int(perf.get('maxActionsPerStep', 6)),
-        max_history_items=_clamp_max_history_items(int(perf.get('maxHistoryItems', 12))),
+        max_history_items=_clamp_max_history_items(int(perf.get('maxHistoryItems', 30))),
         directly_open_url=True,
         llm_timeout=int(os.environ.get('WEBPILOT_LLM_TIMEOUT', '180') or 180),
         extend_system_message=(
-            "You are executing a WebPilot QE scenario. Preserve session state. "
-            "Dismiss blocking cookie/consent UIs before interacting with forms."
+            "You are executing a WebPilot QE scenario end-to-end. "
+            "Follow the numbered Test steps in order without skipping. "
+            "Never call done(success=true) after a single field fill or click — "
+            "only when the full scenario outcome (last numbered step) is satisfied. "
+            "Preserve session state. Dismiss blocking cookie/consent UIs before interacting with forms. "
+            "For in-app navigation instructions (for example navigate to a menu or subarea), "
+            "use click/search on the page — do not invent raw URLs."
         ),
         **(
             {'sensitive_data': step_sensitive_data}
@@ -796,22 +804,15 @@ async def run_native_browser_use_scenario(
     context['learnedSteps'] = 0
     context['reusedSteps'] = 0
 
-    # Prefer locator-rich captures from live ActionModel dumps for codegen/replay learning.
-    if captured_actions:
-        enriched_history: list[dict] = []
-        for action in captured_actions:
-            enriched_history.append(
-                {
-                    'index': len(enriched_history) + 1,
-                    'action': action.get('type', 'browser-use'),
-                    'selector': json.dumps(action.get('locators')) if action.get('locators') else None,
-                    'value': redact_for_logs(str(action.get('value') or ''), step_sensitive_data) or None,
-                    'url': action.get('url'),
-                    'description': f"native:{action.get('type', 'action')}",
-                }
-            )
-        if enriched_history:
-            context['executionHistory'] = enriched_history
+    # Prefer locator-rich captures AND NL-aligned verify/screenshot steps for codegen.
+    aligned = build_nl_aligned_codegen_history(
+        steps,
+        captured_actions=captured_actions,
+        url_sequence=context.get('urlSequence') or [],
+    )
+    if aligned:
+        context['executionHistory'] = aligned
+        if captured_actions:
             context['nativeCapturedActions'] = captured_actions
 
     learned = 0

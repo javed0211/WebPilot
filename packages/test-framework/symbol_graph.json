@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-07-10T22:35:15.598Z",
+  "lastUpdated": "2026-07-14T16:13:43.117Z",
   "classes": [
     {
       "name": "BookingBasePage",
@@ -303,51 +303,6 @@
         },
         {
           "name": "assertOnLoginPage",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "PlaywrightdevHomePage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "PlaywrightdevHomePage",
-      "urlPattern": "https://playwright.dev/",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevHomePage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "goto",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyPlaywrightHomepageLoadsSuccessfully",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickGetStartedButton",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyGettingStartedPageIsDisplayed",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "PlaywrightdevIntroPage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "PlaywrightdevIntroPage",
-      "urlPattern": "https://playwright.dev/docs/intro",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevIntroPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertVerifyGettingStartedPageIsDisplayed",
           "parameters": [],
           "returnType": "Promise<void>"
         }

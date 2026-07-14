@@ -7,6 +7,8 @@ export type TraceAction =
   | 'select'
   | 'assert'
   | 'wait'
+  | 'go_back'
+  | 'screenshot'
   | 'custom';
 
 export type SelectorKind = 'role' | 'label' | 'placeholder' | 'testid' | 'text' | 'css' | 'xpath' | 'unknown';

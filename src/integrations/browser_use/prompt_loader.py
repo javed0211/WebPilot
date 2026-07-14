@@ -45,4 +45,26 @@ def load_framework_rules() -> str:
 
 
 def load_discovery_step_rules() -> str:
+    """Scoped / per-step discovery: includes stop-after-one-action done() rules."""
     return load_prompt('browser-use/discovery-step.md')
+
+
+def load_discovery_native_rules() -> str:
+    """Full-scenario native agent: locator hints only — never early done() rules."""
+    try:
+        return load_prompt('browser-use/discovery-native.md')
+    except FileNotFoundError:
+        # Older installs may only ship discovery-step.md; strip early-stop sections.
+        text = load_discovery_step_rules()
+        for marker in (
+            '## Before calling done(success=true)',
+            '## After performing the step action (critical)',
+        ):
+            idx = text.find(marker)
+            if idx >= 0:
+                text = text[:idx].rstrip()
+        return (
+            text
+            + '\n\nWork through every numbered Test step in order. '
+            'Call done(success=true) only when the last step is complete.\n'
+        )

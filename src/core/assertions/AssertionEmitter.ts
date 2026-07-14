@@ -162,9 +162,12 @@ export class AssertionEmitter {
       case 'text_visible':
         if (assertion.selector) {
           const locator = tsLocator(assertion.selector, receiver);
-          return locator ? [comment, `await expect(${locator}).toBeVisible();`] : [comment];
+          return locator ? [comment, `await expect(${locator}.first()).toBeVisible();`] : [comment];
         }
-        return [comment, `await expect(${receiver}.getByText('${escapeSingle(String(assertion.expected))}')).toBeVisible();`];
+        return [
+          comment,
+          `await expect(${receiver}.getByText('${escapeSingle(String(assertion.expected))}').first()).toBeVisible();`,
+        ];
       case 'value_equals': {
         const locator = assertion.selector ? tsLocator(assertion.selector, receiver) : null;
         return locator ? [comment, `await expect(${locator}).toHaveValue('${escapeSingle(String(assertion.expected))}');`] : [comment];
@@ -175,7 +178,7 @@ export class AssertionEmitter {
       }
       default: {
         const locator = assertion.selector ? tsLocator(assertion.selector, receiver) : null;
-        return locator ? [comment, `await expect(${locator}).toBeVisible();`] : [comment];
+        return locator ? [comment, `await expect(${locator}.first()).toBeVisible();`] : [comment];
       }
     }
   }

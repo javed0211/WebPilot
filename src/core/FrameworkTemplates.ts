@@ -20,7 +20,7 @@ export function buildFrameworkTsConfigJson(): string {
       compilerOptions: {
         target: 'ES2022',
         module: 'CommonJS',
-        lib: ['ES2022'],
+        lib: ['ES2022', 'DOM'],
         strict: true,
         esModuleInterop: true,
         skipLibCheck: true,
@@ -38,16 +38,43 @@ export function buildFrameworkTsConfigJson(): string {
   )}\n`;
 }
 
-/** Write root tsconfig.json when missing or when path aliases were never configured. */
+function tsConfigNeedsUpgrade(existing: {
+  compilerOptions?: { paths?: Record<string, string[]>; lib?: string[] };
+}): boolean {
+  if (!existing.compilerOptions?.paths?.['@core/*']) {
+    return true;
+  }
+  const libs = (existing.compilerOptions.lib || []).map((item) => String(item).toLowerCase());
+  return !libs.includes('dom');
+}
+
+/** Write root tsconfig.json when missing, missing aliases, or missing DOM lib (BasePage needs it). */
 export function ensureFrameworkTsConfig(cwd = process.cwd()): boolean {
   const tsconfigPath = path.join(cwd, FRAMEWORK_TSCONFIG_REL_PATH);
   if (fs.existsSync(tsconfigPath)) {
     try {
       const existing = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as {
-        compilerOptions?: { paths?: Record<string, string[]> };
+        compilerOptions?: { paths?: Record<string, string[]>; lib?: string[]; types?: string[] };
       };
-      if (existing.compilerOptions?.paths?.['@core/*']) {
+      if (!tsConfigNeedsUpgrade(existing)) {
         return false;
+      }
+      // Heal in place when aliases exist but DOM is missing — preserve other options.
+      if (existing.compilerOptions?.paths?.['@core/*']) {
+        const libs = new Set(
+          (existing.compilerOptions.lib || ['ES2022']).map((item) => String(item))
+        );
+        libs.add('ES2022');
+        libs.add('DOM');
+        existing.compilerOptions.lib = Array.from(libs);
+        if (!existing.compilerOptions.types) {
+          existing.compilerOptions.types = ['node'];
+        }
+        fs.writeFileSync(tsconfigPath, `${JSON.stringify(existing, null, 2)}\n`, 'utf8');
+        console.log(
+          '\x1b[32m[WebPilot] Updated tsconfig.json lib to include DOM (required for BasePage).\x1b[0m'
+        );
+        return true;
       }
     } catch {
       // fall through and rewrite a broken tsconfig

@@ -126,7 +126,7 @@ def url_pattern(url: str) -> str:
 
 
 def _url_pattern_matches(stored_pattern: str, current_url: str) -> bool:
-    """Match learned preconditions; relax path for auth hosts whose routes vary per session."""
+    """Match learned preconditions; relax path for auth hosts and same-origin prefixes."""
     current_pattern = url_pattern(current_url)
     if stored_pattern == current_pattern:
         return True
@@ -134,6 +134,12 @@ def _url_pattern_matches(stored_pattern: str, current_url: str) -> bool:
     current_origin = origin_for_url(current_url)
     if stored_origin in AUTH_RELAXED_ORIGINS and stored_origin == current_origin:
         return True
+    # Same-origin path prefix (trailing slash / nested docs routes).
+    if stored_origin and stored_origin == current_origin:
+        stored_path = (urlparse(stored_pattern).path or "/").rstrip("/") or "/"
+        current_path = (urlparse(current_url).path or "/").rstrip("/") or "/"
+        if current_path == stored_path or current_path.startswith(stored_path + "/"):
+            return True
     return False
 
 
@@ -673,6 +679,28 @@ def actions_from_output(state: Any, output: Any) -> list[dict[str, Any]]:
                 recipes.append({"type": "press", "value": params.get("keys") or params.get("key")})
             elif name == "wait":
                 recipes.append({"type": "wait", "seconds": min(float(params.get("seconds", 1)), 5)})
+            elif name in ("go_back", "navigate_back", "back"):
+                recipes.append({"type": "go_back"})
+            elif name in ("screenshot", "take_screenshot"):
+                recipes.append(
+                    {
+                        "type": "screenshot",
+                        "value": params.get("file_name")
+                        or params.get("filename")
+                        or params.get("path")
+                        or "",
+                    }
+                )
+            elif name in ("search_page", "find_text", "find", "extract"):
+                query = (
+                    params.get("query")
+                    or params.get("text")
+                    or params.get("pattern")
+                    or params.get("value")
+                    or ""
+                )
+                if query:
+                    recipes.append({"type": "search_page", "value": str(query)})
     return recipes
 
 
@@ -1492,6 +1520,13 @@ async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, 
     if url:
         ok, reason = await navigate_tolerantly(browser_session, url)
         return True, ok, reason
+    if re.search(r"\b(navigate\s+back|go\s+back|browser\s+back|previous\s+page)\b", stripped, re.I):
+        try:
+            page = await browser_session.must_get_current_page()
+            await page.go_back()
+            return True, True, ""
+        except Exception as exc:
+            return True, False, f"go_back failed: {type(exc).__name__}: {exc}"
     if _is_verification_step(step):
         ok, reason = await assert_visible_page(browser_session)
         return True, ok, reason
@@ -1566,6 +1601,11 @@ async def execute_capability(
                 )
                 if not ok:
                     return False, reason
+            elif action_type == "go_back":
+                try:
+                    await page.go_back()
+                except Exception as exc:
+                    return False, f"go_back failed: {type(exc).__name__}: {exc}"
             elif action_type == "switch_tab":
                 await _switch_tab(browser_session, str(action.get("tabId", "")))
             elif action_type == "close_tab":

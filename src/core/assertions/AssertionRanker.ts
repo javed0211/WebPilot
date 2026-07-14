@@ -138,9 +138,53 @@ function successTextAssertion(step: TraceStep): AssertionCandidate | null {
   };
 }
 
+function assertTextOrUrlValue(step: TraceStep): AssertionCandidate | null {
+  if (step.action !== 'assert' || !step.value) return null;
+  if (step.value.startsWith('__url_contains__:')) {
+    const expected = step.value.slice('__url_contains__:'.length).trim();
+    if (!expected) return null;
+    return {
+      kind: 'url_contains',
+      strength: 'strong',
+      confidence: 0.92,
+      description: `URL contains "${expected}"`,
+      expected,
+      source: 'intent',
+      signals: ['url-contains', 'nl-derived'],
+      risks: [],
+    };
+  }
+  if (step.value.startsWith('__url_equals__:')) {
+    const expected = step.value.slice('__url_equals__:'.length).trim();
+    if (!expected) return null;
+    return {
+      kind: 'url_equals',
+      strength: 'strong',
+      confidence: 0.93,
+      description: `URL is ${expected}`,
+      expected,
+      source: 'intent',
+      signals: ['url-equals', 'nl-derived'],
+      risks: [],
+    };
+  }
+  return {
+    kind: 'text_visible',
+    strength: 'strong',
+    confidence: 0.9,
+    description: `Text "${step.value}" is visible`,
+    expected: step.value,
+    selector: step.selector,
+    source: 'intent',
+    signals: ['nl-derived', 'assert-value'],
+    risks: [],
+  };
+}
+
 function explicitAssert(step: TraceStep, previous?: TraceStep): AssertionCandidate | null {
   if (step.action !== 'assert') return null;
   return (
+    assertTextOrUrlValue(step) ||
     selectorAssertion(step) ||
     homepageUrlAssertion(step) ||
     routeAssertion(step, previous) ||

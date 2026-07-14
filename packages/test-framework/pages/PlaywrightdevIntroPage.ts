@@ -1,4 +1,4 @@
-import { BasePage } from '../core/BasePage';
+import { BasePage } from '@core/BasePage';
 import { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
@@ -11,8 +11,12 @@ export class PlaywrightdevIntroPage extends BasePage {
     super(page);
   }
 
-  public async assertVerifyGettingStartedPageIsDisplayed(): Promise<void> {
-    // assertion(medium): URL contains "intro"
+  public async assertVerifyPageUrlContainsIntro(): Promise<void> {
+    // assertion(strong): URL contains "intro"
     await expect(this.page).toHaveURL(/intro/);
+  }
+
+  public async navigateBackToThePreviousPage(): Promise<void> {
+    await this.page.goBack();
   }
 }

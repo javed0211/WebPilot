@@ -69,7 +69,7 @@ intelligentRunner:
   nativeAgentMaxSteps: 80
   # Fresh agent per discovery step avoids LLM context drift on 15+ step scenarios (scoped mode only).
   freshAgentPerStep: true
-  maxHistoryItems: 12
+  maxHistoryItems: 30
   longScenarioStepWarning: 15
   # auto: tune agent for single-file 15+ step flows (fresh agent, retries, higher step budget)
   longScenarioMode: auto

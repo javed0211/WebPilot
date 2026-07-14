@@ -110,9 +110,10 @@ function ensureUnique(base: string, used: Set<string>, index: number): string {
 export function pageMethodBody(step: TraceStep): string[] {
   const locator = locatorExpression(step.selector, 'this.page');
   const metadata = selectorMetadataComment(step.selector);
-  const assertionLines = (step.assertions || []).flatMap((assertion) =>
-    AssertionEmitter.typeScriptPlaywright(assertion, 'this.page')
-  );
+  const primaryAssertion = (step.assertions || [])[0];
+  const assertionLines = primaryAssertion
+    ? AssertionEmitter.typeScriptPlaywright(primaryAssertion, 'this.page')
+    : [];
   switch (step.action) {
     case 'navigate':
       return step.url ? [`await this.navigate('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
@@ -127,13 +128,25 @@ export function pageMethodBody(step: TraceStep): string[] {
       return [...metadata, `await ${locator}.selectOption('${escapeTsString(step.value || '')}');`, ...assertionLines];
     case 'assert':
       if (assertionLines.length > 0) return assertionLines;
-      if (locator) return [...metadata, `await expect(${locator}).toBeVisible();`];
+      if (locator) return [...metadata, `await expect(${locator}.first()).toBeVisible();`];
       if (step.url) {
         return [`await expect(this.page).toHaveURL(${JSON.stringify(step.url)});`, ...assertionLines];
       }
       return [`// assert: ${step.intent}`];
     case 'wait':
       return [`await this.page.waitForLoadState('networkidle');`, ...assertionLines];
+    case 'go_back':
+      return [`await this.page.goBack();`, ...assertionLines];
+    case 'screenshot':
+      if (locator) {
+        return [
+          ...metadata,
+          `await ${locator}.first().scrollIntoViewIfNeeded();`,
+          `await ${locator}.first().screenshot({ path: 'test-results/codegen-section.png' });`,
+          ...assertionLines,
+        ];
+      }
+      return [`await this.page.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });`, ...assertionLines];
     default:
       return [`// ${step.action}: ${step.intent}`];
   }
@@ -142,9 +155,10 @@ export function pageMethodBody(step: TraceStep): string[] {
 export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
   const locator = locatorExpression(step.selector, pageVar);
   const metadata = selectorMetadataComment(step.selector);
-  const assertionLines = (step.assertions || []).flatMap((assertion) =>
-    AssertionEmitter.typeScriptPlaywright(assertion, pageVar)
-  );
+  const primaryAssertion = (step.assertions || [])[0];
+  const assertionLines = primaryAssertion
+    ? AssertionEmitter.typeScriptPlaywright(primaryAssertion, pageVar)
+    : [];
   switch (step.action) {
     case 'navigate':
       return step.url ? [`await ${pageVar}.goto('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
@@ -160,17 +174,34 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
         : [`// select: ${step.intent}`, ...assertionLines];
     case 'assert':
       if (assertionLines.length > 0) return assertionLines;
-      if (locator) return [...metadata, `await expect(${locator}).toBeVisible();`];
+      if (locator) return [...metadata, `await expect(${locator}.first()).toBeVisible();`];
       if (step.url) {
         return [
           `await expect(${pageVar}).toHaveURL(${JSON.stringify(step.url)});`,
           ...assertionLines,
         ];
       }
-      if (step.value) return [`await expect(${pageVar}.getByText('${escapeTsString(step.value)}')).toBeVisible();`];
+      if (step.value) {
+        return [`await expect(${pageVar}.getByText('${escapeTsString(step.value)}').first()).toBeVisible();`];
+      }
       return [`// assert: ${step.intent}`];
     case 'wait':
       return [`await ${pageVar}.waitForLoadState('networkidle');`, ...assertionLines];
+    case 'go_back':
+      return [`await ${pageVar}.goBack();`, ...assertionLines];
+    case 'screenshot':
+      if (locator) {
+        return [
+          ...metadata,
+          `await ${locator}.first().scrollIntoViewIfNeeded();`,
+          `await ${locator}.first().screenshot({ path: 'test-results/codegen-section.png' });`,
+          ...assertionLines,
+        ];
+      }
+      return [
+        `await ${pageVar}.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });`,
+        ...assertionLines,
+      ];
     default:
       return [`// ${step.action}: ${step.intent}`];
   }

@@ -27,9 +27,11 @@ function normalizeAction(raw: string): TraceAction {
   if (['click', 'tap', 'press'].includes(action)) return 'click';
   if (['input', 'fill', 'type', 'enter'].includes(action)) return 'fill';
   if (['select', 'choose', 'dropdown'].includes(action)) return 'select';
-  if (['assert', 'verify', 'expect', 'check', 'assert_visible_page', 'browser-use-assertion'].includes(action))
+  if (['assert', 'verify', 'expect', 'check', 'assert_visible_page', 'browser-use-assertion', 'search_page'].includes(action))
     return 'assert';
   if (['wait', 'sleep', 'pause'].includes(action)) return 'wait';
+  if (['go_back', 'back', 'navigate_back'].includes(action)) return 'go_back';
+  if (['screenshot', 'capture_screenshot', 'take_screenshot'].includes(action)) return 'screenshot';
   return 'custom';
 }
 
@@ -187,13 +189,18 @@ export class TraceBuilder {
       if (action === 'navigate' && step.url) currentUrl = step.url;
 
       const intent = stepIntent(step);
+      // Do not inherit page URL onto asserts/screenshots — inherited URLs create noisy
+      // toHaveURL assertions that swamp explicit text checks from NL verify steps.
+      const stepUrl =
+        step.url ||
+        (action === 'assert' || action === 'screenshot' || action === 'go_back' ? undefined : currentUrl);
 
       normalized.push({
         index: step.index ?? index + 1,
         intent,
         action,
-        selector: parseSelector(step.selector, step.url || currentUrl, intent),
-        url: step.url || currentUrl,
+        selector: parseSelector(step.selector, stepUrl || currentUrl, intent),
+        url: stepUrl,
         value: step.value || undefined,
         description: step.description,
         pageCandidate: currentUrl,

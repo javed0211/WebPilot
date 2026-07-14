@@ -16,6 +16,303 @@ def _is_verification_step(step: str) -> bool:
     return bool(re.match(r"^(verify|assert|check|ensure)\b", step.strip(), re.IGNORECASE))
 
 
+def _is_navigate_back_step(step: str) -> bool:
+    lowered = step.strip().lower()
+    return bool(
+        re.match(
+            r"^(navigate|go)\s+back\b|^(navigate|go)\s+to\s+(the\s+)?previous\s+page\b",
+            lowered,
+        )
+    )
+
+
+def _is_screenshot_step(step: str) -> bool:
+    return bool(re.search(r"\b(capture|take)\s+(a\s+)?screenshot\b|\bscreenshot\b", step, re.I))
+
+
+def _is_url_contains_step(step: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(?:page\s+)?url\s+contains\b|\bcontains\s+(?:in\s+)?(?:the\s+)?url\b",
+            step,
+            re.I,
+        )
+    )
+
+
+def _extract_url_contains_fragment(step: str) -> str | None:
+    match = re.search(r"url\s+contains\s+(.+)$", step.strip(), re.I)
+    if not match:
+        match = re.search(r"contains\s+(.+?)\s+in\s+(?:the\s+)?url", step.strip(), re.I)
+    if not match:
+        return None
+    return match.group(1).strip().strip("\"'").rstrip(".")
+
+
+def _extract_assert_text(step: str) -> str | None:
+    """Pull a stable visible string from a verify/assert NL step."""
+    stripped = step.strip()
+    quoted = re.search(r'[\"“](.+?)[\"”]', stripped)
+    if quoted:
+        return quoted.group(1).strip()
+
+    copyright_match = re.search(
+        r"(Copyright\s+.+?)(?:\s+is\s+displayed|\s+in\s+the\s+footer|\s*$)",
+        stripped,
+        re.I,
+    )
+    if copyright_match:
+        return copyright_match.group(1).strip()
+
+    section_match = re.match(
+        r"^(?:verify|assert|check|ensure)\s+(.+?)\s+section\s*$",
+        stripped,
+        re.I,
+    )
+    if section_match:
+        return section_match.group(1).strip()
+
+    displayed_match = re.match(
+        r"^(?:verify|assert|check|ensure)\s+(.+?)(?:\s+page)?\s+"
+        r"(?:is\s+)?(?:displayed|visible|shown|loaded|loads)(?:\s+successfully)?\s*$",
+        stripped,
+        re.I,
+    )
+    if displayed_match:
+        text = displayed_match.group(1).strip()
+        text = re.sub(r"^(the\s+)?", "", text, flags=re.I)
+        text = re.sub(r"\s+(homepage|home\s+page)$", "", text, flags=re.I).strip()
+        return text or None
+
+    generic = re.match(r"^(?:verify|assert|check|ensure)\s+(.+)$", stripped, re.I)
+    if generic:
+        text = generic.group(1).strip().rstrip(".")
+        text = re.sub(
+            r"\s+(is\s+displayed|is\s+visible|successfully|in\s+the\s+footer)$",
+            "",
+            text,
+            flags=re.I,
+        ).strip()
+        if text and not _is_url_contains_step(stripped):
+            return text
+    return None
+
+
+def _text_locator_json(text: str) -> str:
+    return json.dumps([{"kind": "text", "value": text}], ensure_ascii=False)
+
+
+def _is_page_load_verification(step: str) -> bool:
+    return bool(
+        re.search(
+            r"(homepage|home\s+page).{0,40}(loads?|loaded|success)|loads?\s+successfully",
+            step,
+            re.I,
+        )
+    )
+
+
+def _section_or_text_locator_json(text: str, step: str) -> str:
+    # Text locators + .first() avoid heading false-negatives on footer columns / stylized labels.
+    return _text_locator_json(text)
+
+
+def build_nl_aligned_codegen_history(
+    nl_steps: list[str],
+    captured_actions: list[dict] | None = None,
+    url_sequence: list[str] | None = None,
+) -> list[dict]:
+    """
+    Build codegen executionHistory aligned to NL steps.
+
+    Native browser-use often records only click/go_back captures; verify/screenshot
+    NL steps must still become assert/screenshot history rows for deterministic codegen.
+    """
+    from .capability_contract import resolve_navigate_target
+
+    actions = list(captured_actions or [])
+    urls = list(url_sequence or [])
+    history: list[dict] = []
+    action_idx = 0
+    current_url = urls[0] if urls else None
+
+    def next_action(*types: str) -> dict | None:
+        nonlocal action_idx
+        while action_idx < len(actions):
+            action = actions[action_idx]
+            action_idx += 1
+            if not types or action.get("type") in types:
+                return action
+        return None
+
+    def append_step(
+        action: str,
+        *,
+        description: str,
+        selector: str | None = None,
+        value: str | None = None,
+        url: str | None = None,
+    ) -> None:
+        history.append(
+            {
+                "index": len(history) + 1,
+                "action": action,
+                "selector": selector,
+                "value": value,
+                "url": url,
+                "description": description[:2000],
+            }
+        )
+
+    for step in nl_steps:
+        stripped = step.strip()
+        if not stripped:
+            continue
+
+        nav = resolve_navigate_target(stripped)
+        if nav:
+            current_url = nav
+            append_step("navigate", description=stripped, url=nav)
+            continue
+
+        if _is_navigate_back_step(stripped):
+            next_action("go_back")
+            append_step("go_back", description=stripped, url=current_url)
+            if urls:
+                # Prefer prior URL when available (last non-matching, or first root).
+                for candidate in reversed(urls):
+                    if candidate != current_url:
+                        current_url = candidate
+                        break
+            continue
+
+        if _is_screenshot_step(stripped):
+            text = _extract_assert_text(stripped) or stripped
+            selector = _text_locator_json(text) if text and text != stripped else None
+            append_step(
+                "screenshot",
+                description=stripped,
+                selector=selector,
+                value=text if text != stripped else None,
+                url=None,
+            )
+            continue
+
+        if _is_url_contains_step(stripped):
+            fragment = _extract_url_contains_fragment(stripped) or "intro"
+            matching = next((u for u in urls if fragment.lower() in u.lower()), None)
+            if matching:
+                current_url = matching
+            append_step(
+                "assert",
+                description=stripped,
+                value=f"__url_contains__:{fragment}",
+                url=matching,
+            )
+            continue
+
+        if re.match(r"^click\b", stripped, re.I):
+            captured = next_action("click")
+            selector = None
+            if captured and captured.get("locators"):
+                selector = json.dumps(captured["locators"], ensure_ascii=False)
+            append_step(
+                "click",
+                description=stripped,
+                selector=selector,
+                url=current_url,
+            )
+            if urls and current_url:
+                for candidate in urls:
+                    if candidate != current_url:
+                        # After navigation clicks, advance to a later URL when present.
+                        idx = urls.index(current_url) if current_url in urls else -1
+                        if idx >= 0 and idx + 1 < len(urls):
+                            current_url = urls[idx + 1]
+                        break
+            continue
+
+        if re.match(r"^(input|type|fill|enter)\b", stripped, re.I):
+            captured = next_action("input", "fill", "type")
+            selector = (
+                json.dumps(captured["locators"], ensure_ascii=False)
+                if captured and captured.get("locators")
+                else None
+            )
+            value = str((captured or {}).get("value") or "") or None
+            append_step(
+                "fill" if (captured or {}).get("type") in ("input", "fill", "type") else "input",
+                description=stripped,
+                selector=selector,
+                value=value,
+                url=current_url,
+            )
+            continue
+
+        if _is_verification_step(stripped):
+            if _is_page_load_verification(stripped) and current_url:
+                append_step(
+                    "assert",
+                    description=stripped,
+                    value=f"__url_equals__:{current_url}",
+                    url=current_url,
+                )
+                continue
+            text = _extract_assert_text(stripped)
+            if text:
+                append_step(
+                    "assert",
+                    description=stripped,
+                    selector=_section_or_text_locator_json(text, stripped),
+                    value=text,
+                    url=None,
+                )
+            else:
+                append_step(
+                    "assert",
+                    description=stripped,
+                    url=current_url,
+                )
+            continue
+
+        # Fallback: preserve any leftover interact capture if NL did not match.
+        captured = next_action("click", "input", "press", "wait", "navigate", "go_back")
+        if captured:
+            append_step(
+                str(captured.get("type") or "custom"),
+                description=stripped,
+                selector=(
+                    json.dumps(captured["locators"], ensure_ascii=False)
+                    if captured.get("locators")
+                    else None
+                ),
+                value=str(captured.get("value") or "") or None,
+                url=captured.get("url") or current_url,
+            )
+        else:
+            append_step("custom", description=stripped, url=current_url)
+
+    # Append any unused locator-rich captures so codegen does not lose observed clicks.
+    while action_idx < len(actions):
+        leftover = actions[action_idx]
+        action_idx += 1
+        if leftover.get("type") not in ("click", "input", "go_back", "navigate"):
+            continue
+        append_step(
+            str(leftover.get("type") or "custom"),
+            description=f"native:{leftover.get('type')}",
+            selector=(
+                json.dumps(leftover["locators"], ensure_ascii=False)
+                if leftover.get("locators")
+                else None
+            ),
+            value=str(leftover.get("value") or "") or None,
+            url=leftover.get("url") or current_url,
+        )
+
+    return history
+
+
 def append_replay_history_from_capability(
     execution_history: list[dict],
     capability: dict[str, Any] | None,
@@ -281,8 +578,21 @@ def build_runtime_insights(history_list: Any, nl_steps: list[str]) -> dict:
         except Exception:
             blob = _safe_str(history_list).lower()
 
-    cookie_signals = ["consent", "cookie", "fc-consent", "accept all", "agree", "privacy"]
-    if any(sig in blob for sig in cookie_signals):
+    # Avoid false positives from footer "Privacy" links / prompt boilerplate
+    # (discovery rules mention OneTrust / cookie consent even when unused).
+    cookie_signals = [
+        "fc-consent-root",
+        "fc-cta-consent",
+        "accept all cookies",
+        "#onetrust-banner-sdk",
+        "#onetrust-accept-btn-handler",
+        "dismisscookieconsentifpresent",
+    ]
+    cookie_hit = any(sig in blob for sig in cookie_signals)
+    ae_hit = "automationexercise.com" in blob or any(
+        "automationexercise" in s.lower() for s in nl_steps
+    )
+    if cookie_hit and ae_hit:
         insights.append(
             {
                 "type": "cookie_consent",
@@ -300,7 +610,18 @@ def build_runtime_insights(history_list: Any, nl_steps: list[str]) -> dict:
                 ],
             }
         )
-
+    elif cookie_hit:
+        insights.append(
+            {
+                "type": "cookie_consent",
+                "required": True,
+                "message": (
+                    "Live execution interacted with a cookie/consent overlay. "
+                    "Dismiss the banner (Accept / Accept all / Consent) after navigate before primary clicks."
+                ),
+                "suggestedMethod": "dismissCookieConsentIfPresent",
+            }
+        )
     if any(sig in blob for sig in ["add to cart", "add-to-cart"]):
         insights.append(
             {

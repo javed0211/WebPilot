@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from .credentials import is_credential_step
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 AUTH_RELAXED_ORIGINS = frozenset({
     "login.microsoftonline.com",
@@ -116,12 +116,18 @@ def resolve_navigate_target(step: str) -> str | None:
     return _extract_navigate_target(step)
 
 
+def _normalize_required_text(value: str) -> str:
+    """Strip ZWSP / soft hyphens and collapse whitespace for replay contracts."""
+    cleaned = (value or "").replace("\u200b", "").replace("\ufeff", "").replace("\u00ad", "")
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
 def build_postconditions(intent: str, step: str, before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
     post: dict[str, Any] = {
         "urlPattern": after.get("urlPattern"),
         "requiredAnchors": [],
         "notAllowedAnchors": [],
-        "requiredEvidence": (after.get("evidence") or [])[:4],
+        "requiredEvidence": [],
         "requiredText": [],
         "urlContains": [],
         "forbiddenText": [],
@@ -147,13 +153,22 @@ def build_postconditions(intent: str, step: str, before: dict[str, Any], after: 
                 parsed = urlparse(nav_target)
                 if parsed.netloc:
                     post["urlRegex"] = re.escape(parsed.netloc)
-    if intent in ("interact", "input", "generic") and (after.get("evidence") or []):
+    # Interact/input: prefer URL change evidence over brittle DOM evidence texts (ZWSP headings, etc.).
+    if intent in ("interact", "input", "generic"):
+        post["requiredEvidence"] = []
+    elif after.get("evidence"):
         post["requiredEvidence"] = (after.get("evidence") or [])[:2]
-    for item in after.get("evidence") or []:
-        text = (item.get("text") or "").strip()
-        if text and len(text) >= 3:
-            post["requiredText"].append(text[:120])
-    post["requiredText"] = list(dict.fromkeys(post["requiredText"]))[:6]
+    # Only bake quoted step strings into requiredText for verify intents.
+    if intent in ("verify", "assert", "generic") or _is_verify_step(step):
+        for item in after.get("evidence") or []:
+            text = _normalize_required_text(item.get("text") or "")
+            if text and len(text) >= 3:
+                post["requiredText"].append(text[:120])
+        quoted = re.findall(r'["\']([^"\']{2,80})["\']', step)
+        for value in quoted:
+            if not value.startswith("http"):
+                post["requiredText"].append(_normalize_required_text(value))
+    post["requiredText"] = list(dict.fromkeys(t for t in post["requiredText"] if t))[:6]
     after_url = after.get("url") or after.get("urlPattern") or ""
     if after_url:
         parsed = urlparse(after_url)
@@ -161,21 +176,25 @@ def build_postconditions(intent: str, step: str, before: dict[str, Any], after: 
             if fragment and fragment not in ("/", ""):
                 post["urlContains"].append(fragment.strip("/?")[:80])
         post["urlContains"] = list(dict.fromkeys(post["urlContains"]))[:4]
-    quoted = re.findall(r'["\']([^"\']{2,80})["\']', step)
-    for value in quoted:
-        if not value.startswith("http"):
-            post["requiredText"].append(value)
-    post["requiredText"] = list(dict.fromkeys(post["requiredText"]))[:6]
     return post
 
 
-def build_preconditions(before: dict[str, Any], *, page_type: str = "") -> dict[str, Any]:
+def _is_verify_step(step: str) -> bool:
+    return bool(re.search(r"\b(verify|assert|confirm|should see|should display|check that)\b", step or "", re.I))
+
+
+def build_preconditions(before: dict[str, Any], *, page_type: str = "", intent: str = "") -> dict[str, Any]:
     pre: dict[str, Any] = {
         "urlPattern": before.get("urlPattern"),
         "anchors": (before.get("anchors") or [])[:4],
-        "notAllowedAnchors": list(AUTH_INTERSTITIAL_PHRASES),
-        "forbiddenText": list(AUTH_INTERSTITIAL_PHRASES),
+        "notAllowedAnchors": [],
+        "forbiddenText": [],
     }
+    # Only block "sign in" phrases on auth intents / interstitial page types — generic pages
+    # (docs sites with Sign in in the nav) otherwise fail replay preconditions.
+    if intent == "authenticate" or page_type in ("auth_interstitial", "auth"):
+        pre["notAllowedAnchors"] = list(AUTH_INTERSTITIAL_PHRASES)
+        pre["forbiddenText"] = list(AUTH_INTERSTITIAL_PHRASES)
     if page_type:
         pre["pageType"] = page_type
     return pre
@@ -193,7 +212,7 @@ def enrich_capability(
     capability["capabilityType"] = capability.get("capabilityType") or "site_capability"
     capability["intent"] = intent
     capability["preconditions"] = capability.get("preconditions") or build_preconditions(
-        before, page_type=capability.get("pageType", "")
+        before, page_type=capability.get("pageType", ""), intent=intent
     )
     capability["postconditions"] = capability.get("postconditions") or build_postconditions(
         intent, step, before, after
@@ -277,7 +296,11 @@ def looks_like_auth_interstitial(page_state: dict[str, Any]) -> bool:
 
 
 VALIDATE_CONTRACT_JS = """(payload) => {
-  const normalize = (s) => (s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+  const normalize = (s) => (s || '')
+    .replace(/[\\u200b\\ufeff\\u00ad]/g, '')
+    .replace(/\\s+/g, ' ')
+    .trim()
+    .toLowerCase();
   const bodyText = normalize(document.body?.innerText || '');
   const href = location.href || '';
   const origin = (location.host || '').toLowerCase();
@@ -290,8 +313,20 @@ VALIDATE_CONTRACT_JS = """(payload) => {
     maxScore += 1;
     const pattern = contract.urlPattern;
     const current = `${location.protocol}//${location.host}${location.pathname || '/'}`;
+    // Exact match or same-origin + path prefix (docs/SPA redirects, trailing slash).
     if (current === pattern) score += 1;
-    else failures.push('url_pattern_mismatch');
+    else {
+      try {
+        const stored = new URL(pattern, location.origin);
+        const sameOrigin = stored.host === location.host;
+        const storedPath = (stored.pathname || '/').replace(/\\/+$/, '') || '/';
+        const currentPath = (location.pathname || '/').replace(/\\/+$/, '') || '/';
+        if (sameOrigin && (currentPath === storedPath || currentPath.startsWith(storedPath + '/'))) score += 1;
+        else failures.push('url_pattern_mismatch');
+      } catch (e) {
+        failures.push('url_pattern_mismatch');
+      }
+    }
   }
   if (contract.urlRegex) {
     maxScore += 2;
@@ -392,10 +427,49 @@ def migrate_legacy_capability(capability: dict[str, Any]) -> dict[str, Any]:
 
 
 def resolve_validation_contract(capability: dict[str, Any], phase: Phase) -> dict[str, Any]:
-    if capability.get("schemaVersion", 2) >= SCHEMA_VERSION:
+    if capability.get("schemaVersion", 2) >= 4:
         key = "preconditions" if phase == "pre" else "postconditions"
         contract = dict(capability.get(key) or {})
     else:
         legacy_key = "before" if phase == "pre" else "after"
         contract = contract_from_legacy_fingerprint(capability.get(legacy_key) or {})
+
+    intent = str(capability.get("intent") or infer_intent(capability.get("step", "")))
+    page_type = str(capability.get("pageType") or "")
+
+    # Heal older stored knowledge: ZWSP in requiredText / evidence breaks playback on Docusaurus etc.
+    if contract.get("requiredText"):
+        contract["requiredText"] = [
+            t for t in (_normalize_required_text(str(x)) for x in contract["requiredText"]) if t
+        ][:6]
+    if contract.get("requiredEvidence"):
+        healed = []
+        for item in contract["requiredEvidence"]:
+            if not isinstance(item, dict):
+                continue
+            text = _normalize_required_text(str(item.get("text") or ""))
+            if text:
+                healed.append({**item, "text": text})
+        contract["requiredEvidence"] = healed[:4]
+
+    # Heal older stores that attached "sign in" forbidden phrases to every capability.
+    if phase == "pre" and intent != "authenticate" and page_type not in ("auth_interstitial", "auth"):
+        contract["notAllowedAnchors"] = [
+            p for p in (contract.get("notAllowedAnchors") or []) if p not in AUTH_INTERSTITIAL_PHRASES
+        ]
+        contract["forbiddenText"] = [
+            p for p in (contract.get("forbiddenText") or []) if p not in AUTH_INTERSTITIAL_PHRASES
+        ]
+
+    # Interact clicks should not require brittle page heading evidence from prior learning.
+    if phase == "post" and intent in ("interact", "input"):
+        contract["requiredEvidence"] = []
+        # Drop evidence-like requiredText that wasn't quoted in the step.
+        step = capability.get("step") or ""
+        quoted = { _normalize_required_text(v).lower() for v in re.findall(r'["\']([^"\']{2,80})["\']', step) }
+        contract["requiredText"] = [
+            t for t in (contract.get("requiredText") or [])
+            if _normalize_required_text(t).lower() in quoted
+        ]
+
     return contract

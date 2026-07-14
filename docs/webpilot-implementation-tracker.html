@@ -120,6 +120,20 @@
       line-height: 1.35;
     }
 
+    .storage-banner {
+      display: none;
+      margin-bottom: 0.85rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid #fde68a;
+      background: #fffbeb;
+      color: #92400e;
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .storage-banner.visible { display: block; }
+
     .main { padding: 1.5rem 2rem; overflow-x: auto; }
 
     .page { display: none; }
@@ -691,6 +705,66 @@
     .plan-section ul { margin-left: 1.25rem; color: var(--muted); font-size: 0.85rem; }
     .plan-section li { margin-bottom: 0.35rem; }
 
+    .req-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .req-chip {
+      font-size: 0.72rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .req-chip strong { color: var(--text); }
+
+    .badge-priority, .badge-req-status {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      text-transform: capitalize;
+    }
+
+    .badge-priority.must { background: #fee2e2; color: #991b1b; }
+    .badge-priority.should { background: #ffedd5; color: #9a3412; }
+    .badge-priority.could { background: #e0e7ff; color: #3730a3; }
+
+    .badge-req-status.proposed { background: #f1f5f9; color: #475569; }
+    .badge-req-status.agreed { background: #dbeafe; color: #1e40af; }
+    .badge-req-status.in-progress { background: #dbeafe; color: #1d4ed8; }
+    .badge-req-status.done { background: #d1fae5; color: #065f46; }
+    .badge-req-status.deferred { background: #fef3c7; color: #92400e; }
+
+    .req-title-cell { font-weight: 600; }
+    .req-paragraph {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text);
+      font-weight: 400;
+      margin-top: 0.35rem;
+      line-height: 1.45;
+      max-width: 540px;
+      white-space: pre-wrap;
+    }
+    .req-notes-preview {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 0.35rem;
+      max-width: 540px;
+      line-height: 1.35;
+    }
+
+    #reqParagraph { min-height: 120px; }
+
     .date-hint {
       font-size: 0.62rem;
       color: var(--muted);
@@ -931,7 +1005,7 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <img class="brand-logo" src="assets/bupa-logo-sidebar.png" alt="Bupa" />
+        <img class="brand-logo" src="data:image/png;base64,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" alt="Bupa" />
         <div>
           <h1>Bupa BrowserAgent</h1>
           <p>Implementation &amp; rollout plan</p>
@@ -941,6 +1015,10 @@
         <button class="active" data-page="overview">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           Overview
+        </button>
+        <button data-page="requirements">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></svg>
+          Requirements
         </button>
         <button data-page="tasks">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
@@ -961,7 +1039,7 @@
         <div>Deadline: <strong id="sidebarDeadline">30 Jul 2026</strong> · <span id="sidebarDeadlineCount"></span></div>
         <div>Show &amp; Tell: <strong id="sidebarShowTell">30 Jul 2026</strong> · <span id="sidebarShowTellCount"></span></div>
         <div>Last saved: <span id="lastSaved">—</span></div>
-        <div class="sidebar-tip">Tip: Export JSON regularly — edits live in this browser only.</div>
+        <div class="sidebar-tip">Edit freely, then click <strong>Share HTML</strong> and upload that file to SharePoint / Teams so others get your updates.</div>
       </div>
     </aside>
 
@@ -974,11 +1052,16 @@
             <p>All phases complete by <strong>30 July 2026</strong> — Show &amp; Tell on <strong>30 July</strong></p>
           </div>
           <div class="actions">
+            <button class="primary" onclick="downloadShareableHtml()" title="Download this tracker with your current progress baked into the file">Share HTML</button>
             <button onclick="exportData()">Export JSON</button>
             <button onclick="document.getElementById('importFile').click()">Import JSON</button>
-            <input type="file" id="importFile" accept=".json" hidden onchange="importData(event)" />
+            <input type="file" id="importFile" accept=".json,application/json" hidden onchange="importData(event)" />
+            <input type="file" id="importHtmlFile" accept=".html,text/html" hidden onchange="importShareableHtml(event)" />
+            <button onclick="document.getElementById('importHtmlFile').click()" title="Load progress from a shared HTML file">Open shared HTML</button>
           </div>
         </div>
+
+        <div class="storage-banner" id="storageBanner"></div>
 
         <div class="overview-dashboard" id="overviewDashboard"></div>
 
@@ -994,6 +1077,56 @@
               <tr><th>Owner</th><th>Tasks</th><th>Complete</th><th>In progress</th><th>Blocked</th><th>Overdue</th></tr>
             </thead>
             <tbody id="ownerTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- REQUIREMENTS -->
+      <section class="page" id="page-requirements">
+        <div class="page-header">
+          <div>
+            <h2>Requirements</h2>
+            <p>Editable project requirements — add, update status, and capture acceptance notes</p>
+          </div>
+          <div class="actions">
+            <button class="primary" onclick="openRequirementModal()">+ Add requirement</button>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <label>Category <select id="reqFilterCategory" onchange="renderRequirements()"><option value="">All</option></select></label>
+          <label>Priority <select id="reqFilterPriority" onchange="renderRequirements()">
+            <option value="">All</option>
+            <option value="must">Must</option>
+            <option value="should">Should</option>
+            <option value="could">Could</option>
+          </select></label>
+          <label>Status <select id="reqFilterStatus" onchange="renderRequirements()">
+            <option value="">All</option>
+            <option value="proposed">Proposed</option>
+            <option value="agreed">Agreed</option>
+            <option value="in-progress">In progress</option>
+            <option value="done">Done</option>
+            <option value="deferred">Deferred</option>
+          </select></label>
+        </div>
+
+        <div class="req-summary" id="reqSummary"></div>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:3rem">ID</th>
+                <th>Requirement</th>
+                <th>Category</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Owner</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="requirementsTable"></tbody>
           </table>
         </div>
       </section>
@@ -1128,13 +1261,15 @@
           <table>
             <thead><tr><th>Action</th><th>How</th></tr></thead>
             <tbody>
+              <tr><td>Add / edit requirements</td><td>Requirements → Add requirement, or Edit on a row</td></tr>
               <tr><td>Add phase</td><td>Task Tracker → Add task group</td></tr>
               <tr><td>Add work item</td><td>Task Tracker → Add subtask, or + Subtask on a group row</td></tr>
               <tr><td>Reschedule subtasks</td><td>Task Tracker → edit subtask start/end dates</td></tr>
               <tr><td>View phase timeline</td><td>Timeline → one bar per task group (phase)</td></tr>
               <tr><td>View progress</td><td>Overview → dashboard summary and phase pie charts</td></tr>
-              <tr><td>Share plan</td><td>Overview → Export JSON; teammates Import JSON</td></tr>
-              <tr><td>Reset to template</td><td>Clear browser localStorage for this page, reload</td></tr>
+              <tr><td>Share plan with others</td><td>Overview → <strong>Share HTML</strong> (progress is baked into the file). Recipients can open it directly, or use <strong>Open shared HTML</strong>.</td></tr>
+              <tr><td>Backup / restore</td><td>Export JSON / Import JSON</td></tr>
+              <tr><td>Reset to template</td><td>If browser storage is available: clear it for this page and reload. Or open a fresh Shared HTML with empty progress.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1193,6 +1328,55 @@
     </div>
   </div>
 
+  <!-- Requirement modal -->
+  <div class="modal-backdrop" id="requirementModal">
+    <div class="modal">
+      <h3 id="requirementModalTitle">Add requirement</h3>
+      <form class="form-grid" onsubmit="saveRequirement(event)">
+        <input type="hidden" id="reqId" />
+        <div><label>Title</label><input id="reqTitle" required placeholder="Short requirement name" /></div>
+        <div><label>Requirement paragraph</label><textarea id="reqParagraph" required placeholder="Full requirement statement — what is needed, why, and any constraints"></textarea></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div><label>Category</label><input id="reqCategory" list="reqCategoryList" placeholder="e.g. Functional, Non-functional" required /></div>
+          <div><label>Owner</label><input id="reqOwner" placeholder="e.g. QE Lead" /></div>
+        </div>
+        <datalist id="reqCategoryList">
+          <option value="Functional"></option>
+          <option value="Non-functional"></option>
+          <option value="Security"></option>
+          <option value="Integration"></option>
+          <option value="Reporting"></option>
+          <option value="Operations"></option>
+        </datalist>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div><label>Priority</label>
+            <select id="reqPriority">
+              <option value="must">Must</option>
+              <option value="should">Should</option>
+              <option value="could">Could</option>
+            </select>
+          </div>
+          <div><label>Status</label>
+            <select id="reqStatus">
+              <option value="proposed">Proposed</option>
+              <option value="agreed">Agreed</option>
+              <option value="in-progress">In progress</option>
+              <option value="done">Done</option>
+              <option value="deferred">Deferred</option>
+            </select>
+          </div>
+        </div>
+        <div><label>Acceptance / notes</label><textarea id="reqNotes" placeholder="Acceptance criteria, links, decisions"></textarea></div>
+        <div class="form-actions">
+          <button type="button" onclick="closeModal('requirementModal')">Cancel</button>
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="application/json" id="embedded-tracker-state">null</script>
+
   <script>
     const SCHEMA_VERSION = 6;
     const STORAGE_KEY = 'webpilot-implementation-tracker-v6';
@@ -1207,6 +1391,60 @@
     const PROJECT_DEADLINE = '2026-07-30';
     const SHOW_AND_TELL_DATE = '2026-07-30';
     const SHOW_AND_TELL_GROUP = 'g6';
+
+    let storageAvailable = false;
+    let storageWarning = '';
+
+    function probeLocalStorage() {
+      try {
+        const key = STORAGE_KEY + '__probe';
+        window.localStorage.setItem(key, '1');
+        window.localStorage.removeItem(key);
+        storageAvailable = true;
+        storageWarning = '';
+        return true;
+      } catch (err) {
+        storageAvailable = false;
+        storageWarning = 'Browser storage is blocked here (common with SharePoint / Teams / downloaded files). The tracker still works — click Share HTML after edits and replace the file in your shared folder.';
+        return false;
+      }
+    }
+
+    function safeStorageGet(key) {
+      if (!storageAvailable) return null;
+      try {
+        return window.localStorage.getItem(key);
+      } catch (_) {
+        storageAvailable = false;
+        return null;
+      }
+    }
+
+    function safeStorageSet(key, value) {
+      if (!storageAvailable) return false;
+      try {
+        window.localStorage.setItem(key, value);
+        return true;
+      } catch (_) {
+        storageAvailable = false;
+        storageWarning = 'Could not save to browser storage. Use Share HTML or Export JSON to keep your updates.';
+        return false;
+      }
+    }
+
+    function updateStorageBanner() {
+      const el = document.getElementById('storageBanner');
+      if (!el) return;
+      if (storageAvailable) {
+        el.className = 'storage-banner';
+        el.textContent = '';
+        return;
+      }
+      el.className = 'storage-banner visible';
+      el.textContent = storageWarning || 'Browser storage unavailable. Use Share HTML to keep progress.';
+    }
+
+    probeLocalStorage();
 
     const DEFAULT_DATA = {
       projectStart: PROJECT_START,
@@ -1243,6 +1481,16 @@
         { id: 't19', groupId: 'g6', title: 'Show & Tell dry run — all phases', owner: 'QE Lead', start: '2026-07-29', end: '2026-07-29', status: 'not-started', pct: 0, notes: 'CRM, Clinics, repo CI, dashboards' },
         { id: 't20', groupId: 'g6', title: 'Show & Tell presentation to stakeholders', owner: 'QE Lead', start: '2026-07-30', end: '2026-07-30', status: 'not-started', pct: 0, notes: 'Live demo — 30 July 2026' },
         { id: 't21', groupId: 'g6', title: 'Project sign-off — all phases complete', owner: 'QE Manager', start: '2026-07-30', end: '2026-07-30', status: 'not-started', pct: 0, notes: 'Deadline: 30 July 2026' },
+      ],
+      requirements: [
+        { id: 'r1', title: 'CRM NL scenarios via BrowserAgent', category: 'Functional', priority: 'must', status: 'agreed', owner: 'QE Lead', paragraph: 'The solution must allow QE to author end-to-end Bupa CRM (Dynamics) scenarios in natural language and execute them with BrowserAgent, covering login, app switcher, Contacts navigation, and producing an HTML execution report.', notes: 'Login, app switcher, Contacts navigation, HTML report' },
+        { id: 'r2', title: 'Clinics (Digital) automation', category: 'Functional', priority: 'must', status: 'proposed', owner: 'Functional QE', paragraph: 'Priority Clinics (Digital) journeys must be identified, automated with BrowserAgent, and completed with executable HTML reports comparable to the CRM stream before Show & Tell.', notes: '' },
+        { id: 'r3', title: 'Knowledge replay efficiency', category: 'Non-functional', priority: 'must', status: 'agreed', owner: 'Automation Engineer', paragraph: 'After a successful discovery run, replaying the same scenario from site knowledge must complete with minimal or zero LLM calls while producing the same functional outcome.', notes: 'Validate after first discovery pass' },
+        { id: 'r4', title: 'Secrets from environment only', category: 'Security', priority: 'must', status: 'agreed', owner: 'QE Lead', paragraph: 'All credentials and Azure LLM keys must resolve from environment variables (for example QA_USERNAME, QA_PASSWORD, AZURE_*) via .env or CI secrets, and must never be committed to source control.', notes: 'QA_USERNAME / QA_PASSWORD / Azure keys' },
+        { id: 'r5', title: 'Codegen into team repo', category: 'Integration', priority: 'should', status: 'proposed', owner: 'DevOps', paragraph: 'Passed scenarios should support Playwright codegen so generated tests and page objects can be reviewed and committed into the shared test framework repository.', notes: '' },
+        { id: 'r6', title: 'CI with report artifacts', category: 'Operations', priority: 'should', status: 'proposed', owner: 'DevOps', paragraph: 'A GitHub Actions or Azure Pipelines job should run webpilot against agreed scenarios and publish HTML/JSON reports as pipeline artifacts for the team to review.', notes: 'GitHub Actions or Azure Pipelines' },
+        { id: 'r7', title: 'Results and token dashboard', category: 'Reporting', priority: 'should', status: 'proposed', owner: 'Automation Engineer', paragraph: 'Stakeholders need a dashboard showing execution pass/fail trends and LLM token usage/cost metrics so run quality and spend are visible without reading raw report folders.', notes: 'Phase 5 deliverable' },
+        { id: 'r8', title: 'Show & Tell by 30 July', category: 'Operations', priority: 'must', status: 'agreed', owner: 'QE Manager', paragraph: 'All agreed must-have requirements must be demonstrable by 30 July 2026, including a dry run covering CRM, Clinics, repo/CI evidence, and dashboards before the live Show & Tell.', notes: '' },
       ],
     };
 
@@ -1299,6 +1547,7 @@
         schemaVersion: SCHEMA_VERSION,
         groups: [],
         tasks: [],
+        requirements: [],
       };
 
       if (needsUpgrade) {
@@ -1311,11 +1560,19 @@
             merged.tasks.push({ ...ut, groupId: validGroup ? groupId : ut.groupId });
           }
         });
+        if (Array.isArray(incoming.requirements) && incoming.requirements.length) {
+          merged.requirements = JSON.parse(JSON.stringify(incoming.requirements));
+        } else {
+          merged.requirements = JSON.parse(JSON.stringify(DEFAULT_DATA.requirements));
+        }
       } else {
         merged.groups = incoming.groups?.length
           ? JSON.parse(JSON.stringify(incoming.groups))
           : JSON.parse(JSON.stringify(DEFAULT_DATA.groups));
         merged.tasks = JSON.parse(JSON.stringify(userTasks));
+        merged.requirements = Array.isArray(incoming.requirements)
+          ? JSON.parse(JSON.stringify(incoming.requirements))
+          : JSON.parse(JSON.stringify(DEFAULT_DATA.requirements));
 
         const groupIds = new Set(merged.groups.map(g => g.id));
         DEFAULT_DATA.groups.forEach(g => {
@@ -1327,54 +1584,135 @@
         });
       }
 
+      const defaultReqById = Object.fromEntries(DEFAULT_DATA.requirements.map(r => [r.id, r]));
+      merged.requirements = (merged.requirements || []).map(r => {
+        const template = defaultReqById[r.id];
+        if (template && !(r.paragraph || '').trim()) {
+          return { ...r, paragraph: template.paragraph };
+        }
+        return { paragraph: '', ...r };
+      });
+
       return merged;
     }
 
     let migratedOnLoad = false;
+    let loadSource = 'default';
+
+    function readEmbeddedState() {
+      const el = document.getElementById('embedded-tracker-state');
+      if (!el) return null;
+      const raw = (el.textContent || '').trim();
+      if (!raw || raw === 'null') return null;
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function writeEmbeddedState(data) {
+      const el = document.getElementById('embedded-tracker-state');
+      if (!el) return;
+      el.textContent = JSON.stringify(data);
+    }
+
+    function stampState(data) {
+      const next = JSON.parse(JSON.stringify(data));
+      next.schemaVersion = SCHEMA_VERSION;
+      next.savedAt = new Date().toISOString();
+      return next;
+    }
+
+    function pickFreshestCandidate(candidates) {
+      const withTime = candidates.filter(c => c.at);
+      if (withTime.length) {
+        return withTime.sort((a, b) => b.at.localeCompare(a.at))[0];
+      }
+      return candidates.find(c => c.source === 'local')
+        || candidates.find(c => c.source === 'legacy')
+        || candidates[0];
+    }
 
     function loadState() {
+      const candidates = [];
       try {
-        const current = localStorage.getItem(STORAGE_KEY);
-        if (current) {
-          const parsed = JSON.parse(current);
-          if ((parsed.schemaVersion || 0) >= SCHEMA_VERSION) {
-            return normalizeState(parsed, { upgradeStructure: false });
-          }
-          migratedOnLoad = true;
-          return normalizeState(parsed, { upgradeStructure: true });
+        const embedded = readEmbeddedState();
+        if (embedded && Array.isArray(embedded.tasks)) {
+          candidates.push({
+            source: 'embedded',
+            data: embedded,
+            at: embedded.savedAt || '',
+          });
         }
 
-        let bestRaw = null;
-        let bestScore = -1;
-        let bestKey = '';
+        const current = safeStorageGet(STORAGE_KEY);
+        if (current) {
+          const parsed = JSON.parse(current);
+          if (parsed && Array.isArray(parsed.tasks)) {
+            candidates.push({
+              source: 'local',
+              data: parsed,
+              at: parsed.savedAt || '',
+            });
+          }
+        }
+
         for (const key of LEGACY_STORAGE_KEYS) {
-          const raw = localStorage.getItem(key);
+          const raw = safeStorageGet(key);
           if (!raw) continue;
           const parsed = JSON.parse(raw);
-          const score = countUserEdits(parsed);
-          if (score > bestScore) {
-            bestScore = score;
-            bestRaw = parsed;
-            bestKey = key;
-          }
-        }
-        if (bestRaw) {
-          migratedOnLoad = true;
-          if (bestKey && bestKey !== STORAGE_KEY) {
-            console.info('[Bupa BrowserAgent Tracker] Restored edits from', bestKey);
-          }
-          return normalizeState(bestRaw, { upgradeStructure: true });
+          if (!parsed || !Array.isArray(parsed.tasks)) continue;
+          candidates.push({
+            source: 'legacy',
+            data: parsed,
+            at: parsed.savedAt || '',
+            score: countUserEdits(parsed),
+            key,
+          });
         }
       } catch (_) {}
-      migratedOnLoad = true;
-      return normalizeState({}, { upgradeStructure: true });
+
+      if (!candidates.length) {
+        migratedOnLoad = true;
+        loadSource = 'default';
+        return normalizeState({}, { upgradeStructure: true });
+      }
+
+      // Prefer the newest savedAt. If none have timestamps, prefer local, then richest legacy, then embedded.
+      let chosen = pickFreshestCandidate(candidates);
+      if (!chosen.at) {
+        const local = candidates.find(c => c.source === 'local');
+        const legacy = candidates
+          .filter(c => c.source === 'legacy')
+          .sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+        chosen = local || legacy || candidates.find(c => c.source === 'embedded') || chosen;
+      }
+
+      loadSource = chosen.source;
+      const needsUpgrade = (chosen.data.schemaVersion || 0) < SCHEMA_VERSION || chosen.source === 'legacy';
+      migratedOnLoad = needsUpgrade || chosen.source !== 'local';
+      if (chosen.source === 'legacy' && chosen.key) {
+        console.info('[Bupa BrowserAgent Tracker] Restored edits from', chosen.key);
+      }
+      if (chosen.source === 'embedded') {
+        console.info('[Bupa BrowserAgent Tracker] Loaded progress embedded in this HTML file');
+      }
+      return normalizeState(chosen.data, { upgradeStructure: needsUpgrade });
     }
 
     let state = loadState();
 
     function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      document.getElementById('lastSaved').textContent = new Date().toLocaleString();
+      state = stampState(state);
+      safeStorageSet(STORAGE_KEY, JSON.stringify(state));
+      writeEmbeddedState(state);
+      updateStorageBanner();
+      const savedLabel = new Date().toLocaleString();
+      document.getElementById('lastSaved').textContent = storageAvailable
+        ? savedLabel
+        : savedLabel + ' · session only — Share HTML to keep';
       renderAll();
     }
 
@@ -1454,6 +1792,7 @@
       document.getElementById('sidebarDeadlineCount').textContent = daysUntilLabel(state.projectDeadline);
       document.getElementById('sidebarShowTellCount').textContent = daysUntilLabel(state.showAndTellDate);
       renderOverview();
+      renderRequirements();
       renderTasks();
       renderTimeline();
       populateFilters();
@@ -1993,6 +2332,82 @@
       }).join('');
     }
 
+    function renderRequirements() {
+      if (!Array.isArray(state.requirements)) state.requirements = [];
+      const catFilter = document.getElementById('reqFilterCategory')?.value || '';
+      const priFilter = document.getElementById('reqFilterPriority')?.value || '';
+      const statusFilter = document.getElementById('reqFilterStatus')?.value || '';
+
+      const catSelect = document.getElementById('reqFilterCategory');
+      if (catSelect) {
+        const current = catSelect.value;
+        const cats = [...new Set(state.requirements.map(r => r.category).filter(Boolean))].sort();
+        catSelect.innerHTML = '<option value="">All</option>' + cats.map(c =>
+          `<option value="${c}" ${c === current ? 'selected' : ''}>${c}</option>`
+        ).join('');
+      }
+
+      const filtered = state.requirements.filter(r => {
+        if (catFilter && r.category !== catFilter) return false;
+        if (priFilter && r.priority !== priFilter) return false;
+        if (statusFilter && r.status !== statusFilter) return false;
+        return true;
+      });
+
+      const totals = { proposed: 0, agreed: 0, 'in-progress': 0, done: 0, deferred: 0 };
+      state.requirements.forEach(r => { totals[r.status] = (totals[r.status] || 0) + 1; });
+      document.getElementById('reqSummary').innerHTML = `
+        <span class="req-chip"><strong>${state.requirements.length}</strong> total</span>
+        <span class="req-chip"><strong>${totals.done || 0}</strong> done</span>
+        <span class="req-chip"><strong>${totals['in-progress'] || 0}</strong> in progress</span>
+        <span class="req-chip"><strong>${totals.agreed || 0}</strong> agreed</span>
+        <span class="req-chip"><strong>${totals.proposed || 0}</strong> proposed</span>
+        <span class="req-chip"><strong>${totals.deferred || 0}</strong> deferred</span>
+      `;
+
+      const tbody = document.getElementById('requirementsTable');
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No requirements match these filters. Click + Add requirement.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((r) => {
+        const paragraph = (r.paragraph || '').trim();
+        const notes = (r.notes || '').trim();
+        const allIdx = state.requirements.findIndex(x => x.id === r.id);
+        const displayId = `R${String(allIdx + 1).padStart(2, '0')}`;
+        return `<tr>
+          <td>${displayId}</td>
+          <td>
+            <div class="req-title-cell">${escapeHtml(r.title)}
+              ${paragraph ? `<span class="req-paragraph">${escapeHtml(paragraph)}</span>` : ''}
+              ${notes ? `<span class="req-notes-preview"><strong>Notes:</strong> ${escapeHtml(notes)}</span>` : ''}
+            </div>
+          </td>
+          <td>${escapeHtml(r.category || '—')}</td>
+          <td><span class="badge-priority ${r.priority || 'should'}">${r.priority || 'should'}</span></td>
+          <td><span class="badge-req-status ${r.status || 'proposed'}">${(r.status || 'proposed').replace('-', ' ')}</span></td>
+          <td>${escapeHtml(r.owner || '—')}</td>
+          <td style="white-space:nowrap">
+            <button onclick="openRequirementModal('${r.id}')">Edit</button>
+            <button class="danger" onclick="deleteRequirement('${r.id}')">Delete</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str).replace(/'/g, '&#39;');
+    }
+
     function renderTimeline() {
       renderGantt('timeline', { phasesOnly: true });
     }
@@ -2104,12 +2519,89 @@
       saveState();
     }
 
+    function openRequirementModal(id) {
+      document.getElementById('requirementModalTitle').textContent = id ? 'Edit requirement' : 'Add requirement';
+      document.getElementById('reqId').value = id || '';
+      if (id) {
+        const r = (state.requirements || []).find(x => x.id === id);
+        if (!r) return;
+        document.getElementById('reqTitle').value = r.title || '';
+        document.getElementById('reqParagraph').value = r.paragraph || '';
+        document.getElementById('reqCategory').value = r.category || '';
+        document.getElementById('reqOwner').value = r.owner || '';
+        document.getElementById('reqPriority').value = r.priority || 'must';
+        document.getElementById('reqStatus').value = r.status || 'proposed';
+        document.getElementById('reqNotes').value = r.notes || '';
+      } else {
+        document.getElementById('reqTitle').value = '';
+        document.getElementById('reqParagraph').value = '';
+        document.getElementById('reqCategory').value = 'Functional';
+        document.getElementById('reqOwner').value = '';
+        document.getElementById('reqPriority').value = 'must';
+        document.getElementById('reqStatus').value = 'proposed';
+        document.getElementById('reqNotes').value = '';
+      }
+      openModal('requirementModal');
+    }
+
+    function saveRequirement(e) {
+      e.preventDefault();
+      if (!Array.isArray(state.requirements)) state.requirements = [];
+      const id = document.getElementById('reqId').value || uid();
+      const payload = {
+        id,
+        title: document.getElementById('reqTitle').value.trim(),
+        paragraph: document.getElementById('reqParagraph').value.trim(),
+        category: document.getElementById('reqCategory').value.trim() || 'Functional',
+        owner: document.getElementById('reqOwner').value.trim(),
+        priority: document.getElementById('reqPriority').value,
+        status: document.getElementById('reqStatus').value,
+        notes: document.getElementById('reqNotes').value.trim(),
+      };
+      const idx = state.requirements.findIndex(r => r.id === id);
+      if (idx >= 0) state.requirements[idx] = { ...state.requirements[idx], ...payload };
+      else state.requirements.push(payload);
+      closeModal('requirementModal');
+      saveState();
+    }
+
+    function deleteRequirement(id) {
+      if (!confirm('Delete this requirement?')) return;
+      state.requirements = (state.requirements || []).filter(r => r.id !== id);
+      saveState();
+    }
+
     function exportData() {
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(stampState(state), null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'bupa-browseragent-tracker-' + new Date().toISOString().slice(0, 10) + '.json';
       a.click();
+    }
+
+    function downloadShareableHtml() {
+      state = stampState(state);
+      safeStorageSet(STORAGE_KEY, JSON.stringify(state));
+      writeEmbeddedState(state);
+      updateStorageBanner();
+      document.getElementById('lastSaved').textContent = new Date().toLocaleString() + ' · shareable download';
+
+      const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'bupa-browseragent-tracker-' + new Date().toISOString().slice(0, 10) + '.html';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function applyImportedState(parsed, label) {
+      state = normalizeState(parsed, {
+        upgradeStructure: (parsed.schemaVersion || 0) < SCHEMA_VERSION,
+      });
+      state = stampState(state);
+      saveState();
+      alert(label || 'Import successful — progress loaded.');
     }
 
     function importData(e) {
@@ -2118,14 +2610,37 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const parsed = JSON.parse(reader.result);
-          state = normalizeState(parsed, {
-            upgradeStructure: (parsed.schemaVersion || 0) < SCHEMA_VERSION,
-          });
-          saveState();
-          alert('Import successful');
+          applyImportedState(JSON.parse(reader.result), 'JSON import successful');
         } catch (err) {
           alert('Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    function importShareableHtml(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const html = String(reader.result || '');
+          const match = html.match(
+            /<script[^>]*id=["']embedded-tracker-state["'][^>]*>([\s\S]*?)<\/script>/i
+          );
+          if (!match) {
+            alert('No embedded tracker data found in that HTML file. Ask the sender to use Share HTML.');
+            return;
+          }
+          const raw = match[1].trim();
+          if (!raw || raw === 'null') {
+            alert('That HTML file has no saved progress yet. Ask the sender to edit, then Share HTML again.');
+            return;
+          }
+          applyImportedState(JSON.parse(raw), 'Shared HTML loaded — progress imported.');
+        } catch (err) {
+          alert('Could not read progress from that HTML file');
         }
       };
       reader.readAsText(file);
@@ -2141,11 +2656,20 @@
     });
 
     renderAll();
-    if (migratedOnLoad || !localStorage.getItem(STORAGE_KEY)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      document.getElementById('lastSaved').textContent = migratedOnLoad
-        ? 'Restored & saved — use Export JSON to backup'
-        : 'Initial schedule saved';
+    updateStorageBanner();
+    if (migratedOnLoad || !safeStorageGet(STORAGE_KEY) || !state.savedAt) {
+      state = stampState(state);
+      safeStorageSet(STORAGE_KEY, JSON.stringify(state));
+      writeEmbeddedState(state);
+      const sourceNote = {
+        embedded: 'Loaded from shared HTML',
+        legacy: 'Restored older browser backup',
+        default: 'Initial schedule ready',
+        local: 'Loaded',
+      }[loadSource] || 'Loaded';
+      document.getElementById('lastSaved').textContent = storageAvailable
+        ? sourceNote + ' — use Share HTML to send to others'
+        : sourceNote + ' — browser storage blocked; use Share HTML after edits';
     } else {
       document.getElementById('lastSaved').textContent = 'Loaded';
     }
