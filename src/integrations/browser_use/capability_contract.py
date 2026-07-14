@@ -132,14 +132,12 @@ def build_postconditions(intent: str, step: str, before: dict[str, Any], after: 
         "urlContains": [],
         "forbiddenText": [],
     }
-    if intent == "navigate":
-        target = _extract_navigate_target(step)
-        if target:
-            parsed = urlparse(target)
-            if parsed.netloc:
-                post["urlRegex"] = re.escape(parsed.netloc)
-            if parsed.path and parsed.path != "/":
-                post["urlContains"].append(parsed.path.strip("/"))
+    # Navigate back: no hard post URL — history stack determines landing page.
+    if re.search(r"\b(navigate\s+back|go\s+back|previous\s+page)\b", step or "", re.I):
+        post["urlPattern"] = None
+        post["urlContains"] = []
+        post["requiredEvidence"] = []
+        return post
     if intent == "authenticate":
         post["notAllowedAnchors"] = list(AUTH_INTERSTITIAL_PHRASES)
         post["forbiddenText"] = list(AUTH_INTERSTITIAL_PHRASES)
@@ -154,8 +152,13 @@ def build_postconditions(intent: str, step: str, before: dict[str, Any], after: 
                 if parsed.netloc:
                     post["urlRegex"] = re.escape(parsed.netloc)
     # Interact/input: prefer URL change evidence over brittle DOM evidence texts (ZWSP headings, etc.).
+    # Do not hard-require exact post-URL for interact — SPA delay / same-tab navigation timing
+    # often trips url_pattern_mismatch even after a successful click; following verify steps confirm.
     if intent in ("interact", "input", "generic"):
         post["requiredEvidence"] = []
+        post["urlPattern"] = None
+        post["urlContains"] = []
+        return post
     elif after.get("evidence"):
         post["requiredEvidence"] = (after.get("evidence") or [])[:2]
     # Only bake quoted step strings into requiredText for verify intents.

@@ -1,0 +1,32 @@
+@smoke @wikipedia @complex-dom
+target: web
+baseUrl: https://en.wikipedia.org/
+codegen: false
+report: true
+
+Test: Wikipedia Complex DOM Verification
+
+1. Navigate to https://www.wikipedia.org/
+2. Verify Wikipedia homepage loads successfully
+3. Verify Search Wikipedia is visible
+4. Enter Software testing into the search input
+5. Click Search
+6. Verify page URL contains Software_testing
+7. Verify Software testing is displayed
+8. Verify From Wikipedia, the free encyclopedia is displayed
+9. Verify Article is displayed
+10. Click View history
+11. Verify Revision history is displayed
+12. Navigate back to the previous page
+13. Verify Software testing is displayed
+14. Verify See also section
+15. Verify References section
+16. Verify External links section
+17. Verify Wikipedia is displayed
+18. Capture screenshot of the "Software testing" heading
+19. Click Talk
+20. Verify page URL contains Talk
+21. Navigate back to the previous page
+22. Verify Software testing is displayed
+23. Verify Categories is displayed
+24. Verify This page was last edited is displayed

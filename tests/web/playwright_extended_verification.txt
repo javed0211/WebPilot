@@ -1,0 +1,32 @@
+@smoke
+target: web
+baseUrl: https://playwright.dev/
+codegen: false
+report: true
+
+Test: Playwright Extended Verification
+
+1. Navigate to https://playwright.dev/
+2. Verify Playwright homepage loads successfully
+3. Verify Get started link is visible
+4. Click Get started
+5. Verify Getting Started page is displayed
+6. Verify page URL contains intro
+7. Verify Installation is displayed
+8. Navigate back to the previous page
+9. Verify Playwright Test section
+10. Verify Playwright CLI section
+11. Verify Playwright MCP section
+12. Verify Built for testing section
+13. Verify Built for AI agents section
+14. Verify Powerful tooling section
+15. Verify Chosen by companies and open source projects section
+16. Capture screenshot of the "Chosen by companies and open source projects" section
+17. Verify Learn section
+18. Verify Community section
+19. Verify More section
+20. Click Docs
+21. Verify page URL contains docs
+22. Verify Docs page is displayed
+23. Navigate back to the previous page
+24. Verify Copyright © 2026 Microsoft is displayed in the footer

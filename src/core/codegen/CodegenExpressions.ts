@@ -136,17 +136,16 @@ export function pageMethodBody(step: TraceStep): string[] {
     case 'wait':
       return [`await this.page.waitForLoadState('networkidle');`, ...assertionLines];
     case 'go_back':
-      return [`await this.page.goBack();`, ...assertionLines];
+      return [`await this.page.goBack();`];
     case 'screenshot':
       if (locator) {
         return [
           ...metadata,
           `await ${locator}.first().scrollIntoViewIfNeeded();`,
           `await ${locator}.first().screenshot({ path: 'test-results/codegen-section.png' });`,
-          ...assertionLines,
         ];
       }
-      return [`await this.page.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });`, ...assertionLines];
+      return [`await this.page.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });`];
     default:
       return [`// ${step.action}: ${step.intent}`];
   }
@@ -188,19 +187,17 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
     case 'wait':
       return [`await ${pageVar}.waitForLoadState('networkidle');`, ...assertionLines];
     case 'go_back':
-      return [`await ${pageVar}.goBack();`, ...assertionLines];
+      return [`await ${pageVar}.goBack();`];
     case 'screenshot':
       if (locator) {
         return [
           ...metadata,
           `await ${locator}.first().scrollIntoViewIfNeeded();`,
           `await ${locator}.first().screenshot({ path: 'test-results/codegen-section.png' });`,
-          ...assertionLines,
         ];
       }
       return [
         `await ${pageVar}.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });`,
-        ...assertionLines,
       ];
     default:
       return [`// ${step.action}: ${step.intent}`];

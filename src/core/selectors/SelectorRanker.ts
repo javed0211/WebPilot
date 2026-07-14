@@ -59,6 +59,13 @@ export class SelectorRanker {
     if (kind === 'role' && /\[name='[^']+'\]/.test(value)) {
       signals.push('accessible-name');
       score += 0.04;
+      const nameMatch = value.match(/\[name='([^']+)'\]/);
+      const accessibleName = nameMatch?.[1] || '';
+      // Tooltip / shortcut labels are brittle (Wikipedia "Past revisions... [ctrl-option-h]").
+      if (accessibleName.length > 40 || /\[ctrl|\[alt|\[shift|\[cmd/i.test(accessibleName)) {
+        risks.push('tooltip-or-shortcut-name');
+        score -= 0.25;
+      }
     }
     if (kind === 'testid') {
       signals.push('stable-attribute');

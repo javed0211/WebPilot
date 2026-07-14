@@ -16,7 +16,8 @@ export class PlaywrightdevIntroPage extends BasePage {
     await expect(this.page).toHaveURL(/intro/);
   }
 
-  public async navigateBackToThePreviousPage(): Promise<void> {
-    await this.page.goBack();
+  public async assertVerifyPageUrlContainsDocs(): Promise<void> {
+    // assertion(strong): URL contains "docs"
+    await expect(this.page).toHaveURL(/docs/);
   }
 }

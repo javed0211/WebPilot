@@ -20,7 +20,7 @@ export class PlaywrightdevHomePage extends BasePage {
     await expect(this.page).toHaveURL('https://playwright.dev/');
   }
 
-  public async clickGetStartedButton(): Promise<void> {
+  public async clickGetStarted(): Promise<void> {
     // selector: confidence 0.94; signals: semantic, accessible-name, observed
     // fallbacks: getByText('Get started') (0.68) | locator('a[href="/docs/intro"]') (0.42) | locator('a[href*="/docs/intro"]') (0.42)
     await this.page.getByRole('link', { name: 'Get started' }).click();
@@ -31,7 +31,14 @@ export class PlaywrightdevHomePage extends BasePage {
     await expect(this.page).toHaveURL(/intro/);
   }
 
-  public async navigateBackToThePreviousPage(): Promise<void> {
-    await this.page.goBack();
+  public async clickDocs(): Promise<void> {
+    // selector: confidence 0.94; signals: semantic, accessible-name, observed
+    // fallbacks: getByText('Docs') (0.68) | locator('a[href="/docs/intro"]') (0.42) | locator('a[href*="/docs/intro"]') (0.42)
+    await this.page.getByRole('link', { name: 'Docs' }).click();
+  }
+
+  public async assertVerifyPageUrlContainsDocs(): Promise<void> {
+    // assertion(strong): URL contains "docs"
+    await expect(this.page).toHaveURL(/docs/);
   }
 }

@@ -94,7 +94,22 @@ def test_build_nl_aligned_codegen_history_covers_verifies_and_back():
     assert actions[4] == "assert"
     assert history[4]["value"] == "__url_contains__:intro"
     assert actions[5] == "go_back"
+    assert history[5].get("url") in (None, "")
     assert history[6]["value"] == "Playwright Test"
     assert '"kind": "text"' in (history[6]["selector"] or "")
     assert actions[7] == "screenshot"
     assert history[8]["value"] == "Copyright © 2026 Microsoft"
+
+
+def test_link_visibility_uses_role_locator():
+    history = build_nl_aligned_codegen_history(
+        [
+            "Navigate to https://playwright.dev/",
+            "Verify Get started link is visible",
+        ],
+        url_sequence=["https://playwright.dev/"],
+    )
+    assert history[1]["action"] == "assert"
+    assert history[1]["value"] == "Get started"
+    assert '"value": "link"' in (history[1]["selector"] or "")
+    assert '"name": "Get started"' in (history[1]["selector"] or "")

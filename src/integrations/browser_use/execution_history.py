@@ -46,7 +46,10 @@ def _extract_url_contains_fragment(step: str) -> str | None:
         match = re.search(r"contains\s+(.+?)\s+in\s+(?:the\s+)?url", step.strip(), re.I)
     if not match:
         return None
-    return match.group(1).strip().strip("\"'").rstrip(".")
+    fragment = match.group(1).strip().strip("\"'").rstrip(".")
+    # "Software_testing or search" -> first alternative only
+    fragment = re.split(r"\s+or\s+", fragment, maxsplit=1)[0].strip()
+    return fragment or None
 
 
 def _extract_assert_text(step: str) -> str | None:
@@ -55,6 +58,14 @@ def _extract_assert_text(step: str) -> str | None:
     quoted = re.search(r'[\"“](.+?)[\"”]', stripped)
     if quoted:
         return quoted.group(1).strip()
+
+    link_visible = re.match(
+        r"^(?:verify|assert|check|ensure)\s+(.+?)\s+link\s+is\s+visible\s*$",
+        stripped,
+        re.I,
+    )
+    if link_visible:
+        return link_visible.group(1).strip()
 
     copyright_match = re.search(
         r"(Copyright\s+.+?)(?:\s+is\s+displayed|\s+in\s+the\s+footer|\s*$)",
@@ -82,6 +93,10 @@ def _extract_assert_text(step: str) -> str | None:
         text = displayed_match.group(1).strip()
         text = re.sub(r"^(the\s+)?", "", text, flags=re.I)
         text = re.sub(r"\s+(homepage|home\s+page)$", "", text, flags=re.I).strip()
+        text = re.sub(r"\s+link$", "", text, flags=re.I).strip()
+        text = re.sub(r"\s+heading$", "", text, flags=re.I).strip()
+        # Prefer left side of "A or B" phrasing.
+        text = re.split(r"\s+or\s+", text, maxsplit=1)[0].strip()
         return text or None
 
     generic = re.match(r"^(?:verify|assert|check|ensure)\s+(.+)$", stripped, re.I)
@@ -96,6 +111,22 @@ def _extract_assert_text(step: str) -> str | None:
         if text and not _is_url_contains_step(stripped):
             return text
     return None
+
+
+def _is_link_visibility_step(step: str) -> bool:
+    return bool(re.search(r"\blink\s+is\s+visible\b", step, re.I))
+
+
+def _link_or_text_locator_json(text: str, step: str) -> str:
+    if _is_link_visibility_step(step) or re.search(r"\blink\b", step, re.I):
+        return json.dumps(
+            [
+                {"kind": "role", "value": "link", "name": text},
+                {"kind": "text", "value": text},
+            ],
+            ensure_ascii=False,
+        )
+    return _section_or_text_locator_json(text, step)
 
 
 def _text_locator_json(text: str) -> str:
@@ -177,9 +208,10 @@ def build_nl_aligned_codegen_history(
 
         if _is_navigate_back_step(stripped):
             next_action("go_back")
-            append_step("go_back", description=stripped, url=current_url)
+            # Never attach a pre-back URL — AssertionRanker would emit toHaveURL for the
+            # old page and fail after goBack() lands on the prior location.
+            append_step("go_back", description=stripped, url=None)
             if urls:
-                # Prefer prior URL when available (last non-matching, or first root).
                 for candidate in reversed(urls):
                     if candidate != current_url:
                         current_url = candidate
@@ -213,9 +245,62 @@ def build_nl_aligned_codegen_history(
 
         if re.match(r"^click\b", stripped, re.I):
             captured = next_action("click")
-            selector = None
+            locators: list[dict] | None = None
             if captured and captured.get("locators"):
-                selector = json.dumps(captured["locators"], ensure_ascii=False)
+                locators = list(captured["locators"])
+            click_label = re.sub(
+                r"^click\s+",
+                "",
+                stripped,
+                count=1,
+                flags=re.I,
+            ).strip()
+            click_label = re.sub(
+                r"\s+if\b.+$",
+                "",
+                click_label,
+                flags=re.I,
+            ).strip().rstrip(".")
+            if click_label:
+                buttonish = bool(
+                    re.search(
+                        r"\b(search|submit|sign[\s-]?in|log[\s-]?in|save|send|ok|accept|next|apply)\b",
+                        click_label,
+                        re.I,
+                    )
+                )
+                preferred = (
+                    [
+                        {"kind": "role", "value": "button", "name": click_label},
+                        {"kind": "role", "value": "link", "name": click_label},
+                        {"kind": "text", "value": click_label},
+                    ]
+                    if buttonish
+                    else [
+                        {"kind": "role", "value": "link", "name": click_label},
+                        {"kind": "role", "value": "button", "name": click_label},
+                        {"kind": "text", "value": click_label},
+                    ]
+                )
+                observed = list(locators or [])
+                # Drop observed tooltip/shortcut names so they cannot outrank clean NL labels.
+                cleaned_observed = [
+                    loc
+                    for loc in observed
+                    if not (
+                        isinstance(loc.get("name"), str)
+                        and (
+                            len(loc["name"]) > 40
+                            or re.search(r"\[ctrl|\[alt|\[shift|\[cmd", loc["name"], re.I)
+                        )
+                    )
+                ]
+                merged: list[dict] = []
+                for item in preferred + cleaned_observed:
+                    if item not in merged:
+                        merged.append(item)
+                locators = merged
+            selector = json.dumps(locators, ensure_ascii=False) if locators else None
             append_step(
                 "click",
                 description=stripped,
@@ -225,7 +310,6 @@ def build_nl_aligned_codegen_history(
             if urls and current_url:
                 for candidate in urls:
                     if candidate != current_url:
-                        # After navigation clicks, advance to a later URL when present.
                         idx = urls.index(current_url) if current_url in urls else -1
                         if idx >= 0 and idx + 1 < len(urls):
                             current_url = urls[idx + 1]
@@ -263,7 +347,7 @@ def build_nl_aligned_codegen_history(
                 append_step(
                     "assert",
                     description=stripped,
-                    selector=_section_or_text_locator_json(text, stripped),
+                    selector=_link_or_text_locator_json(text, stripped),
                     value=text,
                     url=None,
                 )

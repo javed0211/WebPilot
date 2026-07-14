@@ -138,6 +138,9 @@ def _url_pattern_matches(stored_pattern: str, current_url: str) -> bool:
     if stored_origin and stored_origin == current_origin:
         stored_path = (urlparse(stored_pattern).path or "/").rstrip("/") or "/"
         current_path = (urlparse(current_url).path or "/").rstrip("/") or "/"
+        # Site root precondition matches any path on the same origin (verify/assert replay).
+        if stored_path == "/":
+            return True
         if current_path == stored_path or current_path.startswith(stored_path + "/"):
             return True
     return False
@@ -768,6 +771,85 @@ async def compact_page_state(browser_session: Any) -> dict[str, Any]:
     return state
 
 
+def capability_from_aligned_history_step(
+    step: str,
+    hist_step: dict[str, Any],
+    *,
+    page_url: str | None = None,
+) -> dict[str, Any] | None:
+    """Build a replay capability from NL-aligned codegen history (native discovery)."""
+    action = str(hist_step.get("action") or "").lower()
+    url = hist_step.get("url") or page_url or ""
+    value = hist_step.get("value")
+    locators: list[dict[str, Any]] = []
+    selector = hist_step.get("selector")
+    if isinstance(selector, str) and selector.strip().startswith("["):
+        try:
+            parsed = json.loads(selector)
+            if isinstance(parsed, list):
+                locators = [item for item in parsed if isinstance(item, dict)]
+        except Exception:
+            locators = []
+
+    actions: list[dict[str, Any]] = []
+    if action == "navigate" and (hist_step.get("url") or url):
+        actions = [{"type": "navigate", "url": hist_step.get("url") or url}]
+    elif action == "click" and locators:
+        actions = [{"type": "click", "locators": locators}]
+    elif action in {"input", "fill", "type"} and locators:
+        actions = [{"type": "input", "locators": locators, "value": value or "", "clear": True}]
+    elif action == "go_back":
+        actions = [{"type": "go_back"}]
+    elif action == "assert":
+        if isinstance(value, str) and value.startswith("__url_contains__:"):
+            actions = [{"type": "assert_url_contains", "value": value.split(":", 1)[1]}]
+        elif isinstance(value, str) and value.startswith("__url_equals__:"):
+            actions = [{"type": "assert_url_equals", "value": value.split(":", 1)[1]}]
+        elif locators or value:
+            payload: dict[str, Any] = {"type": "assert_text", "value": value or ""}
+            if locators:
+                payload["locators"] = locators
+            actions = [payload]
+        else:
+            actions = [{"type": "assert_visible_page"}]
+    elif action == "screenshot":
+        payload: dict[str, Any] = {"type": "assert_text", "value": value or ""}
+        if locators:
+            payload["locators"] = locators
+        actions = [payload] if (locators or value) else [{"type": "assert_visible_page"}]
+    else:
+        return None
+
+    before = {
+        "url": url or "about:blank",
+        "urlPattern": url_pattern(url) if url else "about:blank",
+        "anchors": [],
+        "evidence": [],
+        "bodyText": "",
+    }
+    after = dict(before)
+    if action == "navigate" and actions and actions[0].get("url"):
+        after = {
+            "url": actions[0]["url"],
+            "urlPattern": url_pattern(actions[0]["url"]),
+            "anchors": [],
+            "evidence": [],
+            "bodyText": "",
+        }
+    elif action == "click":
+        # Navigational clicks often change URL — use optional after_url hint when provided.
+        after_hint = hist_step.get("_afterUrl") or hist_step.get("afterUrl")
+        if after_hint:
+            after = {
+                "url": after_hint,
+                "urlPattern": url_pattern(str(after_hint)),
+                "anchors": [],
+                "evidence": [],
+                "bodyText": "",
+            }
+    return capability_from_step(step, before, after, actions)
+
+
 def capability_from_step(
     step: str,
     before: dict[str, Any],
@@ -778,13 +860,31 @@ def capability_from_step(
         action
         for action in actions
         if action.get("type")
-        in {"navigate", "click", "input", "press", "wait", "switch_tab", "close_tab", "wait_for_modal"}
+        in {
+            "navigate",
+            "click",
+            "input",
+            "press",
+            "wait",
+            "switch_tab",
+            "close_tab",
+            "wait_for_modal",
+            "go_back",
+            "assert_visible_page",
+            "assert_text",
+            "assert_url_contains",
+            "assert_url_equals",
+        }
     ]
     assertion_step = bool(re.match(r"^(verify|assert|check|ensure|then)\b", step.strip(), re.IGNORECASE))
     if not actionable and not assertion_step:
         return None
     required_evidence: list[dict[str, str]] = []
-    if assertion_step:
+    # Prefer explicit assert_* actions from aligned history — skip brittle DOM evidence matching.
+    has_explicit_assert = any(
+        str(action.get("type") or "").startswith("assert") for action in actionable
+    )
+    if assertion_step and not has_explicit_assert and not actionable:
         step_words = set(re.findall(r"[a-z0-9]+", step.lower())) - {
             "verify", "assert", "check", "ensure", "the", "a", "an", "is", "are", "visible", "displayed", "shown"
         }
@@ -797,6 +897,8 @@ def capability_from_step(
         minimum_evidence = 1 + step.lower().count(" and ")
         if len(required_evidence) < minimum_evidence:
             return None
+    if assertion_step and not actionable:
+        actionable = [{"type": "assert_visible_page"}]
     signature = step_signature(step)
     page_type = detect_page_type(before)
     identity = build_capability_identity(step, before, after, page_type)
@@ -1527,6 +1629,9 @@ async def try_recipe_step(browser_session: Any, step: str) -> tuple[bool, bool, 
             return True, True, ""
         except Exception as exc:
             return True, False, f"go_back failed: {type(exc).__name__}: {exc}"
+    if re.search(r"\b(capture|take)\s+(a\s+)?screenshot\b|\bscreenshot\b", stripped, re.I):
+        ok, reason = await assert_visible_page(browser_session)
+        return True, ok, reason
     if _is_verification_step(step):
         ok, reason = await assert_visible_page(browser_session)
         return True, ok, reason
@@ -1617,6 +1722,59 @@ async def execute_capability(
                 ok, reason = await assert_visible_page(browser_session)
                 if not ok:
                     return False, reason
+            elif action_type == "assert_text":
+                text = str(action.get("value") or "").strip()
+                if not text:
+                    ok, reason = await assert_visible_page(browser_session)
+                    if not ok:
+                        return False, reason
+                    continue
+                locators = action.get("locators") or [{"kind": "text", "value": text}]
+                found = await _evaluate_json(
+                    page,
+                    """(arg) => {
+                      const visible = (el) => {
+                        const r = el.getBoundingClientRect();
+                        const s = getComputedStyle(el);
+                        return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+                      };
+                      let ok = false;
+                      for (const loc of arg.locators || []) {
+                        if (loc.kind === 'role' && loc.name) {
+                          const nodes = [...document.querySelectorAll('a,button,[role]')].filter(visible);
+                          const hit = nodes.find((el) => {
+                            const role = (el.getAttribute('role') || el.tagName.toLowerCase());
+                            const name = (el.getAttribute('aria-label') || el.textContent || '').replace(/\\s+/g,' ').trim();
+                            const roleOk = role === loc.value || (loc.value === 'link' && el.tagName === 'A') || (loc.value === 'button' && (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button'));
+                            return roleOk && name.toLowerCase().includes(String(loc.name).toLowerCase());
+                          });
+                          if (hit) { ok = true; break; }
+                        }
+                        if (loc.kind === 'text' && loc.value) {
+                          const needle = String(loc.value).toLowerCase();
+                          const body = (document.body?.innerText || '').toLowerCase();
+                          if (body.includes(needle)) { ok = true; break; }
+                        }
+                      }
+                      return JSON.stringify(ok);
+                    }""",
+                    {"locators": locators},
+                )
+                if not found:
+                    return False, f"assert_text not visible: {text}"
+            elif action_type == "assert_url_contains":
+                fragment = str(action.get("value") or "").strip().lower()
+                current = (await browser_session.get_current_page_url() or "").lower()
+                if not fragment or fragment not in current:
+                    return False, f"url does not contain {fragment}: {current}"
+            elif action_type == "assert_url_equals":
+                expected = str(action.get("value") or "").strip()
+                current = (await browser_session.get_current_page_url() or "").rstrip("/")
+                expected_norm = expected.rstrip("/")
+                if current != expected_norm and current + "/" != expected and expected_norm + "/" != current + "/":
+                    # Allow trailing-slash and exact host homepage variants.
+                    if current.rstrip("/") != expected_norm.rstrip("/"):
+                        return False, f"url mismatch: expected {expected}, got {current}"
             elif action_type == "wait":
                 import asyncio
                 await asyncio.sleep(float(action.get("seconds", 1)))

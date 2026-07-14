@@ -1,0 +1,392 @@
+{
+  "schemaVersion": 3,
+  "storeKind": "page",
+  "capabilities": [
+    {
+      "id": "4bdbdb8030d32956ea61",
+      "step": "Verify Playwright Test section",
+      "stepSignature": "verify playwright test section",
+      "origin": "_global",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 3,
+      "successCount": 0,
+      "status": "synthetic",
+      "lastFailure": "precondition validation failed (0%): url_pattern_mismatch",
+      "quality": {
+        "confidence": 0.5,
+        "failureClass": "precondition_failed",
+        "lastFailureReason": "precondition validation failed (0%): url_pattern_mismatch"
+      },
+      "updatedAt": "2026-07-14T16:49:22.534867+00:00",
+      "schemaVersion": 5,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [],
+        "forbiddenText": []
+      },
+      "postconditions": {
+        "urlPattern": "about:blank",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "blank"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    },
+    {
+      "id": "87fd06a466a32a595eba",
+      "step": "Verify Playwright CLI section",
+      "stepSignature": "verify playwright cli section",
+      "origin": "_global",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 3,
+      "successCount": 0,
+      "status": "synthetic",
+      "lastFailure": "precondition validation failed (0%): url_pattern_mismatch",
+      "quality": {
+        "confidence": 0.5,
+        "failureClass": "precondition_failed",
+        "lastFailureReason": "precondition validation failed (0%): url_pattern_mismatch"
+      },
+      "updatedAt": "2026-07-14T16:49:22.951870+00:00",
+      "schemaVersion": 5,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [],
+        "forbiddenText": []
+      },
+      "postconditions": {
+        "urlPattern": "about:blank",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "blank"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    },
+    {
+      "id": "5731b16e846471004eca",
+      "step": "Verify Playwright MCP section",
+      "stepSignature": "verify playwright mcp section",
+      "origin": "_global",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 3,
+      "successCount": 0,
+      "status": "synthetic",
+      "lastFailure": "precondition validation failed (0%): url_pattern_mismatch",
+      "quality": {
+        "confidence": 0.5,
+        "failureClass": "precondition_failed",
+        "lastFailureReason": "precondition validation failed (0%): url_pattern_mismatch"
+      },
+      "updatedAt": "2026-07-14T16:49:23.368732+00:00",
+      "schemaVersion": 5,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [],
+        "forbiddenText": []
+      },
+      "postconditions": {
+        "urlPattern": "about:blank",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "blank"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    },
+    {
+      "id": "846f3c5571151342183e",
+      "step": "Verify Built for testing section",
+      "stepSignature": "verify built for testing section",
+      "origin": "_global",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 3,
+      "successCount": 0,
+      "status": "synthetic",
+      "lastFailure": "precondition validation failed (0%): url_pattern_mismatch",
+      "quality": {
+        "confidence": 0.5,
+        "failureClass": "precondition_failed",
+        "lastFailureReason": "precondition validation failed (0%): url_pattern_mismatch"
+      },
+      "updatedAt": "2026-07-14T16:49:23.783934+00:00",
+      "schemaVersion": 5,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [],
+        "forbiddenText": []
+      },
+      "postconditions": {
+        "urlPattern": "about:blank",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "blank"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    },
+    {
+      "id": "9ec6c2acf9c8e31261d6",
+      "step": "Verify Built for AI agents section",
+      "stepSignature": "verify built for ai agents section",
+      "origin": "_global",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 3,
+      "successCount": 0,
+      "status": "synthetic",
+      "lastFailure": "precondition validation failed (0%): url_pattern_mismatch",
+      "quality": {
+        "confidence": 0.5,
+        "failureClass": "precondition_failed",
+        "lastFailureReason": "precondition validation failed (0%): url_pattern_mismatch"
+      },
+      "updatedAt": "2026-07-14T16:49:24.199710+00:00",
+      "schemaVersion": 5,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [],
+        "forbiddenText": []
+      },
+      "postconditions": {
+        "urlPattern": "about:blank",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "blank"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    },
+    {
+      "id": "b6bf92649a620311857d",
+      "step": "Verify Powerful tooling section",
+      "stepSignature": "verify powerful tooling section",
+      "origin": "_global",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 3,
+      "successCount": 0,
+      "status": "synthetic",
+      "lastFailure": "precondition validation failed (0%): url_pattern_mismatch",
+      "quality": {
+        "confidence": 0.5,
+        "failureClass": "precondition_failed",
+        "lastFailureReason": "precondition validation failed (0%): url_pattern_mismatch"
+      },
+      "updatedAt": "2026-07-14T16:49:24.613484+00:00",
+      "schemaVersion": 5,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [],
+        "forbiddenText": []
+      },
+      "postconditions": {
+        "urlPattern": "about:blank",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "blank"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    },
+    {
+      "id": "b381e886c673110c57db",
+      "step": "Verify Chosen by companies and open source projects section",
+      "stepSignature": "verify chosen by companies and open source projects section",
+      "origin": "_global",
+      "before": {
+        "urlPattern": "about:blank",
+        "anchors": []
+      },
+      "actions": [
+        {
+          "type": "assert_visible_page"
+        }
+      ],
+      "after": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "evidence": []
+      },
+      "failureCount": 3,
+      "successCount": 0,
+      "status": "synthetic",
+      "lastFailure": "precondition validation failed (0%): url_pattern_mismatch",
+      "quality": {
+        "confidence": 0.5,
+        "failureClass": "precondition_failed",
+        "lastFailureReason": "precondition validation failed (0%): url_pattern_mismatch"
+      },
+      "updatedAt": "2026-07-14T16:49:25.028959+00:00",
+      "schemaVersion": 5,
+      "capabilityType": "site_capability",
+      "intent": "verify",
+      "preconditions": {
+        "urlPattern": "about:blank",
+        "anchors": [],
+        "notAllowedAnchors": [],
+        "forbiddenText": []
+      },
+      "postconditions": {
+        "urlPattern": "about:blank",
+        "requiredAnchors": [],
+        "notAllowedAnchors": [],
+        "requiredEvidence": [],
+        "requiredText": [],
+        "urlContains": [
+          "blank"
+        ],
+        "forbiddenText": []
+      },
+      "safety": {
+        "sideEffect": "none",
+        "safeToReplay": true,
+        "requiresConfirmation": false
+      }
+    }
+  ],
+  "origin": "_global"
+}

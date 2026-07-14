@@ -2,15 +2,19 @@ import { test, expect } from '@playwright/test';
 import { PlaywrightdevHomePage } from '../pages/PlaywrightdevHomePage';
 import { PlaywrightdevIntroPage } from '../pages/PlaywrightdevIntroPage';
 
-test('playwright_page_verification', async ({ page }) => {
+test('playwright_extended_verification', async ({ page }) => {
   const playwrightdevHomePage = new PlaywrightdevHomePage(page);
   await playwrightdevHomePage.goto();
   await playwrightdevHomePage.assertVerifyPlaywrightHomepageLoadsSuccessfully();
-  await playwrightdevHomePage.clickGetStartedButton();
+  // assertion(strong): role selector is visible
+  await expect(page.getByRole('link', { name: 'Get started' }).first()).toBeVisible();
+  await playwrightdevHomePage.clickGetStarted();
   // assertion(strong): Text "Getting Started" is visible
   await expect(page.getByText('Getting Started').first()).toBeVisible();
   await playwrightdevHomePage.assertVerifyPageUrlContainsIntro();
-  await playwrightdevHomePage.navigateBackToThePreviousPage();
+  // assertion(strong): Text "Installation" is visible
+  await expect(page.getByText('Installation').first()).toBeVisible();
+  await page.goBack();
   // assertion(strong): Text "Playwright Test" is visible
   await expect(page.getByText('Playwright Test').first()).toBeVisible();
   // assertion(strong): Text "Playwright CLI" is visible
@@ -34,6 +38,11 @@ test('playwright_page_verification', async ({ page }) => {
   await expect(page.getByText('Community').first()).toBeVisible();
   // assertion(strong): Text "More" is visible
   await expect(page.getByText('More').first()).toBeVisible();
+  await playwrightdevHomePage.clickDocs();
+  await playwrightdevHomePage.assertVerifyPageUrlContainsDocs();
+  // assertion(strong): Text "Docs" is visible
+  await expect(page.getByText('Docs').first()).toBeVisible();
+  await page.goBack();
   // assertion(strong): Text "Copyright © 2026 Microsoft" is visible
   await expect(page.getByText('Copyright © 2026 Microsoft').first()).toBeVisible();
 });

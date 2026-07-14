@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-07-14T16:13:43.117Z",
+  "lastUpdated": "2026-07-14T17:19:31.198Z",
   "classes": [
     {
       "name": "BookingBasePage",
@@ -303,6 +303,136 @@
         },
         {
           "name": "assertOnLoginPage",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "EnwikipediaorgSoftwareTestingPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "EnwikipediaorgSoftwareTestingPage",
+      "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/EnwikipediaorgSoftwareTestingPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyPageUrlContainsSoftwareTesting",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickViewHistory",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickTalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "EnwikipediaorgTalkSoftwareTestingPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "EnwikipediaorgTalkSoftwareTestingPage",
+      "urlPattern": "https://en.wikipedia.org/wiki/Talk:Software_testing",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/EnwikipediaorgTalkSoftwareTestingPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyPageUrlContainsTalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "PlaywrightdevHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "PlaywrightdevHomePage",
+      "urlPattern": "https://playwright.dev/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPlaywrightHomepageLoadsSuccessfully",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickGetStarted",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsIntro",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickDocs",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsDocs",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "PlaywrightdevIntroPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "PlaywrightdevIntroPage",
+      "urlPattern": "https://playwright.dev/docs/intro",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevIntroPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyPageUrlContainsIntro",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsDocs",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "WwwwikipediaorgHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "WwwwikipediaorgHomePage",
+      "urlPattern": "https://www.wikipedia.org/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/WwwwikipediaorgHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyWikipediaHomepageLoadsSuccessfully",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "fillEnterSoftwareTestingIntoTheSearchInput",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSearch",
           "parameters": [],
           "returnType": "Promise<void>"
         }

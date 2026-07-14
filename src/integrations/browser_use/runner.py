@@ -107,6 +107,7 @@ from .testmu import load_testmu_config
 from .prompt_loader import load_framework_rules, load_prompt_with_vars, load_discovery_step_rules
 from .knowledge import (
     actions_from_output,
+    capability_from_aligned_history_step,
     capability_from_step,
     compact_page_state,
     complete_microsoft_login_if_needed,
@@ -114,9 +115,11 @@ from .knowledge import (
     execute_capability,
     KnowledgeRepository,
     load_knowledge_config,
+    origin_for_url,
     prepare_page_for_interaction,
     progressive_outcome_indicates_success,
     try_recipe_step,
+    url_pattern,
     validate_step_outcome,
 )
 from .credentials import (
@@ -816,8 +819,66 @@ async def run_native_browser_use_scenario(
             context['nativeCapturedActions'] = captured_actions
 
     learned = 0
-    if agent_ok and captured_actions:
-        # Promote navigate recipes + action captures as reusable capabilities when possible.
+    if agent_ok and aligned:
+        # Promote NL-aligned history so knowledge-only can replay clicks/asserts/go_back.
+        browser_url = (context.get('urlSequence') or [None])[0] or 'about:blank'
+        seq = list(context.get('urlSequence') or [])
+        for nl_step, hist_step in zip(steps, aligned):
+            hist_url = hist_step.get('url') or browser_url
+            action = str(hist_step.get('action') or '')
+            if action == 'click':
+                after_url = browser_url
+                if browser_url in seq:
+                    idx = seq.index(browser_url)
+                    if idx + 1 < len(seq):
+                        after_url = seq[idx + 1]
+                hist_step = {**hist_step, '_afterUrl': after_url}
+            cap = capability_from_aligned_history_step(nl_step, hist_step, page_url=hist_url)
+            if cap:
+                before_pattern = cap.get('before', {}).get('urlPattern') or url_pattern(hist_url)
+                # Verify/assert/screenshot: root origin precondition so homepage↔docs replay matches.
+                if action in ('assert', 'screenshot') or str(cap.get('intent') or '') == 'verify':
+                    origin = origin_for_url(before_pattern)
+                    if origin and origin != '_global':
+                        before_pattern = f"https://{origin}/"
+                cap.setdefault('before', {})['urlPattern'] = before_pattern
+                # Partition by BEFORE page origin so cross-origin navigations (portal→enwiki)
+                # can still find the click/input capability on the page where it runs.
+                if action != 'navigate':
+                    cap['origin'] = origin_for_url(hist_url) or cap.get('origin')
+                if action == 'go_back' or re.search(r'\b(navigate\s+back|go\s+back)\b', nl_step, re.I):
+                    cap['postconditions'] = {
+                        'urlPattern': None,
+                        'requiredAnchors': [],
+                        'notAllowedAnchors': [],
+                        'requiredEvidence': [],
+                        'requiredText': [],
+                        'urlContains': [],
+                        'forbiddenText': [],
+                    }
+                if str(cap.get('intent') or '') in ('interact', 'input'):
+                    cap['postconditions'] = {
+                        'urlPattern': None,
+                        'requiredAnchors': [],
+                        'notAllowedAnchors': [],
+                        'requiredEvidence': [],
+                        'requiredText': [],
+                        'urlContains': [],
+                        'forbiddenText': [],
+                    }
+                knowledge_repo.promote(cap)
+                learned += 1
+            if action == 'navigate' and hist_step.get('url'):
+                browser_url = hist_step['url']
+            elif action == 'go_back':
+                for candidate in reversed(seq):
+                    if candidate != browser_url:
+                        browser_url = candidate
+                        break
+            elif action == 'click':
+                browser_url = hist_step.get('_afterUrl') or browser_url
+    elif agent_ok and captured_actions:
+        # Fallback legacy path when aligned history was unavailable.
         after_state = await compact_page_state(browser)
         url_now = after_state.get('url') or await browser.get_current_page_url()
         action_idx = 0
@@ -831,11 +892,12 @@ async def run_native_browser_use_scenario(
                     knowledge_repo.promote(cap)
                     learned += 1
                 continue
-            # Consume click/input captures for remaining steps in order.
+            if re.match(r'^(verify|assert|check|ensure)\b', step.strip(), re.I):
+                continue
             while action_idx < len(captured_actions):
                 action = captured_actions[action_idx]
                 action_idx += 1
-                if action.get('type') not in ('click', 'input', 'press'):
+                if action.get('type') not in ('click', 'input', 'press', 'go_back'):
                     continue
                 before = {
                     'url': url_now,

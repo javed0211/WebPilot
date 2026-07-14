@@ -208,7 +208,16 @@ export class TraceBuilder {
     }
 
     for (const [index, step] of normalized.entries()) {
-      step.assertions = AssertionRanker.candidatesForStep(step, normalized[index - 1]);
+      if (step.action === 'go_back' || step.action === 'screenshot') {
+        step.assertions = [];
+        continue;
+      }
+      let assertions = AssertionRanker.candidatesForStep(step, normalized[index - 1]);
+      // Click/fill should not inherit navigational URL asserts from pageCandidate.
+      if (step.action === 'click' || step.action === 'fill' || step.action === 'select') {
+        assertions = assertions.filter((assertion) => !String(assertion.kind).startsWith('url_'));
+      }
+      step.assertions = assertions;
     }
 
     const firstNavigate = normalized.find((step) => step.action === 'navigate' && step.url);
