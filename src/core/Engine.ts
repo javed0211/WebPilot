@@ -291,9 +291,12 @@ export class Engine {
       } catch (err: any) {
         Logger.error(`browser-use execution failed: ${err.message}`);
         const failedSlug = path.basename(this.testFilePath, path.extname(this.testFilePath));
-        if (UsageTracker.getSnapshot().totalTokens > 0) {
-          this.finalizeJobUsage(failedSlug);
+        // Python still saves usage in finally before exit — pick it up for Job summary.
+        const failedUsagePath = resolveLlmUsagePath(failedSlug);
+        if (UsageTracker.getSnapshot().totalTokens === 0) {
+          UsageTracker.loadExecutionFromFile(failedUsagePath);
         }
+        this.finalizeJobUsage(failedSlug);
         return { success: false, stepsExecuted: 0 };
       }
     }

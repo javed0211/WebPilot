@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { estimateCostUsd } from './ModelPricing';
 
 export type UsagePhase = 'design' | 'execution' | 'healing' | 'codegen';
 
@@ -128,11 +129,16 @@ export class UsageTracker {
     const executionPhase = data.phases?.execution;
     const prompt = executionPhase?.promptTokens ?? data.promptTokens ?? 0;
     const completion = executionPhase?.completionTokens ?? data.completionTokens ?? 0;
-    const cost = executionPhase?.estimatedCostUsd ?? data.estimatedCostUsd ?? 0;
+    let cost = executionPhase?.estimatedCostUsd ?? data.estimatedCostUsd ?? 0;
     const calls = executionPhase?.llmCalls ?? data.llmCalls ?? 0;
 
+    // Estimate if Python persisted tokens without a priced cost (common for Azure deployments).
+    if (cost <= 0 && prompt + completion > 0) {
+      cost = estimateCostUsd(process.env.WEBPILOT_LLM_MODEL || 'gpt-4.1', prompt, completion);
+    }
+
     this.addToTotals(prompt, completion, cost, calls, 'execution');
-    return true;
+    return prompt + completion > 0 || calls > 0;
   }
 
   public static loadFromFile(filePath: string): boolean {

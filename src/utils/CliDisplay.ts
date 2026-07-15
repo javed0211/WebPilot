@@ -22,7 +22,10 @@ function formatTokens(n: number): string {
   return n.toLocaleString('en-US');
 }
 
-function formatCost(usd: number): string {
+function formatCost(usd: number, totalTokens = 0): string {
+  if (usd === 0 && totalTokens > 0) {
+    return chalk.yellow('$0.00 (tokens recorded, cost unpriced)');
+  }
   if (usd === 0) return chalk.dim('$0.00 (local / no billing)');
   if (usd < 0.01) return chalk.green(`~$${usd.toFixed(4)} USD`);
   return chalk.green(`~$${usd.toFixed(2)} USD`);
@@ -112,7 +115,9 @@ export class CliDisplay {
       `  ${chalk.dim('Tokens'.padEnd(10))} ${formatTokens(usage.totalTokens)}` +
         chalk.dim(`  (in ${formatTokens(usage.promptTokens)} · out ${formatTokens(usage.completionTokens)})`)
     );
-    console.log(`  ${chalk.dim('Est. cost'.padEnd(10))} ${formatCost(usage.estimatedCostUsd)}`);
+    console.log(
+      `  ${chalk.dim('Est. cost'.padEnd(10))} ${formatCost(usage.estimatedCostUsd, usage.totalTokens)}`
+    );
 
     const phaseRows: Array<[string, PhaseUsage]> = Object.entries(usage.phases).filter(
       ([, phase]) => phase.promptTokens + phase.completionTokens > 0

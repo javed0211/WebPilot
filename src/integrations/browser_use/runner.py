@@ -298,15 +298,44 @@ def update_cumulative_usage_from_snapshot(
     return total_tokens, totals['estimatedCostUsd']
 
 
-def save_llm_usage_file(test_file_path: str, totals: dict) -> str:
+def save_llm_usage_file(test_file_path: str, totals: dict, *, llm_cfg: dict | None = None) -> str:
     base_file_name = os.path.splitext(os.path.basename(test_file_path))[0]
     ensure_report_dirs()
     out_path = llm_usage_path(base_file_name)
+
+    prompt = int(totals.get('promptTokens') or 0)
+    completion = int(totals.get('completionTokens') or 0)
+    cost = float(totals.get('estimatedCostUsd') or 0.0)
+    calls = int(totals.get('llmCalls') or 0)
+
+    # Always estimate when we have tokens but no priced cost (Azure/custom models, litellm miss).
+    if cost <= 0 and prompt + completion > 0:
+        model = ''
+        if llm_cfg:
+            model = str(llm_cfg.get('model') or llm_cfg.get('deploymentId') or '')
+        cost = estimate_cost_usd(model, prompt, completion)
+        totals['estimatedCostUsd'] = cost
+
+    # Never wipe a prior BA usage file with a zeroed knowledge-only / early-exit run.
+    if prompt + completion == 0 and os.path.isfile(out_path):
+        try:
+            with open(out_path, 'r', encoding='utf-8') as existing_f:
+                previous = json.load(existing_f)
+            prev_tokens = int(previous.get('promptTokens') or 0) + int(previous.get('completionTokens') or 0)
+            if prev_tokens > 0:
+                print(
+                    f"[LLM] Keeping prior usage file ({prev_tokens:,} tokens) — "
+                    f"current run recorded 0 LLM calls."
+                )
+                return out_path
+        except Exception:
+            pass
+
     execution_phase = {
-        'promptTokens': totals['promptTokens'],
-        'completionTokens': totals['completionTokens'],
-        'estimatedCostUsd': round(totals['estimatedCostUsd'], 6),
-        'llmCalls': totals['llmCalls'],
+        'promptTokens': prompt,
+        'completionTokens': completion,
+        'estimatedCostUsd': round(cost, 6),
+        'llmCalls': calls,
     }
     payload = {
         **execution_phase,
@@ -1847,6 +1876,9 @@ async def main():
                 "WebPilot agent failed (LLM connection or step errors). "
                 "Check .env Azure/OpenAI credentials."
             )
+            fail_tokens = (
+                llm_usage_totals['promptTokens'] + llm_usage_totals['completionTokens']
+            )
             report_summary = {
                 "test": base_file_name,
                 "testName": test_name,
@@ -1857,6 +1889,10 @@ async def main():
                 "stepsExecuted": len(execution_context.get('executionHistory') or []),
                 "summary": "WebPilot agent failed (LLM connection or step errors). Check .env Azure/OpenAI credentials.",
                 "failureContext": failure_context,
+                "tokens": fail_tokens,
+                "promptTokens": llm_usage_totals['promptTokens'],
+                "completionTokens": llm_usage_totals['completionTokens'],
+                "estimatedCostUsd": round(llm_usage_totals['estimatedCostUsd'], 6),
                 "llmCalls": llm_usage_totals.get('llmCalls', 0),
                 "browser": {
                     "target": browser_cfg.get('target', 'chrome'),
@@ -1926,7 +1962,7 @@ async def main():
                 
             print(f"Exported codegen data to: packages/test-framework/temp_codegen.json for AST-based merging")
 
-            save_llm_usage_file(test_file_path, llm_usage_totals)
+            save_llm_usage_file(test_file_path, llm_usage_totals, llm_cfg=llm_cfg)
             total_tokens = llm_usage_totals['promptTokens'] + llm_usage_totals['completionTokens']
             print(
                 f"[LLM] Execution usage (browser agent): {total_tokens:,} tokens across "
@@ -1967,7 +2003,7 @@ async def main():
             print("Failed to generate code via LLM.")
 
         if skip_codegen:
-            save_llm_usage_file(test_file_path, llm_usage_totals)
+            save_llm_usage_file(test_file_path, llm_usage_totals, llm_cfg=llm_cfg)
             total_tokens = llm_usage_totals['promptTokens'] + llm_usage_totals['completionTokens']
             reused_steps = int(execution_context.get('reusedSteps', 0))
             learned_steps = int(execution_context.get('learnedSteps', 0))
@@ -2010,6 +2046,36 @@ async def main():
         print(f"Error during execution: {e}")
         sys.exit(1)
     finally:
+        # Persist usage even on mid-run failure / SystemExit so Job summary & reports aren't $0.
+        try:
+            usage_path = save_llm_usage_file(test_file_path, llm_usage_totals, llm_cfg=llm_cfg)
+            total_tokens = (
+                int(llm_usage_totals.get('promptTokens') or 0)
+                + int(llm_usage_totals.get('completionTokens') or 0)
+            )
+            if total_tokens > 0:
+                print(
+                    f"[LLM] Saved usage → {usage_path} "
+                    f"({total_tokens:,} tokens, "
+                    f"~${float(llm_usage_totals.get('estimatedCostUsd') or 0):.4f} USD)"
+                )
+                report_path = str(resolve_summary_path(base_file_name))
+                if os.path.exists(report_path):
+                    with open(report_path, 'r', encoding='utf-8') as f_rep:
+                        report_summary = json.load(f_rep)
+                    if not report_summary.get('tokens'):
+                        report_summary['tokens'] = total_tokens
+                        report_summary['promptTokens'] = llm_usage_totals['promptTokens']
+                        report_summary['completionTokens'] = llm_usage_totals['completionTokens']
+                        report_summary['estimatedCostUsd'] = round(
+                            float(llm_usage_totals.get('estimatedCostUsd') or 0), 6
+                        )
+                        report_summary['llmCalls'] = llm_usage_totals.get('llmCalls', 0)
+                        with open(report_path, 'w', encoding='utf-8') as f_rep:
+                            json.dump(report_summary, f_rep, indent=2)
+        except Exception as usage_err:
+            print(f"Warning: could not save LLM usage: {usage_err}")
+
         history_path = str(execution_history_path(base_file_name))
         screenshot_paths = persist_screenshots(base_file_name, history_path)
         try:
