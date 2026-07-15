@@ -95,7 +95,9 @@ intelligentRunner:
 browser:
   target: "chrome" # chrome (Google Chrome), chromium, msedge — browser-use channel
   headless: false
-  video: "on" # off, on, retain-on-failure — "on" records every WebPilot/browser-use run
+  video: "off" # off | on — BA discovery no longer uses imageio/ffmpeg screencast.
+  # Playwright-native video is used for generated specs (`webpilot replay` / playwright.config.ts).
+  # Keep browser.trace: on for BA session timeline evidence.
   screenshots: "only-on-failure" # off, on, only-on-failure
   trace: "on" # off, on, retain-on-failure — saves Playwright trace zips under reports/traces
   viewport:

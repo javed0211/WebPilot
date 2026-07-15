@@ -1410,7 +1410,7 @@ def load_browser_artifact_config():
         'viewport': {'width': 1280, 'height': 720},
         'video_dir': str(REPORTS_VIDEOS_DIR),
         'traces_dir': str(REPORTS_TRACES_DIR),
-        'record_video': True,
+        'record_video': False,
         'record_trace': True,
         'provider': 'browser-use',
     }
@@ -1449,7 +1449,7 @@ def load_browser_artifact_config():
                     print(f"[WebPilot] Viewport scale {scale}x → {defaults['viewport']['width']}×{defaults['viewport']['height']}")
             except ValueError:
                 print(f"Warning: Ignoring invalid WEBPILOT_VIEWPORT_SCALE={scale_raw!r}")
-        defaults['record_video'] = browser.get('video', 'on') not in ('off', False)
+        defaults['record_video'] = browser.get('video', 'off') not in ('off', False, None)
         trace_val = browser.get('trace', True)
         defaults['record_trace'] = trace_val not in ('off', False, None)
         if active_provider == 'testmu':
@@ -1467,16 +1467,12 @@ def load_browser_artifact_config():
             pass
     except Exception as e:
         print("Warning: Could not parse config/webpilot.yaml for artifacts:", e)
-    if defaults.get('record_video') and not _FFMPEG_AVAILABLE:
-        defaults['record_video'] = False
-        print(
-            "[WebPilot] browser.video requested but ffmpeg is unavailable — "
-            "disabling video for this run (pip install \"browser-use[video]\" / fix IMAGEIO_FFMPEG_EXE, "
-            "or set browser.video: off)."
-        )
+    # BA no longer uses imageio/ffmpeg screencast recording — ignore ffmpeg availability.
     env_video = os.environ.get('WEBPILOT_VIDEO', '').strip().lower()
     if env_video in ('off', '0', 'false', 'no'):
         defaults['record_video'] = False
+    elif env_video in ('on', '1', 'true', 'yes'):
+        defaults['record_video'] = True
     env_headless = os.environ.get('WEBPILOT_HEADLESS', '').strip().lower()
     if env_headless in ('1', 'true', 'yes', 'on'):
         defaults['headless'] = True

@@ -342,12 +342,16 @@ def build_browser_kwargs(
         kwargs['viewport'] = viewport
     else:
         kwargs['no_viewport'] = True
+    # Intentionally do NOT set record_video_dir on browser-use. That path uses CDP
+    # screencast + imageio/ffmpeg (ffmpeg.exe / imageio-ffmpeg), which is brittle and
+    # not Playwright-native. BA session evidence: traces_dir. Generated/replay specs
+    # use Playwright's own video via packages/test-framework/playwright.config.ts.
     if browser_cfg.get('record_video'):
-        kwargs['record_video_dir'] = browser_cfg['video_dir']
-        kwargs['record_video_size'] = {
-            'width': viewport.get('width', 1280),
-            'height': viewport.get('height', 720),
-        }
+        print(
+            '[WebPilot] browser.video is on, but BA no longer records via ffmpeg/imageio. '
+            'Use Playwright traces for discovery, and Playwright video on generated specs '
+            '(webpilot replay). Set browser.video: off to silence this notice.'
+        )
     if browser_cfg.get('record_trace'):
         kwargs['traces_dir'] = browser_cfg['traces_dir']
     return kwargs

@@ -219,10 +219,6 @@ export function ensureBrowserUsePython(): string {
   let pythonPath = resolvePythonPath();
 
   if (hasBrowserUse(pythonPath)) {
-    if (!hasBrowserUseVideo(pythonPath) && process.env.WEBPILOT_SKIP_PYTHON_SETUP !== '1') {
-      console.log('[WebPilot] Installing browser-use[video] optional dependencies for MP4 recording...');
-      installBrowserUseRequirements(pythonPath);
-    }
     return pythonPath;
   }
 
