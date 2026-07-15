@@ -19,6 +19,7 @@ const SEMANTIC_ATTRS = [
   'data-qa',
   'name',
   'placeholder',
+  'id',
 ];
 
 function clampScore(score: number): number {
@@ -29,7 +30,12 @@ function expressionFor(kind: SelectorCandidateKind, value: string): string {
   const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   if (kind === 'role') {
     const match = value.match(/^([^[]+)(?:\[name='([^']+)'\])?$/);
-    if (match?.[2]) return `page.getByRole('${match[1]}', { name: '${match[2].replace(/'/g, "\\'")}' })`;
+    if (match?.[2]) {
+      const name = match[2].replace(/'/g, "\\'");
+      // Exact match for path-like names (e.g. microsoft/playwright) to avoid prefix collisions.
+      const exact = /[/.]/.test(match[2]) ? ', exact: true' : '';
+      return `page.getByRole('${match[1]}', { name: '${name}'${exact} })`;
+    }
     return `page.getByRole('${escaped}')`;
   }
   if (kind === 'label') return `page.getByLabel('${escaped}')`;
@@ -83,6 +89,35 @@ export class SelectorRanker {
       } else {
         score -= cssSelectorRisks.length * 0.08;
       }
+      // Repo/app underlinenav tabs: id + exact href beat ambiguous short role names
+      // (e.g. GitHub "Security" matches both tab "Security and quality" and footer).
+      if (/\[[\s]*id\s*=/.test(value) || /#-?[\w-]+-tab\b/i.test(value) || /-tab["\]]/.test(value)) {
+        signals.push('stable-tab-id');
+        score += 0.28;
+      }
+      if (/\[[\s]*href\s*=\s*["'][^"'*]+["']\s*\]/.test(value)) {
+        signals.push('exact-href');
+        score += 0.22;
+      }
+    }
+    if (kind === 'role' && /\[name='[^']+'\]/.test(value)) {
+      const nameMatch = value.match(/\[name='([^']+)'\]/);
+      const accessibleName = nameMatch?.[1] || '';
+      // Short generic labels collide with chrome/footer links ("Security", "Code").
+      if (/^(security|code|actions|insights|issues|pull requests)$/i.test(accessibleName.trim())) {
+        risks.push('ambiguous-short-name');
+        score -= 0.18;
+      }
+      // Prefer compound tab names ("Security and quality") over bare "Security".
+      if (accessibleName.trim().split(/\s+/).length >= 2) {
+        score += 0.1;
+      }
+      // GitHub underlinenav often exposes "Issues 149" / "Security and quality 0" —
+      // these counter-suffixed names are brittle vs stable tab ids.
+      if (/\s+\d+$/.test(accessibleName.trim())) {
+        risks.push('counter-suffixed-name');
+        score -= 0.22;
+      }
     }
     if (kind === 'xpath') risks.push('xpath-last-resort');
     if (kind === 'unknown') risks.push('unclassified');
@@ -110,6 +145,29 @@ export class SelectorRanker {
       if (b.confidence !== a.confidence) return b.confidence - a.confidence;
       return KIND_BASE_SCORE[b.kind] - KIND_BASE_SCORE[a.kind];
     });
+
+    // Prefer longer accessible-name role candidates when one name is a prefix of another.
+    for (let i = 0; i < ranked.length; i++) {
+      const current = ranked[i];
+      if (current.kind !== 'role') continue;
+      const currentName = current.value.match(/\[name='([^']+)'\]/)?.[1];
+      if (!currentName) continue;
+      const longer = ranked.find((other) => {
+        if (other === current || other.kind !== 'role') return false;
+        const otherName = other.value.match(/\[name='([^']+)'\]/)?.[1];
+        return Boolean(
+          otherName &&
+            otherName !== currentName &&
+            otherName.toLowerCase().startsWith(currentName.toLowerCase())
+        );
+      });
+      if (longer) {
+        const idx = ranked.indexOf(longer);
+        ranked.splice(idx, 1);
+        ranked.splice(i, 0, longer);
+      }
+      break;
+    }
 
     const primary = ranked[0];
     if (!primary) return null;

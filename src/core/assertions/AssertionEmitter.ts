@@ -3,7 +3,8 @@ import { escapeDouble, escapeSingle, roleParts } from '../codegen/profiles/Codeg
 import { TraceSelector } from '../codegen/ExecutionTrace';
 
 function regexSafe(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Escape regex metacharacters AND `/` so `/microsoft/playwright/` is a valid TS literal.
+  return value.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 }
 
 function tsLocator(selector: TraceSelector | undefined, receiver = 'page'): string | null {

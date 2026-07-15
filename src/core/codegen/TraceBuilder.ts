@@ -24,7 +24,8 @@ function slugify(value: string): string {
 function normalizeAction(raw: string): TraceAction {
   const action = raw.trim().toLowerCase();
   if (['navigate', 'goto', 'go_to', 'open'].includes(action)) return 'navigate';
-  if (['click', 'tap', 'press'].includes(action)) return 'click';
+  if (['press', 'keydown', 'keypress', 'keyboard'].includes(action)) return 'press';
+  if (['click', 'tap'].includes(action)) return 'click';
   if (['input', 'fill', 'type', 'enter'].includes(action)) return 'fill';
   if (['select', 'choose', 'dropdown'].includes(action)) return 'select';
   if (['assert', 'verify', 'expect', 'check', 'assert_visible_page', 'browser-use-assertion', 'search_page'].includes(action))
@@ -33,6 +34,20 @@ function normalizeAction(raw: string): TraceAction {
   if (['go_back', 'back', 'navigate_back'].includes(action)) return 'go_back';
   if (['screenshot', 'capture_screenshot', 'take_screenshot'].includes(action)) return 'screenshot';
   return 'custom';
+}
+
+function keyFromIntent(intent: string, value?: string): string | undefined {
+  if (value) return value;
+  const match = intent.match(
+    /\bpress\s+(enter|escape|tab|backspace|delete|space|arrow(?:up|down|left|right))\b/i
+  );
+  if (match) {
+    const key = match[1].toLowerCase();
+    if (key === 'space') return ' ';
+    return key.charAt(0).toUpperCase() + key.slice(1);
+  }
+  if (/^enter$/i.test(intent.trim())) return 'Enter';
+  return undefined;
 }
 
 function toTraceSelector(candidate: SelectorCandidate, fallbacks: SelectorCandidate[] = []): TraceSelector {
@@ -69,7 +84,9 @@ function locatorExpressionFromJson(raw: string): TraceSelector | undefined {
 
       if (kind === 'role') {
         expression = name
-          ? `getByRole('${value.replace(/'/g, "\\'")}', { name: '${name.replace(/'/g, "\\'")}' })`
+          ? /[/.]/.test(name)
+            ? `getByRole('${value.replace(/'/g, "\\'")}', { name: '${name.replace(/'/g, "\\'")}', exact: true })`
+            : `getByRole('${value.replace(/'/g, "\\'")}', { name: '${name.replace(/'/g, "\\'")}' })`
           : `getByRole('${value.replace(/'/g, "\\'")}')`;
         candidates.push(
           SelectorRanker.candidate('role', name ? `${value}[name='${name}']` : value, expression)
@@ -201,14 +218,17 @@ export class TraceBuilder {
         action,
         selector: parseSelector(step.selector, stepUrl || currentUrl, intent),
         url: stepUrl,
-        value: step.value || undefined,
+        value:
+          action === 'press'
+            ? keyFromIntent(intent, step.value || undefined) || 'Enter'
+            : step.value || undefined,
         description: step.description,
         pageCandidate: currentUrl,
       });
     }
 
     for (const [index, step] of normalized.entries()) {
-      if (step.action === 'go_back' || step.action === 'screenshot') {
+      if (step.action === 'go_back' || step.action === 'screenshot' || step.action === 'press') {
         step.assertions = [];
         continue;
       }

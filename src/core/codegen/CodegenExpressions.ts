@@ -9,10 +9,19 @@ export function locatorExpression(selector: TraceSelector | undefined, receiver 
   if (!selector) return null;
 
   if (selector.expression) {
-    const expr = selector.expression.trim();
-    if (expr.startsWith('page.')) return expr.replace(/^page\./, `${receiver}.`);
-    if (expr.startsWith('this.page.')) return expr.replace(/^this\.page\./, `${receiver}.`);
-    return `${receiver}.${expr}`;
+    let expr = selector.expression.trim();
+    if (expr.startsWith('page.')) expr = expr.replace(/^page\./, `${receiver}.`);
+    else if (expr.startsWith('this.page.')) expr = expr.replace(/^this\.page\./, `${receiver}.`);
+    else expr = `${receiver}.${expr}`;
+    // Harden path-like role names so prefix collisions (microsoft/playwright*) don't fail strict mode.
+    expr = expr.replace(
+      /getByRole\((['"])([^'"]+)\1,\s*\{\s*name:\s*(['"])([^'"]*?)\3\s*\}\)/g,
+      (full, q1: string, role: string, q2: string, name: string) => {
+        if (/exact\s*:/.test(full) || !/[/.]/.test(name)) return full;
+        return `getByRole(${q1}${role}${q1}, { name: ${q2}${name}${q2}, exact: true })`;
+      }
+    );
+    return expr;
   }
 
   switch (selector.kind) {
@@ -21,9 +30,9 @@ export function locatorExpression(selector: TraceSelector | undefined, receiver 
       if (!match) return `${receiver}.getByRole('button')`;
       const role = match[1];
       const name = match[2];
-      return name
-        ? `${receiver}.getByRole('${escapeTsString(role)}', { name: '${escapeTsString(name)}' })`
-        : `${receiver}.getByRole('${escapeTsString(role)}')`;
+      if (!name) return `${receiver}.getByRole('${escapeTsString(role)}')`;
+      const exact = /[/.]/.test(name) ? ', exact: true' : '';
+      return `${receiver}.getByRole('${escapeTsString(role)}', { name: '${escapeTsString(name)}'${exact} })`;
     }
     case 'label':
       return `${receiver}.getByLabel('${escapeTsString(selector.value)}')`;
@@ -118,7 +127,12 @@ export function pageMethodBody(step: TraceStep): string[] {
     case 'navigate':
       return step.url ? [`await this.navigate('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
     case 'click':
-      if (!locator) return [`// click: ${step.intent}`];
+      if (!locator) {
+        if (/\bpress\s+enter\b/i.test(step.intent) || /^enter$/i.test(step.intent.trim())) {
+          return [`await this.page.keyboard.press('Enter');`, ...assertionLines];
+        }
+        return [`// click: ${step.intent}`];
+      }
       return [...metadata, `await ${locator}.click();`, ...assertionLines];
     case 'fill':
       if (!locator) return [`// fill: ${step.intent}`];
@@ -146,6 +160,11 @@ export function pageMethodBody(step: TraceStep): string[] {
         ];
       }
       return [`await this.page.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });`];
+    case 'press':
+      return [
+        `await this.page.keyboard.press('${escapeTsString(step.value || 'Enter')}');`,
+        ...assertionLines,
+      ];
     default:
       return [`// ${step.action}: ${step.intent}`];
   }
@@ -162,6 +181,12 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
     case 'navigate':
       return step.url ? [`await ${pageVar}.goto('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
     case 'click':
+      if (!locator) {
+        if (/\bpress\s+enter\b/i.test(step.intent) || /^enter$/i.test(step.intent.trim())) {
+          return [`await ${pageVar}.keyboard.press('Enter');`, ...assertionLines];
+        }
+        return [`// click: ${step.intent}`, ...assertionLines];
+      }
       return locator ? [...metadata, `await ${locator}.click();`, ...assertionLines] : [`// click: ${step.intent}`, ...assertionLines];
     case 'fill':
       return locator
@@ -198,6 +223,11 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
       }
       return [
         `await ${pageVar}.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });`,
+      ];
+    case 'press':
+      return [
+        `await ${pageVar}.keyboard.press('${escapeTsString(step.value || 'Enter')}');`,
+        ...assertionLines,
       ];
     default:
       return [`// ${step.action}: ${step.intent}`];

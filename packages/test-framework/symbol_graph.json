@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-07-14T17:19:31.198Z",
+  "lastUpdated": "2026-07-14T23:16:39.569Z",
   "classes": [
     {
       "name": "BookingBasePage",
@@ -343,6 +343,171 @@
       "methods": [
         {
           "name": "assertVerifyPageUrlContainsTalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubcomActionsPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubcomActionsPage",
+      "urlPattern": "https://github.com/microsoft/playwright/actions",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomActionsPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "clickActions",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsActions",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSecurity",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubcomHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubcomHomePage",
+      "urlPattern": "https://github.com/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyGithubHomepageLoadsSuccessfully",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSearchOrJumpTo",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubcomIssuesPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubcomIssuesPage",
+      "urlPattern": "https://github.com/microsoft/playwright/issues",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomIssuesPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyPageUrlContainsIssues",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickPullRequests",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubcomPlaywrightPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubcomPlaywrightPage",
+      "urlPattern": "https://github.com/microsoft/playwright",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomPlaywrightPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyPageUrlContainsMicrosoftPlaywright",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickIssues",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsMicrosoftPlaywright1",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubcomPulsePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubcomPulsePage",
+      "urlPattern": "https://github.com/microsoft/playwright/pulse",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomPulsePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyPageUrlContainsPulse",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickCode",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubcomSearchPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubcomSearchPage",
+      "urlPattern": "https://github.com/search?q=microsoft%2Fplaywright&type=repositories",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomSearchPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "fillEnterMicrosoftPlaywrightIntoTheSearchInput",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "pressEnter",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsSearch",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickMicrosoftPlaywright",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubcomSecurityPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubcomSecurityPage",
+      "urlPattern": "https://github.com/microsoft/playwright/security",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomSecurityPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertVerifyPageUrlContainsSecurity",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickInsights",
           "parameters": [],
           "returnType": "Promise<void>"
         }

@@ -57,7 +57,8 @@ function methodNamesForClass(
   const fromBundle = filesByPath.get(normalized);
   if (fromBundle) {
     const methods = new Set<string>();
-    const methodRe = /public\s+async\s+(\w+)\s*\(/g;
+    // Class methods are public by default in TS; generated/LLM-fixed POMs may omit `public`.
+    const methodRe = /(?:public\s+)?async\s+(\w+)\s*\(/g;
     let match: RegExpExecArray | null;
     while ((match = methodRe.exec(fromBundle.content)) !== null) {
       methods.add(match[1]);

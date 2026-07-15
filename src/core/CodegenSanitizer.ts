@@ -18,12 +18,19 @@ export class CodegenSanitizer {
     if (CodegenSanitizer.isParsableTypeScript(content)) {
       return content;
     }
+    const requiresExportClass =
+      /export\s+class\b/.test(content) || /@pageIdentity\b/.test(content);
     const lines = content.split('\n');
     for (let end = lines.length; end > 1; end--) {
       const candidate = lines.slice(0, end).join('\n');
-      if (CodegenSanitizer.isParsableTypeScript(candidate)) {
-        return candidate.endsWith('\n') ? candidate : `${candidate}\n`;
+      if (!CodegenSanitizer.isParsableTypeScript(candidate)) {
+        continue;
       }
+      // Never "repair" a page object down to import-only / class-less stubs.
+      if (requiresExportClass && !/export\s+class\b/.test(candidate)) {
+        continue;
+      }
+      return candidate.endsWith('\n') ? candidate : `${candidate}\n`;
     }
     return content;
   }

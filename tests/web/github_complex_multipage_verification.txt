@@ -1,0 +1,39 @@
+@smoke @github @complex-dom @multipage
+target: web
+baseUrl: https://github.com/
+codegen: false
+report: true
+
+Test: GitHub Complex Multi-Page DOM Verification
+
+1. Navigate to https://github.com/
+2. Verify GitHub homepage loads successfully
+3. Verify Sign in is visible
+4. Click Search or jump to
+5. Enter microsoft/playwright into the search input
+6. Press Enter
+7. Verify page URL contains search
+8. Verify repositories is displayed
+9. Click microsoft/playwright
+10. Verify page URL contains microsoft/playwright
+11. Verify Code is displayed
+12. Verify README.md is displayed
+13. Click Issues
+14. Verify page URL contains /issues
+15. Verify Issues is displayed
+16. Click Pull requests
+17. Verify page URL contains /pulls
+18. Verify Pull requests is displayed
+19. Click Actions
+20. Verify page URL contains /actions
+21. Verify Actions is displayed
+22. Click Security
+23. Verify page URL contains /security
+24. Verify Security is displayed
+25. Click Insights
+26. Verify page URL contains /pulse
+27. Verify Pulse is displayed
+28. Click Code
+29. Verify page URL contains microsoft/playwright
+30. Verify README.md is displayed
+31. Capture screenshot of the README.md heading

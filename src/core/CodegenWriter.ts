@@ -45,7 +45,7 @@ export class CodegenWriter {
   }
 
   private static isStubPageObject(content: string): boolean {
-    return !/public\s+async\s+\w+\s*\(/.test(content);
+    return !/(?:public\s+)?async\s+\w+\s*\(/.test(content);
   }
 
   private static isFullPageObject(content: string): boolean {
@@ -171,7 +171,13 @@ export class CodegenWriter {
       (f, i) => f.content !== fs.readFileSync(path.join(process.cwd(), paths[i]), 'utf8')
     );
     if (sanitizedChanged) {
-      CodegenWriter.writeFiles(onDisk);
+      // Force overwrite — do not AST-merge sanitizer repairs into the truncated originals
+      // that were just written (merge-on-repair was collapsing POMs into import-only stubs).
+      for (const file of onDisk) {
+        const fullPath = path.join(process.cwd(), file.path);
+        fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+        fs.writeFileSync(fullPath, file.content, 'utf8');
+      }
       onDisk = CodegenWriter.readFilesFromDisk(paths);
     }
 

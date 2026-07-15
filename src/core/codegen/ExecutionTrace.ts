@@ -9,6 +9,7 @@ export type TraceAction =
   | 'wait'
   | 'go_back'
   | 'screenshot'
+  | 'press'
   | 'custom';
 
 export type SelectorKind = 'role' | 'label' | 'placeholder' | 'testid' | 'text' | 'css' | 'xpath' | 'unknown';

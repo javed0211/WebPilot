@@ -1779,7 +1779,22 @@ async def execute_capability(
                 import asyncio
                 await asyncio.sleep(float(action.get("seconds", 1)))
             elif action_type == "press":
-                await page.press(str(action.get("value", "")))
+                key = str(action.get("value") or action.get("key") or "Enter")
+                # browser-use Page is not Playwright's Page — no .keyboard; dispatch via DOM.
+                await page.evaluate(
+                    """(key) => {
+                      const target = document.activeElement || document.body;
+                      const opts = { key, code: key === 'Enter' ? 'Enter' : key, bubbles: true, cancelable: true };
+                      target.dispatchEvent(new KeyboardEvent('keydown', opts));
+                      target.dispatchEvent(new KeyboardEvent('keypress', opts));
+                      target.dispatchEvent(new KeyboardEvent('keyup', opts));
+                      if (key === 'Enter' && target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+                        const form = target.form;
+                        if (form && typeof form.requestSubmit === 'function') form.requestSubmit();
+                      }
+                    }""",
+                    key,
+                )
             elif action_type in ("click", "input"):
                 await dismiss_cookie_consent_if_present(browser_session)
                 if action.get("modal") or _step_mentions_modal(step_text):

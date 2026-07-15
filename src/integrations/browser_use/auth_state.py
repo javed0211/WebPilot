@@ -5,7 +5,13 @@ import asyncio
 import re
 from typing import Any, Literal
 
-from .capability_contract import AUTH_INTERSTITIAL_PHRASES, AUTH_RELAXED_ORIGINS, origin_for_url
+from .capability_contract import (
+    AUTH_INTERSTITIAL_PHRASES,
+    AUTH_LOGIN_URL_HINT,
+    AUTH_RELAXED_ORIGINS,
+    AUTH_WEAK_SIGNIN_PHRASE,
+    origin_for_url,
+)
 from .intent_resolver import APP_SWITCHER_STEP_HINTS, detect_page_type
 from .system_recipes import try_app_switcher_recipe
 
@@ -48,7 +54,9 @@ def detect_auth_state(page_state: dict[str, Any]) -> AuthState:
             return "app_picker"
         return "authenticated"
 
-    if page_type == "auth_interstitial" or any(phrase in body for phrase in AUTH_INTERSTITIAL_PHRASES):
+    strong_auth_copy = any(phrase in body for phrase in AUTH_INTERSTITIAL_PHRASES)
+    weak_signin_on_login_url = AUTH_WEAK_SIGNIN_PHRASE in body and bool(AUTH_LOGIN_URL_HINT.search(url))
+    if page_type == "auth_interstitial" or strong_auth_copy or weak_signin_on_login_url:
         if any(hint in body for hint in ("app launcher", "all apps", "waffle", "applications")):
             return "app_picker"
         return "auth_interstitial"

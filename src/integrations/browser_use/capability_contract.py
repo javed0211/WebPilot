@@ -17,15 +17,21 @@ AUTH_RELAXED_ORIGINS = frozenset({
 })
 
 # Visible copy that usually means an auth/interstitial screen — generic across IdPs.
+# Keep "sign in" out of the always-match list: public sites (GitHub, docs) show a
+# header Sign in link without being an auth wall.
 AUTH_INTERSTITIAL_PHRASES = (
     "stay signed in",
-    "sign in",
     "pick an account",
     "enter password",
     "use another account",
     "verify your identity",
     "enter code",
 )
+
+# Weak phrase — only treat as interstitial with login URL / form signals.
+AUTH_WEAK_SIGNIN_PHRASE = "sign in"
+
+AUTH_LOGIN_URL_HINT = re.compile(r"/login|/signin|/sign-in|/auth(?:/|$)|login\.|/account/login", re.I)
 
 QUARANTINE_FAILURE_CLASSES = frozenset({
     "locator_not_found",
@@ -295,7 +301,12 @@ def looks_like_auth_interstitial(page_state: dict[str, Any]) -> bool:
     if origin in AUTH_RELAXED_ORIGINS:
         return True
     body = (page_state.get("bodyText") or "").lower()
-    return any(phrase in body for phrase in AUTH_INTERSTITIAL_PHRASES)
+    if any(phrase in body for phrase in AUTH_INTERSTITIAL_PHRASES):
+        return True
+    # Lone "Sign in" chrome on github.com / marketing sites is not an interstitial.
+    if AUTH_WEAK_SIGNIN_PHRASE in body and AUTH_LOGIN_URL_HINT.search(url):
+        return True
+    return False
 
 
 VALIDATE_CONTRACT_JS = """(payload) => {
@@ -457,11 +468,12 @@ def resolve_validation_contract(capability: dict[str, Any], phase: Phase) -> dic
 
     # Heal older stores that attached "sign in" forbidden phrases to every capability.
     if phase == "pre" and intent != "authenticate" and page_type not in ("auth_interstitial", "auth"):
+        strip_phrases = set(AUTH_INTERSTITIAL_PHRASES) | {AUTH_WEAK_SIGNIN_PHRASE}
         contract["notAllowedAnchors"] = [
-            p for p in (contract.get("notAllowedAnchors") or []) if p not in AUTH_INTERSTITIAL_PHRASES
+            p for p in (contract.get("notAllowedAnchors") or []) if p not in strip_phrases
         ]
         contract["forbiddenText"] = [
-            p for p in (contract.get("forbiddenText") or []) if p not in AUTH_INTERSTITIAL_PHRASES
+            p for p in (contract.get("forbiddenText") or []) if p not in strip_phrases
         ]
 
     # Interact clicks should not require brittle page heading evidence from prior learning.

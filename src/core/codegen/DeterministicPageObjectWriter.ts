@@ -18,16 +18,26 @@ export interface PageObjectArtifact {
   stepMethods: Record<number, string>;
 }
 
+function normalizeUrlKey(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/\/$/, '') || '/';
+    return `${parsed.origin}${path}`;
+  } catch {
+    return url.replace(/\/$/, '') || url;
+  }
+}
+
+function urlsMatchPage(pattern: string, url: string): boolean {
+  if (!pattern || !url) return false;
+  return normalizeUrlKey(pattern) === normalizeUrlKey(url);
+}
+
 function stepsForPage(page: PlannedFile, trace: ExecutionTrace): TraceStep[] {
   if (!page.urlPattern) return [];
-  return trace.steps.filter((step) => {
-    if (!step.url) return false;
-    try {
-      return new RegExp(page.urlPattern!).test(step.url);
-    } catch {
-      return step.url.includes(page.urlPattern!);
-    }
-  });
+  // Prefer exact origin+pathname match. Raw RegExp(urlPattern) wrongly treated
+  // https://github.com/ as matching every github.com page, and broke on ?query URLs.
+  return trace.steps.filter((step) => step.url && urlsMatchPage(page.urlPattern!, step.url));
 }
 
 function existingMethodNames(filePath: string, className: string): Set<string> {
