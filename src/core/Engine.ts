@@ -279,8 +279,8 @@ export class Engine {
         Logger.warn(`Symbol graph pre-generation skipped: ${graphErr.message}`);
       }
 
-      const { execSync } = require('child_process');
-      const { ensureBrowserUsePython } = require('../integrations/browser_use/PythonRuntime');
+      const { execFileSync } = require('child_process');
+      const { ensureBrowserUsePython, splitPythonCommand } = require('../integrations/browser_use/PythonRuntime');
       let pythonPath: string;
       try {
         pythonPath = ensureBrowserUsePython();
@@ -298,8 +298,17 @@ export class Engine {
           'execution_report',
           'run-cli.js'
         );
-        execSync(
-          `"${pythonPath}" -m integrations.browser_use "${this.testFilePath}" "${this.envName}"`,
+        // Use execFileSync so Windows paths with spaces (Program Files) are not shell-split.
+        const { exe, prefixArgs } = splitPythonCommand(pythonPath);
+        execFileSync(
+          exe,
+          [
+            ...prefixArgs,
+            '-m',
+            'integrations.browser_use',
+            this.testFilePath,
+            this.envName,
+          ],
           {
             stdio: 'inherit',
             cwd: PROJECT_ROOT,

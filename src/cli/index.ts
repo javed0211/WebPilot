@@ -585,12 +585,9 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
     if (exists('tests/generated/pages/base_page.py')) pass('tests/generated/pages/base_page.py found');
     else fail('base_page.py missing', 'Codegen/init should scaffold tests/generated/pages/base_page.py.');
     try {
-      const { resolvePythonPath } = require('../integrations/browser_use/PythonRuntime');
+      const { resolvePythonPath, execPythonSync } = require('../integrations/browser_use/PythonRuntime');
       const py = resolvePythonPath();
-      execSync(`"${py}" -c "import pytest, playwright"`, {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+      execPythonSync(py, ['-c', 'import pytest, playwright']);
       pass('pytest and playwright Python packages importable');
     } catch {
       fail(
@@ -811,10 +808,22 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
 
   console.log(`\n${chalk.blue('Python and WebPilot engine')}`);
   try {
-    const { resolvePythonPath, hasBrowserUse, findCompatibleSystemPython } = require('../integrations/browser_use/PythonRuntime');
+    const {
+      resolvePythonPath,
+      hasBrowserUse,
+      findCompatibleSystemPython,
+      splitPythonCommand,
+    } = require('../integrations/browser_use/PythonRuntime');
+    const { execFileSync } = require('child_process') as typeof import('child_process');
     const py = resolvePythonPath();
-    const version = execSync(
-      `"${py}" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"`,
+    const { exe, prefixArgs } = splitPythonCommand(py);
+    const version = execFileSync(
+      exe,
+      [
+        ...prefixArgs,
+        '-c',
+        "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')",
+      ],
       { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
     ).trim();
     const [major, minor] = version.split('.').map(Number);
@@ -823,9 +832,15 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
       const compatiblePython = findCompatibleSystemPython();
       if (compatiblePython) {
         try {
-          const candidateVersion = execSync(
-            `${compatiblePython} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"`,
-            { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], shell: true }
+          const { exe: cExe, prefixArgs: cArgs } = splitPythonCommand(compatiblePython);
+          const candidateVersion = execFileSync(
+            cExe,
+            [
+              ...cArgs,
+              '-c',
+              "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')",
+            ],
+            { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
           ).trim();
           warn(
             `Current Python ${version} is too old, but ${compatiblePython} (${candidateVersion}) is available`,
@@ -846,17 +861,21 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
       warn(`browser_use not installed for ${py}`, 'Run: webpilot setup');
     } else {
       const installRoot = findCliInstallRoot();
-      const source = execSync(`"${py}" -c "import browser_use; print(browser_use.__file__)"`, {
-        cwd: process.cwd(),
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PYTHONPATH: [
-            path.join(installRoot, 'packages', 'browser-use'),
-            path.join(installRoot, 'src'),
-          ].join(path.delimiter),
-        },
-      }).trim();
+      const source = execFileSync(
+        exe,
+        [...prefixArgs, '-c', 'import browser_use; print(browser_use.__file__)'],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PYTHONPATH: [
+              path.join(installRoot, 'packages', 'browser-use'),
+              path.join(installRoot, 'src'),
+            ].join(path.delimiter),
+          },
+        }
+      ).trim();
       const vendored = source.includes(path.join('packages', 'browser-use'));
       if (vendored) pass('browser_use vendored source installed');
       else warn(`browser_use resolves outside WebPilot: ${source}`, 'Run: webpilot setup');
@@ -1932,19 +1951,18 @@ program
 
     console.log(`\n${chalk.blue('Checking Python (WebPilot engine):')}`);
     try {
-      const { execSync } = require('child_process');
-      const { resolvePythonPath, hasBrowserUse } = require('../integrations/browser_use/PythonRuntime');
+      const { resolvePythonPath, hasBrowserUse, execPythonSync } = require('../integrations/browser_use/PythonRuntime');
       const py = resolvePythonPath();
       if (!hasBrowserUse(py)) {
         console.log(`  ${chalk.yellow('⚠')} browser_use not found for ${py}`);
         console.log(`  ${chalk.dim('→')} Run: ${chalk.bold('webpilot setup')}`);
       } else {
         const installRoot = findCliInstallRoot();
-        const source = execSync(
-          `"${py}" -c "import browser_use; print(browser_use.__file__)"`,
+        const source = execPythonSync(
+          py,
+          ['-c', 'import browser_use; print(browser_use.__file__)'],
           {
             cwd: process.cwd(),
-            encoding: 'utf8',
             env: {
               ...process.env,
               PYTHONPATH: [
@@ -1968,15 +1986,17 @@ program
 
     console.log(`\n${chalk.blue('Checking LLM config (WebPilot / codegen):')}`);
     try {
-      const { execSync } = require('child_process');
-      const py = require('../integrations/browser_use/PythonRuntime').resolvePythonPath();
+      const { resolvePythonPath, execPythonSync } = require('../integrations/browser_use/PythonRuntime');
+      const py = resolvePythonPath();
       const installRoot = findCliInstallRoot();
-      execSync(
-        `"${py}" -c "from integrations.browser_use.llm_config import resolve_provider_config, validate_provider_config; p,c=resolve_provider_config(); validate_provider_config(p,c); print(f'OK provider={p} endpoint configured')"` ,
+      execPythonSync(
+        py,
+        [
+          '-c',
+          "from integrations.browser_use.llm_config import resolve_provider_config, validate_provider_config; p,c=resolve_provider_config(); validate_provider_config(p,c); print(f'OK provider={p} endpoint configured')",
+        ],
         {
           cwd: process.cwd(),
-          stdio: 'pipe',
-          encoding: 'utf8',
           env: {
             ...process.env,
             PYTHONPATH: [
@@ -3058,30 +3078,27 @@ program
   .description('Show per-step learned capability status for a natural-language test file')
   .option('--json', 'Emit machine-readable JSON')
   .action((testFile: string, options: { json?: boolean }) => {
-    const { execSync } = require('child_process');
-    const py = require('../integrations/browser_use/PythonRuntime').resolvePythonPath();
+    const { resolvePythonPath, execPythonSync } = require('../integrations/browser_use/PythonRuntime');
+    const py = resolvePythonPath();
     const installRoot = findCliInstallRoot();
     const absTest = path.isAbsolute(testFile) ? testFile : path.join(process.cwd(), testFile);
     if (!fs.existsSync(absTest)) {
       console.error(chalk.red(`Test file not found: ${absTest}`));
       process.exit(1);
     }
-    const jsonFlag = options.json ? ' --json' : '';
     try {
-      const out = execSync(
-        `"${py}" -m integrations.browser_use.knowledge_status status "${absTest}"${jsonFlag}`,
-        {
-          cwd: process.cwd(),
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            PYTHONPATH: [
-              path.join(installRoot, 'packages', 'browser-use'),
-              path.join(installRoot, 'src'),
-            ].join(path.delimiter),
-          },
-        }
-      );
+      const args = ['-m', 'integrations.browser_use.knowledge_status', 'status', absTest];
+      if (options.json) args.push('--json');
+      const out = execPythonSync(py, args, {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          PYTHONPATH: [
+            path.join(installRoot, 'packages', 'browser-use'),
+            path.join(installRoot, 'src'),
+          ].join(path.delimiter),
+        },
+      });
       console.log(out.trimEnd());
     } catch (e: any) {
       const msg = (e.stdout || e.stderr || e.message || '').toString();

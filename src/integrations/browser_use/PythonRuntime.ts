@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync, execFileSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { findCliInstallRoot, findProjectRoot } from '../../cli/ProjectContext';
 
 const VENV_DIR = '.venv';
@@ -23,19 +23,77 @@ function isPython311Plus(major: number, minor: number): boolean {
   return major > 3 || (major === 3 && minor >= 11);
 }
 
-function splitPythonCommand(cmd: string): { exe: string; prefixArgs: string[] } {
-  const parts = cmd.trim().split(/\s+/);
-  return { exe: parts[0], prefixArgs: parts.slice(1) };
+/**
+ * Split a python launcher command into exe + args.
+ * CRITICAL: must NOT split absolute paths on spaces — otherwise
+ * `C:\Program Files\Python312\python.exe` becomes exe=`C:\Program` → ENOENT.
+ */
+export function splitPythonCommand(cmd: string): { exe: string; prefixArgs: string[] } {
+  const trimmed = cmd.trim().replace(/^["']|["']$/g, '');
+  if (!trimmed) {
+    return { exe: process.platform === 'win32' ? 'python' : 'python3', prefixArgs: [] };
+  }
+
+  // Windows Python launcher: "py", "py.exe", "py -3.12", "py -3.13 -V:3.13"
+  const pyLauncher = /^(py(?:\.exe)?)(?:\s+(.+))?$/i.exec(trimmed);
+  if (pyLauncher) {
+    const rest = (pyLauncher[2] || '').trim();
+    return {
+      exe: pyLauncher[1],
+      prefixArgs: rest ? rest.split(/\s+/) : [],
+    };
+  }
+
+  // Path with separators or drive letter / .exe — treat as a single executable.
+  const looksLikePath =
+    trimmed.includes(path.sep) ||
+    trimmed.includes('/') ||
+    /^[a-zA-Z]:[\\/]/.test(trimmed) ||
+    /\.exe$/i.test(trimmed);
+  if (looksLikePath) {
+    return { exe: trimmed, prefixArgs: [] };
+  }
+
+  // Bare command name (python3.12, python3, python)
+  return { exe: trimmed, prefixArgs: [] };
+}
+
+function runPython(pythonPath: string, args: string[], opts: {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  stdio?: 'pipe' | 'inherit';
+  encoding?: 'utf8';
+}): string {
+  const { exe, prefixArgs } = splitPythonCommand(pythonPath);
+  const result = execFileSync(exe, [...prefixArgs, ...args], {
+    cwd: opts.cwd,
+    env: opts.env,
+    stdio: opts.stdio === 'inherit' ? 'inherit' : 'pipe',
+    encoding: opts.encoding || 'utf8',
+  });
+  return typeof result === 'string' ? result : '';
+}
+
+/** Public helper for CLI/doctor — safe on Windows paths with spaces. */
+export function execPythonSync(
+  pythonPath: string,
+  args: string[],
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv; stdio?: 'pipe' | 'inherit' } = {}
+): string {
+  return runPython(pythonPath, args, {
+    cwd: opts.cwd,
+    env: opts.env,
+    stdio: opts.stdio || 'pipe',
+    encoding: 'utf8',
+  });
 }
 
 function tryPythonCandidate(cmd: string): string | null {
   try {
-    const { exe, prefixArgs } = splitPythonCommand(cmd);
-    const out = execFileSync(
-      exe,
-      [...prefixArgs, '-c', "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')"],
-      { encoding: 'utf8', stdio: 'pipe' }
-    ).trim();
+    const out = runPython(cmd, ['-c', "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')"], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim();
     const [major, minor] = out.split('.').map(Number);
     if (isPython311Plus(major, minor)) {
       return cmd;
@@ -104,10 +162,10 @@ function pythonEnv() {
 
 export function hasBrowserUse(pythonPath: string): boolean {
   try {
-    execSync(`"${pythonPath}" -c "import browser_use; assert browser_use.__file__"`, {
-      stdio: 'pipe',
+    runPython(pythonPath, ['-c', 'import browser_use; assert browser_use.__file__'], {
       cwd: projectRoot(),
       env: pythonEnv(),
+      stdio: 'pipe',
     });
     return true;
   } catch {
@@ -118,10 +176,10 @@ export function hasBrowserUse(pythonPath: string): boolean {
 /** browser-use[video] extra — imageio + ffmpeg for MP4 recording. */
 export function hasBrowserUseVideo(pythonPath: string): boolean {
   try {
-    execSync(`"${pythonPath}" -c "import imageio; import imageio_ffmpeg"`, {
-      stdio: 'pipe',
+    runPython(pythonPath, ['-c', 'import imageio; import imageio_ffmpeg'], {
       cwd: projectRoot(),
       env: pythonEnv(),
+      stdio: 'pipe',
     });
     return true;
   } catch {
@@ -136,14 +194,14 @@ function installBrowserUseRequirements(pythonPath: string): void {
   if (!fs.existsSync(reqPath)) {
     throw new Error(`Missing ${REQUIREMENTS} in the WebPilot CLI installation: ${cliRoot}`);
   }
-  execSync(`"${pythonPath}" -m pip install -r "${reqPath}"`, {
-    stdio: 'inherit',
+  runPython(pythonPath, ['-m', 'pip', 'install', '-r', reqPath], {
     cwd: cliRoot,
+    stdio: 'inherit',
   });
   if (fs.existsSync(overridePath)) {
-    execSync(`"${pythonPath}" -m pip install -r "${overridePath}"`, {
-      stdio: 'inherit',
+    runPython(pythonPath, ['-m', 'pip', 'install', '-r', overridePath], {
       cwd: cliRoot,
+      stdio: 'inherit',
     });
   }
 }
@@ -180,8 +238,9 @@ export function setupPythonVenv(systemPython?: string): string {
     !hasBrowserUse(venvPy) &&
     (() => {
       try {
-        const ver = execSync(`"${venvPy}" -c "import sys; print(sys.version_info.minor)"`, {
-          encoding: 'utf8'
+        const ver = runPython(venvPy, ['-c', 'import sys; print(sys.version_info.minor)'], {
+          encoding: 'utf8',
+          stdio: 'pipe',
         }).trim();
         return Number(ver) < 11;
       } catch {
@@ -206,7 +265,10 @@ export function setupPythonVenv(systemPython?: string): string {
     throw new Error(`Missing ${REQUIREMENTS} in the WebPilot CLI installation: ${cliRoot}`);
   }
 
-  execSync(`"${venvPy}" -m pip install -U pip`, { stdio: 'inherit', cwd: root });
+  runPython(venvPy, ['-m', 'pip', 'install', '-U', 'pip'], {
+    cwd: root,
+    stdio: 'inherit',
+  });
   installBrowserUseRequirements(venvPy);
   return venvPy;
 }
