@@ -24,6 +24,8 @@ Complete reference for WebPilot CLI commands, flags, and environment variables.
 | `webpilot interactive` | Human-in-the-loop headed run |
 | `webpilot ci` | CI init, doctor, run |
 | `webpilot reports-tidy` | Migrate legacy report paths |
+| `webpilot history list` | List saved ActHistory scenarios |
+| `webpilot history clear` | Clear ActHistory (one scenario or `--all`) |
 
 ---
 
@@ -43,11 +45,13 @@ webpilot run <file|directory> [options]
 | `--parallel <n>` | Concurrent tests |
 | `--provider <name>` | `browser-use`, `local-playwright`, `testmu` |
 | `--report` | Generate HTML report after suite |
-| `--codegen` | Generate Playwright code after successful run |
+| `--codegen` | Generate Playwright code **only after a successful** run |
 | `--knowledge-only` | Replay learned steps only; fail on unknown |
-| `--force-discovery` | Skip knowledge; re-explore all steps |
+| `--force-discovery` | Ignore prior ActHistory reuse; re-explore all steps |
 
-**Sets env vars:** `WEBPILOT_KNOWLEDGE_ONLY`, `WEBPILOT_DISABLE_SITE_KNOWLEDGE`, `WEBPILOT_CODEGEN`, `WEBPILOT_CODEGEN_MODE`, `WEBPILOT_BROWSER_PROVIDER`
+**Sets env vars:** `WEBPILOT_KNOWLEDGE_ONLY`, `WEBPILOT_DISABLE_SITE_KNOWLEDGE` / `WEBPILOT_FORCE_DISCOVERY`, `WEBPILOT_CODEGEN`, `WEBPILOT_CODEGEN_MODE`, `WEBPILOT_BROWSER_PROVIDER`
+
+**ActHistory reuse:** with `--codegen`, a prior **successful** history for the same slug may skip the browser. Failed histories are never reused. Manage with `webpilot history` — see [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
 
 ---
 
@@ -113,11 +117,20 @@ Checks Node, Python, browser-use, LLM credentials, provider config, writable `ru
 webpilot init [directory] [options]
 ```
 
+Interactive init (without `-y`) asks whether to start blank or from an **existing code repository** (clone Git URL or use a local path), then builds the knowledge graph so codegen can reuse page objects.
+
 | Flag | Description |
 |------|-------------|
 | `-f, --force` | Overwrite WebPilot-owned files |
-| `-y, --yes` | Non-interactive defaults |
+| `-y, --yes` | Non-interactive defaults (skips repo-source wizard → blank project) |
+| `--clone <gitUrl>` | Clone a Git repo, overlay WebPilot, build knowledge graph |
+| `--from-path <dir>` | Use an existing local repo (no clone) |
+| `--branch <name>` | Branch to checkout with `--clone` |
+| `--skip-graph` | Skip knowledge graph build after init |
 | `--language`, `--tool`, `--pattern`, `--target` | Project profile |
+| `--llm-provider`, `--llm-model` | LLM defaults |
+
+**Credentials:** `--clone` shells out to system `git`. WebPilot does not manage tokens or SSH keys — use SSH URLs, Git Credential Manager / `gh auth login`, or `--from-path` for an already-cloned private repo. Details: [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md#git-credentials-private-repos).
 
 ### Supported init profiles
 
@@ -133,8 +146,7 @@ webpilot init [directory] [options]
 
 `webpilot doctor` runs profile-specific toolchain checks after init.
 
-See [Multi-Language Codegen](./multi-language-codegen.md).
-| `--llm-provider`, `--llm-model` | LLM defaults |
+See [Multi-Language Codegen](./multi-language-codegen.md) and [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md) (init from existing repo).
 
 ---
 
@@ -219,8 +231,11 @@ webpilot ci run       # CI wrapper for webpilot run
 
 | Variable | Purpose |
 |----------|---------|
-| `WEBPILOT_CODEGEN` | `1` = enable post-run codegen |
+| `WEBPILOT_CODEGEN` | `1` = enable post-run codegen (only after successful discovery) |
 | `WEBPILOT_CODEGEN_MODE` | `deterministic`, `llm`, `auto` |
+| `WEBPILOT_FORCE_DISCOVERY` | `1` = ignore ActHistory reuse; rediscover |
+| `WEBPILOT_REUSE_HISTORY` | `0` = disable reuse; `1` = allow reuse without `--codegen` |
+| `WEBPILOT_FORCE_CODEGEN` | `1` = do not reuse an existing passing generated spec |
 
 ### LLM providers
 
@@ -254,6 +269,35 @@ webpilot ci run       # CI wrapper for webpilot run
 |----------|---------|
 | `WEBPILOT_VIEWPORT_SCALE` | Viewport scaling factor |
 | `WEBPILOT_NODE`, `WEBPILOT_REPORT_CLI` | Python → Node report bridge |
+
+---
+
+## `webpilot history`
+
+Manage ActHistory used for `--codegen` reuse (skip rediscovery). Full guide: [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
+
+```bash
+webpilot history list
+webpilot history clear Digital
+webpilot history clear tests/web/Digital.txt
+webpilot history clear Digital --related
+webpilot history clear --all
+webpilot history clear --all --related -y
+```
+
+| Flag / arg | Description |
+|------------|-------------|
+| `list` | Show saved scenarios and whether history was successful |
+| `clear <slug\|path>` | Delete ActHistory for one scenario (forces rediscovery next `--codegen`) |
+| `--all` | Clear ActHistory for every scenario (asks to confirm unless `-y`) |
+| `--related` | Also remove summary, LLM usage, HTML report, screenshots, video, trace, codegen failure memory / traces / plans |
+| `-y, --yes` | Skip confirmation for `--all` |
+
+**Policies encoded in the product:**
+
+- Codegen runs **only** after successful discovery (`isSuccessful === true`).
+- Failed ActHistory is **never** reused and **never** used to generate code.
+- One-off rediscovery without deleting files: `webpilot run … --codegen --force-discovery`.
 
 ---
 

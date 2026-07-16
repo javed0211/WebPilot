@@ -171,6 +171,17 @@ webpilot run tests/web/automationexercise_add_to_cart.txt --env qa --report
 
 If a scenario includes `codegen: true` or `report: true`, `webpilot run <file>` applies those defaults automatically.
 
+**Codegen only runs after a successful discovery.** Failed runs skip code generation. On `--codegen` re-runs, a prior **successful** ActHistory may skip the browser; failed history is never reused.
+
+```bash
+webpilot history list
+webpilot history clear Digital              # clear one scenario
+webpilot history clear --all -y             # clear all ActHistory
+webpilot run tests/web/Digital.txt --codegen --force-discovery
+```
+
+Details: [guides/act-history-and-codegen-reuse.md](./guides/act-history-and-codegen-reuse.md).
+
 ### Interactive mode (approve each step)
 
 ```bash
@@ -337,6 +348,8 @@ Full profile reference: [guides/multi-language-codegen.md](./guides/multi-langua
 | `webpilot create test <name>` | New `tests/web/<name>.txt` template |
 | `webpilot create api <name>` | New `tests/api/<name>.txt` template |
 | `webpilot replay [paths...]` | Run generated TypeScript Playwright specs without AI |
+| `webpilot history list` | List saved ActHistory scenarios |
+| `webpilot history clear <slug\|--all>` | Clear ActHistory (forces rediscovery on next `--codegen`) |
 | `webpilot self-heal` | List healed selectors in cache |
 | `webpilot self-heal --clean` | Clear healing cache |
 
@@ -359,6 +372,7 @@ Pass API keys via environment variables in `docker-compose.yml` or a local `.env
 |-------|-------------|
 | `python3` / `browser-use` not found | Run `webpilot setup` (creates `.venv` with Python 3.11+). Set `WEBPILOT_PYTHON` if needed. |
 | Azure errors | Check `AZURE_OPENAI_*` in `.env` and `azure` block in `resources/config/llm.json` |
+| Re-run PASSED instantly with no browser after a failure | Clear bad ActHistory: `webpilot history clear <slug>` or use `--force-discovery`. See [act-history-and-codegen-reuse](./guides/act-history-and-codegen-reuse.md). |
 | Browser does not open | Use `--headed` or set `browser.headless: false` in `resources/config/webpilot.yaml` |
 | Codegen / TS errors | See terminal output; validators retry fixes under `packages/test-framework/` |
 | Empty reports | Run a test first; `runtime/reports/` is gitignored and created per run |

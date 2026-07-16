@@ -104,7 +104,25 @@ export function prepareProjectFromExistingRepo(options: {
       args.push('--branch', options.branch);
     }
     args.push(options.cloneUrl, dest);
-    execFileSync('git', args, { stdio: 'inherit' });
+    try {
+      // Credentials are NOT handled by WebPilot — `git` uses the user's existing
+      // SSH agent, HTTPS credential helper, or gh/osxkeychain/Git Credential Manager.
+      // stdio inherit so git can prompt interactively when needed.
+      execFileSync('git', args, { stdio: 'inherit' });
+    } catch (err: unknown) {
+      const hint = [
+        '',
+        'Git clone failed. WebPilot does not store or inject credentials.',
+        'Use one of:',
+        '  • SSH:  git@github.com:org/repo.git  (SSH key loaded in ssh-agent)',
+        '  • HTTPS + credential helper / Git Credential Manager (already logged in)',
+        '  • HTTPS + token in URL (not recommended): https://<token>@github.com/org/repo.git',
+        '  • Or skip clone: webpilot init --from-path /path/to/already-cloned-repo',
+        '  • Public repos need no auth over HTTPS.',
+      ].join('\n');
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`${message}${hint}`);
+    }
     return {
       projectRoot: dest,
       source: 'clone',

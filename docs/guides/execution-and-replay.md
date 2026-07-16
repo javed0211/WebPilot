@@ -113,12 +113,26 @@ See [Multi-Language Codegen](./multi-language-codegen.md).
 webpilot run tests/web/checkout.txt --codegen --report
 ```
 
+**Codegen runs only after a successful discovery.** Failed runs skip code generation and do not mark the job PASSED via reuse of a bad ActHistory.
+
 After live execution succeeds:
 
 1. Execution history is saved under `runtime/reports/data/execution-history/`
 2. A trace and generation plan are written under `runtime/codegen/`
 3. Spec and page object files are emitted to the active profile's output paths (see [Multi-Language Codegen](./multi-language-codegen.md))
 4. HTML report is generated (with `--report`)
+
+### Reusing ActHistory on re-runs
+
+On a later `webpilot run <same.txt> --codegen`, WebPilot may skip the browser and reuse a **successful** ActHistory (0 rediscovery tokens). Failed histories are never reused.
+
+```bash
+webpilot history list                 # inspect
+webpilot history clear checkout       # force rediscovery next time
+webpilot run … --codegen --force-discovery   # one-off rediscovery
+```
+
+Full rules: [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
 
 Codegen mode is controlled by `framework.codegenMode` in `webpilot.yaml`:
 
@@ -190,6 +204,7 @@ Metadata lines are parsed but **not executed** as test steps.
 | Generate CI script | `webpilot run <file.txt> --codegen` |
 | CI regression | `webpilot replay` or `npx playwright test` |
 | UI changed, refresh locators | `webpilot run <file.txt> --force-discovery` |
+| Clear bad / stale ActHistory | `webpilot history clear <slug>` or `--all` |
 
 ---
 
@@ -197,4 +212,5 @@ Metadata lines are parsed but **not executed** as test steps.
 
 - [Intelligent Runner & Site Knowledge](./intelligent-runner-and-site-knowledge.md)
 - [Deterministic Codegen](./deterministic-codegen.md)
+- [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md)
 - [Test Authoring](./test-authoring.md)

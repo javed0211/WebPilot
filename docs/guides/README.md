@@ -41,6 +41,7 @@ Write .txt scenario  →  webpilot run  →  learn + execute live  →  optional
 | Guide | Summary |
 |-------|---------|
 | [Deterministic Codegen](./deterministic-codegen.md) | Trace → plan → profile-aware spec/POM without LLM |
+| [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md) | Success-only codegen, history reuse, `history list` / `clear` |
 | [Multi-Language Codegen](./multi-language-codegen.md) | TypeScript, Python, Java, Cypress, WebdriverIO, C# profiles |
 | [Assertion Engine](./assertion-engine.md) | How WebPilot infers and scores assertions |
 | [Repository Knowledge Graph](./repository-knowledge-graph.md) | `webpilot graph`, reusing existing page objects |
@@ -61,6 +62,7 @@ Write .txt scenario  →  webpilot run  →  learn + execute live  →  optional
 | [Reports & Evidence](./reports-and-evidence.md) | HTML dashboards, traces, videos, AI analysis |
 | [CI & Artifacts](./ci-and-artifacts.md) | `webpilot ci`, JUnit, artifact manifest |
 | [CLI Reference](./cli-reference.md) | All commands, flags, and environment variables |
+| [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md) | Clear / list history, success-only codegen rules |
 
 ---
 

@@ -2654,6 +2654,169 @@ program
   });
 
 /**
+ * COMMAND: history
+ * List / clear ActHistory so the next --codegen run rediscovers instead of reusing.
+ */
+const historyCmd = program
+  .command('history')
+  .description('List or clear ActHistory (execution history used for --codegen reuse)');
+
+historyCmd
+  .command('list')
+  .description('List saved ActHistory scenarios')
+  .action(() => {
+    const {
+      listExecutionHistorySlugs,
+      normalizeHistorySlug,
+    } = require('../core/HistoryClear') as typeof import('../core/HistoryClear');
+    const { resolveExecutionHistoryPath } = require('../core/ReportPaths') as typeof import('../core/ReportPaths');
+    const slugs: string[] = listExecutionHistorySlugs();
+    if (slugs.length === 0) {
+      console.log(chalk.dim('No ActHistory files found under runtime/reports/data/execution-history/'));
+      return;
+    }
+    console.log(chalk.bold(`\nActHistory (${slugs.length})\n`));
+    for (const slug of slugs) {
+      const histPath = resolveExecutionHistoryPath(slug);
+      let status = chalk.dim('unknown');
+      try {
+        const doc = JSON.parse(fs.readFileSync(histPath, 'utf8'));
+        status =
+          doc.isSuccessful === true
+            ? chalk.green('successful')
+            : chalk.red('failed/incomplete');
+      } catch {
+        status = chalk.yellow('unreadable');
+      }
+      console.log(`  ${chalk.cyan(slug)}  ${status}  ${chalk.dim(path.relative(process.cwd(), histPath))}`);
+    }
+    console.log(
+      chalk.dim(
+        `\nClear one:  webpilot history clear ${normalizeHistorySlug(slugs[0])}`
+      )
+    );
+    console.log(chalk.dim('Clear all:  webpilot history clear --all'));
+  });
+
+historyCmd
+  .command('clear [slug]')
+  .description(
+    'Clear ActHistory for a scenario (forces rediscovery on next --codegen run)'
+  )
+  .option('--all', 'Clear ActHistory for every scenario')
+  .option(
+    '--related',
+    'Also remove related report artifacts (summary, LLM usage, HTML, screenshots, video, trace, failure memory)'
+  )
+  .option('-y, --yes', 'Skip confirmation when using --all')
+  .action(
+    async (
+      slug: string | undefined,
+      options: { all?: boolean; related?: boolean; yes?: boolean }
+    ) => {
+      const {
+        clearAllHistory,
+        clearHistoryForSlug,
+        listExecutionHistorySlugs,
+        normalizeHistorySlug,
+      } = require('../core/HistoryClear') as typeof import('../core/HistoryClear');
+
+      if (!options.all && !slug) {
+        console.error(
+          chalk.red(
+            'Specify a scenario slug or path, or use --all.\n' +
+              '  webpilot history clear Digital\n' +
+              '  webpilot history clear tests/web/Digital.txt\n' +
+              '  webpilot history clear --all'
+          )
+        );
+        process.exitCode = 1;
+        return;
+      }
+      if (options.all && slug) {
+        console.error(chalk.red('Pass either a slug or --all, not both.'));
+        process.exitCode = 1;
+        return;
+      }
+
+      if (options.all) {
+        const existing = listExecutionHistorySlugs();
+        if (existing.length === 0) {
+          console.log(chalk.green('No ActHistory to clear.'));
+          return;
+        }
+        if (!options.yes) {
+          const answer = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'ok',
+              message: `Clear ActHistory for ${existing.length} scenario(s)${
+                options.related ? ' (including related report artifacts)' : ''
+              }?`,
+              default: false,
+            },
+          ]);
+          if (!answer.ok) {
+            console.log(chalk.dim('Cancelled.'));
+            return;
+          }
+        }
+        const result = clearAllHistory({ related: Boolean(options.related) });
+        console.log(
+          chalk.green(
+            `Cleared ${result.removed.length} file(s)/folder(s) across ${existing.length} scenario(s).`
+          )
+        );
+        for (const p of result.removed.slice(0, 20)) {
+          console.log(chalk.dim(`  - ${path.relative(process.cwd(), p)}`));
+        }
+        if (result.removed.length > 20) {
+          console.log(chalk.dim(`  … and ${result.removed.length - 20} more`));
+        }
+        return;
+      }
+
+      const target = normalizeHistorySlug(slug!);
+      const before = listExecutionHistorySlugs();
+      if (!before.includes(target)) {
+        const histPath = path.join(
+          process.cwd(),
+          'runtime',
+          'reports',
+          'data',
+          'execution-history',
+          `${target}_execution_history.json`
+        );
+        if (!fs.existsSync(histPath) && !fs.existsSync(path.join(process.cwd(), 'runtime', 'reports', `${target}_execution_history.json`))) {
+          console.log(
+            chalk.yellow(
+              `No ActHistory found for "${target}". Run: webpilot history list`
+            )
+          );
+          return;
+        }
+      }
+
+      const result = clearHistoryForSlug(target, { related: Boolean(options.related) });
+      if (result.removed.length === 0) {
+        console.log(chalk.yellow(`Nothing removed for "${target}".`));
+        return;
+      }
+      console.log(
+        chalk.green(
+          `Cleared ${result.removed.length} item(s) for ${chalk.cyan(target)}.`
+        )
+      );
+      for (const p of result.removed) {
+        console.log(chalk.dim(`  - ${path.relative(process.cwd(), p)}`));
+      }
+      console.log(
+        chalk.dim('Next --codegen run will rediscover instead of reusing ActHistory.')
+      );
+    }
+  );
+
+/**
  * COMMAND: generate
  * Build deterministic Playwright code from a saved execution trace/plan.
  */

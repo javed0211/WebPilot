@@ -22,11 +22,13 @@ Generated tests run with the profile's replay command (`webpilot replay` for Typ
 
 | Trigger | Command |
 |---------|---------|
-| After successful run | `webpilot run tests/web/foo.txt --codegen` |
+| After **successful** run | `webpilot run tests/web/foo.txt --codegen` |
 | From saved trace | `webpilot generate --from latest` |
 | Scenario metadata | `codegen: true` in the `.txt` file header |
 
 By default, `webpilot run` **skips** codegen. You must opt in with `--codegen` or metadata.
+
+**Failed executions never generate code.** If discovery fails, WebPilot prints that codegen was skipped and exits failed — it will not write POMs/specs from a failed ActHistory. See [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
 
 ---
 
@@ -170,6 +172,20 @@ webpilot replay packages/test-framework/tests/checkout.spec.ts
 
 ## How reuse works
 
+### ActHistory (skip rediscovery)
+
+On repeat `--codegen` runs for the same scenario, a **successful** ActHistory may be reused so WebPilot skips the browser. Failed histories are never reused and never generate code.
+
+```bash
+webpilot history list
+webpilot history clear foo
+webpilot run tests/web/foo.txt --codegen --force-discovery
+```
+
+Full rules: [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
+
+### Page objects (knowledge graph)
+
 Before creating `BookingHomePage.ts`, WebPilot checks:
 
 1. `webpilot graph` output — `runtime/knowledge/knowledge-graph.json`
@@ -249,7 +265,8 @@ tests/WebPilot.Playwright.Tests/  # C# Playwright
 | Richest framework scaffold is TypeScript Playwright (`packages/test-framework/`) | Other profiles have full runnable scaffolds; see [Multi-Language Codegen](./multi-language-codegen.md) |
 | Codegen skipped by default on `run` | Pass `--codegen` or set `codegen: true` in scenario |
 | LLM fallback validation loop is TypeScript Playwright only | Other profiles use compile/build validation |
-| Unchanged re-runs still queue codegen with `--codegen` | Roadmap: skip when trace unchanged |
+| Unchanged re-runs still queue codegen with `--codegen` | TypeScript may reuse a passing existing spec; clear history or `--force-discovery` to rediscover |
+| Failed runs must not generate code | Enforced — see [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md) |
 
 ---
 
@@ -268,6 +285,7 @@ tests/WebPilot.Playwright.Tests/  # C# Playwright
 ## See also
 
 - [Multi-Language Codegen](./multi-language-codegen.md)
+- [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md)
 - [Execution & Replay](./execution-and-replay.md)
 - [Repository Knowledge Graph](./repository-knowledge-graph.md)
 - [Assertion Engine](./assertion-engine.md)

@@ -220,17 +220,29 @@ Primary record for HTML report collection. Example fields:
 | `aiAnalysis` | Markdown AI review (after HTML generation with AI enabled) |
 | `browser` | Browser target, headless, viewport, recording flags |
 
-### `runtime/reports/<slug>_execution_history.json`
+### `runtime/reports/data/execution-history/<slug>_execution_history.json`
+
+(Also accepted at legacy path `runtime/reports/<slug>_execution_history.json`.)
 
 | Field | Description |
 |-------|-------------|
 | `nlSteps` | Parsed natural-language steps |
-| `executionHistory` | Array of `{ index, action, selector, value, url, description }` |
+| `actHistory` / `executionHistory` | Array of structured browser acts (codegen source of truth) |
 | `urlSequence` | Ordered list of URLs visited |
 | `runtimeInsights` | Structured insights from the agent run |
-| `isSuccessful`, `isDone` | Agent completion flags |
+| `isSuccessful` | **`true` only when discovery succeeded** — required for ActHistory reuse and codegen |
+| `isDone` | Agent finished the run (not sufficient for reuse/codegen) |
+| `failure` / `errors` | Present when the run failed |
 
-Used by HTML reports and codegen; also input for demo/replay tooling.
+Used by HTML reports and codegen. **Codegen and history reuse require `isSuccessful === true`.** Manage files with:
+
+```bash
+webpilot history list
+webpilot history clear <slug> [--related]
+webpilot history clear --all [-y]
+```
+
+See [guides/act-history-and-codegen-reuse.md](./guides/act-history-and-codegen-reuse.md).
 
 ### `runtime/reports/<slug>_llm_usage.json`
 

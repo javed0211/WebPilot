@@ -182,7 +182,10 @@ WebPilot should feel familiar to automation engineers, but useful to product eng
 ## Documentation
 
 - [Quick start and usage](docs/USAGE.md)
+- [Feature guides](docs/guides/README.md)
+- [ActHistory, codegen reuse & history clear](docs/guides/act-history-and-codegen-reuse.md)
 - [Multi-language codegen](docs/guides/multi-language-codegen.md)
+- [CLI reference](docs/guides/cli-reference.md)
 - [Framework guide](docs/FRAMEWORK_GUIDE.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Reporting](docs/REPORTING.md)

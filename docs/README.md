@@ -15,6 +15,7 @@
 | [Execution & Replay](./guides/execution-and-replay.md) | Run modes, knowledge-only, codegen vs replay |
 | [Intelligent Runner & Site Knowledge](./guides/intelligent-runner-and-site-knowledge.md) | Learned capabilities, per-step replay, performance |
 | [Deterministic Codegen](./guides/deterministic-codegen.md) | Trace → plan → profile-aware test code without LLM |
+| [ActHistory & Codegen Reuse](./guides/act-history-and-codegen-reuse.md) | Success-only codegen, history reuse, `history clear` |
 | [Selector Intelligence & Healing](./guides/selector-intelligence-and-healing.md) | Registry, confidence, `self-heal` |
 | [Test Authoring](./guides/test-authoring.md) | `.txt` format, metadata, templates |
 | [Browser Providers](./guides/browser-providers.md) | browser-use, local-playwright, testmu |

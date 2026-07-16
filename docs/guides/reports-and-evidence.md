@@ -135,7 +135,12 @@ execution:
 
 ```bash
 webpilot reports-tidy   # Migrate legacy flat report files to runtime/ layout
+webpilot history list   # List ActHistory used for --codegen reuse
+webpilot history clear <slug> [--related]   # Clear one scenario
+webpilot history clear --all [-y]           # Clear all ActHistory
 ```
+
+ActHistory rules (success-only codegen, reuse, clearing): [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
 
 ---
 
@@ -172,4 +177,5 @@ See [API Testing](./api-testing.md).
 
 - [CI & Artifacts](./ci-and-artifacts.md)
 - [Flake Analyzer](./flake-analyzer.md)
+- [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md)
 - [REPORTING.md](../REPORTING.md)
