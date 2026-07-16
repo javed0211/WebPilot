@@ -1,5 +1,6 @@
 import { LLMClient, LLMMessage } from '../core/LLMClient';
 import { CodegenContext } from '../core/CodegenContext';
+import { CodegenFailureMemory } from '../core/codegen/CodegenFailureMemory';
 import { PromptLoader } from '../core/PromptLoader';
 
 export interface GeneratedFile {
@@ -30,7 +31,13 @@ export class CodegenAgent {
     symbolGraphContext?: string,
     fallbackReason?: string
   ): Promise<CodegenResult> {
-    const frameworkContext = CodegenContext.buildFullPromptContext(symbolGraphContext);
+    // Refresh + inject knowledge graph before every generate/repair edit.
+    const frameworkContext = CodegenContext.buildFullPromptContext(
+      symbolGraphContext,
+      CodegenContext.knowledgeForEdit()
+    );
+    const priorFailures = CodegenFailureMemory.toPromptBlock(testName);
+    const failureContext = [fallbackReason, priorFailures].filter(Boolean).join('\n\n');
 
     const systemPrompt = PromptLoader.loadWithVars('codegen/agent-system.md', {
       framework_context: frameworkContext,
@@ -47,7 +54,9 @@ export class CodegenAgent {
       test_name: testName,
       architecture,
       execution_history: historyText,
-      fallback_reason: fallbackReason ? `\nPlaywright previously failed with this error. You MUST fix it and output a fixReport.\nError:\n${fallbackReason}\n` : '',
+      fallback_reason: failureContext
+        ? `\nPlaywright previously failed with this error. You MUST fix it and output a fixReport.\nPrefer REUSING pages under packages/test-framework/pages/<site>/ (e.g. wikipedia/) — never invent Www* / En*org* duplicate page classes.\nError:\n${failureContext}\n`
+        : '',
     });
 
     const messages: LLMMessage[] = [

@@ -765,9 +765,24 @@ def build_runtime_insights(history_list: Any, nl_steps: list[str]) -> dict:
 
 def build_full_execution_context(history_list: Any, nl_steps: list[str], test_name: str) -> dict:
     """
-    Complete browser-use export — primary input for codegen.
+    Complete browser-use export — primary input for codegen / Playwright replay.
+
+    Source of truth is ActHistory transformed from AgentHistoryList.
+    NL steps are reference + assertionPlan only — they do not overwrite acts.
     """
-    execution_history = extract_execution_history(history_list)
+    from .act_history import (
+        ACT_HISTORY_SCHEMA_VERSION,
+        act_history_to_execution_rows,
+        build_act_history,
+        build_assertion_plan,
+        build_run_log,
+    )
+
+    act_steps = build_act_history(history_list)
+    # executionHistory = ActHistory rows (legacy TraceBuilder-compatible shape).
+    execution_history = act_history_to_execution_rows(act_steps)
+    # Legacy extract kept for debug only (element_index dumps, memories noise).
+    legacy_raw = extract_execution_history(history_list)
     runtime_insights = build_runtime_insights(history_list, nl_steps)
     memories = _collect_memories_and_extractions(history_list)
 
@@ -788,7 +803,13 @@ def build_full_execution_context(history_list: Any, nl_steps: list[str], test_na
     return {
         "testName": test_name,
         "nlSteps": nl_steps,
+        "schemaVersion": ACT_HISTORY_SCHEMA_VERSION,
+        "historySource": "browser-use-act-history",
+        "actHistory": act_steps,
         "executionHistory": execution_history,
+        "assertionPlan": build_assertion_plan(nl_steps),
+        "runLog": build_run_log(history_list),
+        "legacyRawHistory": legacy_raw,
         "runtimeInsights": runtime_insights,
         "urlSequence": _collect_url_sequence(history_list),
         "actionNames": list(getattr(history_list, "action_names", lambda: [])() or []) if history_list else [],
@@ -801,14 +822,16 @@ def build_full_execution_context(history_list: Any, nl_steps: list[str], test_na
 
 
 def format_history_for_prompt(context: dict) -> str:
-    """Format full execution context for LLM codegen (browser-use is source of truth)."""
+    """Format full execution context for LLM codegen (ActHistory is source of truth)."""
     lines = [
-        "=== CODEGEN SOURCE OF TRUTH: BROWSER-USE LIVE EXECUTION ===",
-        "Generate Playwright code from the data below. NL steps are reference only.",
-        "Every workaround in execution history (cookies, modals, locators) MUST appear in POMs.",
+        "=== CODEGEN SOURCE OF TRUTH: BROWSER-USE ACT HISTORY ===",
+        "Generate Playwright code from ActHistory / executionHistory below.",
+        "NL steps and assertionPlan are secondary (expects/screenshots only).",
+        "Do not invent clicks that are not present in ActHistory.",
         "",
         f"Test: {context.get('testName', '')}",
         f"Agent success: {context.get('isSuccessful')} | done: {context.get('isDone')}",
+        f"History source: {context.get('historySource', 'unknown')}",
         "",
         "=== URL FLOW ===",
     ]
@@ -821,7 +844,7 @@ def format_history_for_prompt(context: dict) -> str:
         lines.append(f"  - {n}")
 
     lines.append("")
-    lines.append("=== STRUCTURED EXECUTION HISTORY ===")
+    lines.append("=== STRUCTURED ACT / EXECUTION HISTORY ===")
     for step in context.get("executionHistory") or []:
         lines.append(
             f"{step.get('index')}. [{step.get('action')}] "
@@ -832,6 +855,13 @@ def format_history_for_prompt(context: dict) -> str:
         desc = step.get("description", "")
         if desc:
             lines.append(f"    {desc[:800]}")
+
+    assertion_plan = context.get("assertionPlan") or []
+    if assertion_plan:
+        lines.append("")
+        lines.append("=== ASSERTION PLAN (codegen expects only — not live acts) ===")
+        for item in assertion_plan:
+            lines.append(f"- [{item.get('kind')}] NL#{item.get('index')}: {item.get('nlStep')}")
 
     mem = context.get("memoriesAndExtractions") or {}
     if mem.get("finalResult"):

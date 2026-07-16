@@ -30,6 +30,11 @@ import {
   summaryPath,
 } from './ReportPaths';
 import { findCliInstallRoot } from '../cli/ProjectContext';
+import { KnowledgeOnlyReplay } from './replay/KnowledgeOnlyReplay';
+import { decideHistoryReuse } from './codegen/HistoryReuse';
+import { ActHistoryCodegenAdapter } from './codegen/ActHistoryCodegenAdapter';
+import { isReplayHealEnabled } from './replay/ReplayHealPolicy';
+import { ActHistoryReplayService } from './replay/ActHistoryReplayService';
 
 export interface EngineRunResult {
   success: boolean;
@@ -121,16 +126,13 @@ export class Engine {
   private finalizeJobUsage(testSlug: string): void {
     const snapshot = UsageTracker.getSnapshot();
     persistJobUsage(testSlug, snapshot);
-    const executionTokens =
-      (snapshot.phases.execution?.promptTokens ?? 0) +
-      (snapshot.phases.execution?.completionTokens ?? 0);
-    const codegenTokens =
-      (snapshot.phases.codegen?.promptTokens ?? 0) +
-      (snapshot.phases.codegen?.completionTokens ?? 0);
-    const phaseNote =
-      codegenTokens > 0
-        ? ` (execution ${executionTokens.toLocaleString()} · codegen ${codegenTokens.toLocaleString()})`
-        : '';
+    const phaseBits = Object.entries(snapshot.phases)
+      .filter(([, phase]) => phase.promptTokens + phase.completionTokens > 0)
+      .map(([name, phase]) => {
+        const tokens = phase.promptTokens + phase.completionTokens;
+        return `${name} ${tokens.toLocaleString()}`;
+      });
+    const phaseNote = phaseBits.length ? ` (${phaseBits.join(' · ')})` : '';
     Logger.detail(
       `Final LLM usage: ${snapshot.totalTokens.toLocaleString()} tokens across ${snapshot.llmCalls} call(s), ~$${snapshot.estimatedCostUsd.toFixed(4)}${phaseNote}`
     );
@@ -142,6 +144,42 @@ export class Engine {
   public async execute(): Promise<EngineRunResult> {
     UsageTracker.reset();
     Logger.info('Initializing execution session');
+
+    const slug = path.basename(this.testFilePath, path.extname(this.testFilePath));
+    const knowledgeOnly = process.env.WEBPILOT_KNOWLEDGE_ONLY === '1';
+    const legacyJsKnowledge = process.env.WEBPILOT_LEGACY_KNOWLEDGE_REPLAY === '1';
+
+    // Phase 4: knowledge-only uses Playwright (generated spec or ActHistory) — not JS execute_capability.
+    if (knowledgeOnly && !legacyJsKnowledge) {
+      Logger.info('Knowledge-only mode — Playwright replay (no browser-use / no LLM discovery)');
+      const planned = KnowledgeOnlyReplay.plan(slug);
+      Logger.detail(planned.reason);
+      if (planned.strategy === 'unavailable') {
+        Logger.error(planned.reason);
+        Logger.detail(
+          'Opt-in legacy JS site-knowledge: WEBPILOT_LEGACY_KNOWLEDGE_REPLAY=1 (deprecated).'
+        );
+        return { success: false, stepsExecuted: 0 };
+      }
+      const replay = await KnowledgeOnlyReplay.run(slug, {
+        headed: this.headed,
+        heal: isReplayHealEnabled(),
+      });
+      if (!replay.success) {
+        Logger.error(replay.detail);
+        return { success: false, stepsExecuted: replay.result?.stepsExecuted ?? 0 };
+      }
+      Logger.success(replay.detail);
+      return {
+        success: true,
+        stepsExecuted: replay.result?.stepsExecuted ?? (planned.strategy === 'spec' ? 1 : 0),
+      };
+    }
+    if (knowledgeOnly && legacyJsKnowledge) {
+      Logger.warn(
+        'WEBPILOT_LEGACY_KNOWLEDGE_REPLAY=1 — using deprecated JS site-knowledge execute_capability path.'
+      );
+    }
     
     // Load config profiles
     const configManager = ConfigManager.getInstance();
@@ -153,6 +191,66 @@ export class Engine {
       : configManager.get('framework.useBrowserUse', false);
 
     if (this.forceBrowserUse || useBrowserUse) {
+      // Reuse prior ActHistory on --codegen re-runs to avoid rediscovery token burn.
+      const historyDecision = decideHistoryReuse(this.testFilePath, slug);
+      if (historyDecision.reuse && historyDecision.historyPath) {
+        Logger.info(`Skipping browser discovery — ${historyDecision.reason}`);
+        try {
+          const pagesDir = path.join(process.cwd(), 'packages', 'test-framework', 'pages');
+          const graph = SymbolParser.generateGraph(pagesDir);
+          SymbolParser.saveGraph(
+            graph,
+            path.join(process.cwd(), 'packages', 'test-framework', 'symbol_graph.json')
+          );
+          await RepoKnowledgeGraph.refreshAsync();
+        } catch (graphErr: any) {
+          Logger.warn(`Symbol graph pre-generation skipped: ${graphErr.message}`);
+        }
+
+        if (process.env.WEBPILOT_CODEGEN === '1') {
+          UsageTracker.setPhase('codegen');
+          const adapted = ActHistoryCodegenAdapter.loadFromSlug(slug);
+          const historyDoc = JSON.parse(fs.readFileSync(historyDecision.historyPath, 'utf8'));
+          const codegenResult = await runPostExecutionCodegen({
+            testName: slug,
+            testFilePath: this.testFilePath,
+            executionHistory: (adapted?.steps || []) as RawExecutionStep[],
+            llmClient: this.llmClient,
+            architecture: this.architecture,
+            fallbackReason: this.fallbackReason,
+            historyDocument: historyDoc,
+          });
+          if (!codegenResult.success) {
+            Logger.error(codegenResult.summary);
+            return { success: false, stepsExecuted: adapted?.steps.length || 0 };
+          }
+          Logger.success(codegenResult.summary);
+          await this.mergeCodegenIntoReport(slug, codegenResult);
+          this.finalizeJobUsage(slug);
+          return { success: true, stepsExecuted: adapted?.steps.length || 0 };
+        }
+
+        // Re-run without --codegen: replay ActHistory with auto-heal (no --heal flag needed).
+        Logger.info(
+          `Replaying ActHistory with self-heal ${isReplayHealEnabled() ? 'on' : 'off'} (no rediscovery)`
+        );
+        const replay = await ActHistoryReplayService.replay(slug, {
+          headed: this.headed,
+          heal: isReplayHealEnabled(),
+        });
+        if (!replay.success) {
+          Logger.error(replay.failure || 'ActHistory replay failed');
+          return { success: false, stepsExecuted: replay.stepsExecuted || 0 };
+        }
+        Logger.success(
+          `ActHistory replay passed (${replay.stepsExecuted} steps` +
+            (replay.healedCount ? `, ${replay.healedCount} healed` : '') +
+            ')'
+        );
+        this.finalizeJobUsage(slug);
+        return { success: true, stepsExecuted: replay.stepsExecuted || 0 };
+      }
+
       Logger.info(`Delegating to browser-use runner (${browserProvider.name})`);
       
       // 1. Generate/refresh the symbol graph so Python gets the latest repo knowledge
@@ -228,9 +326,11 @@ export class Engine {
             const historyFile =
               codegenData.executionHistoryPath || resolveExecutionHistoryPath(baseName);
             let steps: RawExecutionStep[] = [];
+            let historyDocument: Record<string, unknown> | undefined;
             if (fs.existsSync(historyFile)) {
               const raw = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
-              steps = (raw.executionHistory || raw.steps || []) as RawExecutionStep[];
+              historyDocument = raw;
+              steps = (raw.actHistory || raw.executionHistory || raw.steps || []) as RawExecutionStep[];
             }
             const codegenResult = await runPostExecutionCodegen({
               testName: baseName,
@@ -239,6 +339,7 @@ export class Engine {
               llmClient: this.llmClient,
               architecture: this.architecture,
               symbolGraphContext: CodegenContext.buildSymbolGraphContext(),
+              historyDocument,
             });
             if (!codegenResult.success) {
               Logger.error(codegenResult.summary);
@@ -283,7 +384,10 @@ export class Engine {
 
         const historyPath = resolveExecutionHistoryPath(baseName);
         const stepsExecuted = fs.existsSync(historyPath)
-          ? (JSON.parse(fs.readFileSync(historyPath, 'utf8')).executionHistory?.length ?? 0)
+          ? (() => {
+              const hist = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+              return (hist.actHistory || hist.executionHistory)?.length ?? 0;
+            })()
           : 0;
 
         this.finalizeJobUsage(baseName);

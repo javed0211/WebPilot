@@ -174,7 +174,8 @@ function assertTextOrUrlValue(step: TraceStep): AssertionCandidate | null {
     confidence: 0.9,
     description: `Text "${step.value}" is visible`,
     expected: step.value,
-    selector: step.selector,
+    // Never attach invented role:link candidates — emitter must use getByText.
+    selector: undefined,
     source: 'intent',
     signals: ['nl-derived', 'assert-value'],
     risks: [],

@@ -200,6 +200,7 @@ export class CodegenValidator {
     const systemPrompt = PromptLoader.loadWithVars('codegen-fix/typescript-system.md', {
       guidelines: CodegenContext.loadGuidelines(),
       base_page_api: CodegenContext.buildBasePageApiSummary(),
+      repo_knowledge: CodegenContext.knowledgeForEdit(),
     });
 
     const messages: LLMMessage[] = [

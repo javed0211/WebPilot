@@ -131,6 +131,7 @@ export class CodegenPlaywrightValidator {
 
     const systemPrompt = PromptLoader.loadWithVars('codegen-fix/playwright-system.md', {
       guidelines: CodegenContext.loadGuidelines(),
+      repo_knowledge: CodegenContext.knowledgeForEdit(),
     });
 
     const messages: LLMMessage[] = [

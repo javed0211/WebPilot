@@ -55,7 +55,7 @@ export function persistJobUsage(
     estimatedCostUsd: Number(snapshot.estimatedCostUsd.toFixed(6)),
     llmCalls: snapshot.llmCalls,
     phases: snapshot.phases,
-    sources: ['browser-use', 'codegen-validation', 'webpilot-cli'],
+    sources: ['browser-use', 'codegen-validation', 'codegen-repair', 'report-analysis', 'webpilot-cli'],
   };
 
   fs.mkdirSync(path.dirname(usageFile), { recursive: true });

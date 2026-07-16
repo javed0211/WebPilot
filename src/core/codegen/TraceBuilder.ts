@@ -9,6 +9,9 @@ import {
 import { SelectorRanker } from '../selectors/SelectorRanker';
 import { SelectorCandidate } from '../selectors/SelectorCandidate';
 import { SelectorRegistry } from '../selectors/SelectorRegistry';
+import { HealingAgent } from '../../agents/HealingAgent';
+import { ConfigManager } from '../ConfigManager';
+import * as path from 'path';
 import { AssertionRanker } from '../assertions/AssertionRanker';
 
 const TRACE_VERSION = '1.0.0';
@@ -117,7 +120,22 @@ function locatorExpressionFromJson(raw: string): TraceSelector | undefined {
 
 function parseSelector(raw?: string | null, url?: string, intent?: string): TraceSelector | undefined {
   if (!raw || !raw.trim()) return undefined;
-  const selector = raw.trim();
+  let selector = raw.trim();
+
+  // Prefer previously healed selectors so codegen doesn't re-emit broken locators.
+  try {
+    const cachePath = ConfigManager.getInstance().get(
+      'framework.healingCachePath',
+      path.join(process.cwd(), 'runtime', 'healing-cache', 'cache.json')
+    );
+    const healed = HealingAgent.lookupCache(selector, cachePath);
+    if (healed && healed.trim()) {
+      selector = healed.trim();
+    }
+  } catch {
+    /* ignore cache miss / config */
+  }
+
   if (selector.startsWith('[')) {
     const fromJson = locatorExpressionFromJson(selector);
     if (fromJson) return fromJson;
@@ -212,11 +230,16 @@ export class TraceBuilder {
         step.url ||
         (action === 'assert' || action === 'screenshot' || action === 'go_back' ? undefined : currentUrl);
 
+      let selectorRaw = step.selector;
+      if ((!selectorRaw || selectorRaw === 'null') && step.locators?.length) {
+        selectorRaw = JSON.stringify(step.locators);
+      }
+
       normalized.push({
         index: step.index ?? index + 1,
         intent,
         action,
-        selector: parseSelector(step.selector, stepUrl || currentUrl, intent),
+        selector: parseSelector(selectorRaw, stepUrl || currentUrl, intent),
         url: stepUrl,
         value:
           action === 'press'

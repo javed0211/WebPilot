@@ -18,6 +18,14 @@ const MONOLITHIC_PAGE_DENYLIST = ['AutomationExercisePage.ts'];
 /**
  * Persists generated files with AST merge, canonical POM injection, TS + Playwright validation.
  */
+export interface WriteAndValidateResult {
+  ok: boolean;
+  paths: string[];
+  tsIssues?: string[];
+  referenceIssues?: string[];
+  playwrightOutput?: string;
+}
+
 export class CodegenWriter {
   /** Ensure site base POM exists before merging route-specific pages. */
   public static ensureSiteScaffolds(files: GeneratedFile[]): void {
@@ -71,10 +79,41 @@ export class CodegenWriter {
     if (!className) {
       return file.path;
     }
-    if (file.path.includes('automationexercise') || className.startsWith('AutomationExercise')) {
+    const normalized = file.path.replace(/\\/g, '/');
+    if (normalized.includes('automationexercise') || className.startsWith('AutomationExercise')) {
       return `packages/test-framework/pages/automationexercise/${className}.ts`;
     }
+    // Honor site subdirectory when the planner/LLM already chose pages/<site>/Class.ts.
+    // Flattening here caused specs to import ../pages/wikipedia/X while files landed at pages/X.
+    const siteMatch = normalized.match(/(?:^|\/)pages\/([A-Za-z0-9_-]+)\/[^/]+\.ts$/);
+    if (siteMatch && siteMatch[1] !== className) {
+      return `packages/test-framework/pages/${siteMatch[1]}/${className}.ts`;
+    }
     return `packages/test-framework/pages/${className}.ts`;
+  }
+
+  /** Align spec imports with resolved POM paths (flat vs pages/<site>/). */
+  private static rewriteSpecImportsForWrittenPages(
+    specContent: string,
+    pagePaths: string[]
+  ): string {
+    let next = specContent;
+    for (const pagePath of pagePaths) {
+      const normalized = pagePath.replace(/\\/g, '/');
+      const className = path.basename(normalized, '.ts');
+      const afterPages = normalized.replace(/^.*\/pages\//, '');
+      const importTarget = afterPages.replace(/\.ts$/, '');
+      // Rewrite any …/pages/**/ClassName → correct relative import for where we wrote the file.
+      next = next.replace(
+        new RegExp(`from\\s+(['"])(?:\\.\\./)+pages/(?:[^'"]*/)?${className}\\1`, 'g'),
+        `from '../pages/${importTarget}'`
+      );
+      next = next.replace(
+        new RegExp(`from\\s+(['"])@pages/(?:[^'"]*/)?${className}\\1`, 'g'),
+        `from '../pages/${importTarget}'`
+      );
+    }
+    return next;
   }
 
   private static classNameMatchesFile(filePath: string, content: string): boolean {
@@ -87,19 +126,33 @@ export class CodegenWriter {
 
   public static writeFiles(files: GeneratedFile[]): string[] {
     const written: string[] = [];
+    const resolvedPages: string[] = [];
 
-    for (let file of files) {
+    const prepared = files.map((file) => {
       if (CodegenWriter.rejectMonolithicPage(file)) {
-        continue;
+        return null;
       }
-
+      let next = file;
       if (CodegenWriter.isPageObjectPath(file.path)) {
-        file = { ...file, path: CodegenWriter.resolvePageFilePath(file) };
-        if (!CodegenWriter.classNameMatchesFile(file.path, file.content)) {
+        next = { ...file, path: CodegenWriter.resolvePageFilePath(file) };
+        resolvedPages.push(next.path);
+        if (!CodegenWriter.classNameMatchesFile(next.path, next.content)) {
           console.warn(
-            `\x1b[33m[CodegenWriter] Class name in content does not match file ${file.path}; merge may be unsafe.\x1b[0m`
+            `\x1b[33m[CodegenWriter] Class name in content does not match file ${next.path}; merge may be unsafe.\x1b[0m`
           );
         }
+      }
+      return next;
+    });
+
+    for (let file of prepared) {
+      if (!file) continue;
+
+      if (file.path.replace(/\\/g, '/').endsWith('.spec.ts') && resolvedPages.length) {
+        file = {
+          ...file,
+          content: CodegenWriter.rewriteSpecImportsForWrittenPages(file.content, resolvedPages),
+        };
       }
 
       const fullPath = path.join(process.cwd(), file.path);
@@ -151,7 +204,7 @@ export class CodegenWriter {
     files: GeneratedFile[],
     llm: LLMClient,
     normalizeOptions?: NormalizeOptions
-  ): Promise<{ ok: boolean; paths: string[] }> {
+  ): Promise<WriteAndValidateResult> {
     UsageTracker.setPhase('codegen');
     if (ensureFrameworkTsConfig()) {
       console.log('\x1b[32m[CodegenWriter] Wrote tsconfig.json with @core/@config path aliases.\x1b[0m');
@@ -185,10 +238,11 @@ export class CodegenWriter {
     if (
       !reference.valid &&
       reference.issues.some((issue) => issue.code === 'stub_page_object') &&
+      process.env.WEBPILOT_CANONICAL_POMS === '1' &&
       CodegenNormalizer.touchesAutomationExercise(onDisk, normalizeOptions)
     ) {
       console.log(
-        '\x1b[33m[CodegenReferenceValidator] Stub page object detected — re-applying canonical automationexercise POMs.\x1b[0m'
+        '\x1b[33m[CodegenReferenceValidator] Stub page object detected — re-applying canonical automationexercise POMs (WEBPILOT_CANONICAL_POMS=1).\x1b[0m'
       );
       onDisk = CodegenValidationBundle.expand(onDisk, normalizeOptions);
       CodegenWriter.writeFiles(onDisk);
@@ -200,7 +254,11 @@ export class CodegenWriter {
       reference.issues.forEach((issue) => {
         console.error(`  - ${issue.file}: ${issue.message}`);
       });
-      return { ok: false, paths };
+      return {
+        ok: false,
+        paths,
+        referenceIssues: reference.issues.map((issue) => `${issue.file}: ${issue.message}`),
+      };
     }
     console.log(
       `\x1b[32m[CodegenReferenceValidator] Import and method references are valid (${onDisk.length} file(s)).\x1b[0m`
@@ -214,7 +272,11 @@ export class CodegenWriter {
         `\x1b[31m[CodegenValidator] Generated code still has errors after auto-fix.\x1b[0m`
       );
       issues.forEach((i) => console.error(`  ${i.file}:${i.line} — ${i.message}`));
-      return { ok: false, paths };
+      return {
+        ok: false,
+        paths,
+        tsIssues: issues.map((i) => `${i.file}:${i.line} TS${i.code}: ${i.message}`),
+      };
     }
 
     let finalFiles = CodegenValidationBundle.expand(fixedFiles, normalizeOptions);
@@ -229,7 +291,11 @@ export class CodegenWriter {
       postTsReference.issues.forEach((issue) => {
         console.error(`  - ${issue.file}: ${issue.message}`);
       });
-      return { ok: false, paths };
+      return {
+        ok: false,
+        paths,
+        referenceIssues: postTsReference.issues.map((issue) => `${issue.file}: ${issue.message}`),
+      };
     }
 
     const hasSpec = finalFiles.some((f) => f.path.endsWith('.spec.ts'));
@@ -240,7 +306,7 @@ export class CodegenWriter {
         console.error(
           `\x1b[31m[CodegenPlaywrightValidator] Generated spec(s) failed Playwright after auto-fix.\x1b[0m`
         );
-        return { ok: false, paths };
+        return { ok: false, paths, playwrightOutput: pw.output };
       }
       const afterPlaywright = CodegenNormalizer.normalize(pw.files, normalizeOptions);
       if (afterPlaywright.some((f, i) => f.content !== pw.files[i]?.content)) {

@@ -24,6 +24,7 @@ import { HEALING_PROPOSALS_DIR, KNOWLEDGE_GRAPH_PATH } from '../core/ProjectPath
 import { DeterministicCodegenPipeline } from '../core/codegen/DeterministicCodegenPipeline';
 import { readLatestPointer } from '../core/codegen/CodegenPaths';
 import { BrowserProviderRegistry } from '../core/browserProviders/BrowserProviderRegistry';
+import { ConfigManager } from '../core/ConfigManager';
 import { collectSuiteReport } from '../core/execution_report/collector';
 import { writeArtifactManifest } from '../core/ci/ArtifactManifest';
 import { writeGithubActionsWorkflow } from '../core/ci/CiWorkflow';
@@ -885,7 +886,14 @@ program
   .option('--tool <tool>', 'Automation tool: playwright, selenium, cypress, webdriverio')
   .option('--pattern <pattern>', 'Framework pattern: simple, pom, screenplay, bdd')
   .option('--test-runner <runner>', 'Test runner to record in the project profile')
-  .description('Scaffold a brand new WebPilot AI QE project')
+  .option(
+    '--clone <gitUrl>',
+    'Clone an existing automation/framework repo, then overlay WebPilot so CodegenAgent uses its knowledge graph'
+  )
+  .option('--from-path <dir>', 'Use an existing local repo (no clone); overlay WebPilot and build its knowledge graph')
+  .option('--branch <name>', 'Branch to checkout when using --clone')
+  .option('--skip-graph', 'Skip building the repository knowledge graph after init')
+  .description('Scaffold a brand new WebPilot AI QE project (optionally from an existing repo)')
   .action(async (directory: string, options: {
     force?: boolean;
     yes?: boolean;
@@ -897,11 +905,46 @@ program
     tool?: InitTool;
     pattern?: InitPattern;
     testRunner?: string;
+    clone?: string;
+    fromPath?: string;
+    branch?: string;
+    skipGraph?: boolean;
   }) => {
-    const profile = await resolveInitProfile(directory, options);
-    const spinner = ora(`Scaffolding ${profile.language}/${profile.automationTool} WebPilot project...`).start();
+    const { prepareProjectFromExistingRepo } = require('./InitFromRepo') as typeof import('./InitFromRepo');
+    let projectRoot = path.resolve(process.cwd(), directory);
+    let repoPrep: { projectRoot: string; source: string; detail: string } = {
+      projectRoot,
+      source: 'none',
+      detail: 'Scaffolding a new WebPilot project',
+    };
+    if (options.clone || options.fromPath) {
+      try {
+        repoPrep = prepareProjectFromExistingRepo({
+          directory,
+          cloneUrl: options.clone,
+          fromPath: options.fromPath,
+          branch: options.branch,
+        });
+        projectRoot = repoPrep.projectRoot;
+        console.log(chalk.cyan(`\n${repoPrep.detail}`));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(chalk.red(`Init from repo failed: ${message}`));
+        process.exit(1);
+      }
+    }
+
+    // resolveInitProfile uses directory string — pass relative project root when cloned to repo-name folder
+    const profileDirectory =
+      path.relative(process.cwd(), projectRoot) || '.';
+    const profile = await resolveInitProfile(profileDirectory, options);
+    const spinner = ora(
+      repoPrep.source !== 'none'
+        ? `Overlaying WebPilot onto existing repo (${profile.language}/${profile.automationTool})...`
+        : `Scaffolding ${profile.language}/${profile.automationTool} WebPilot project...`
+    ).start();
     try {
-      const projectRoot = path.resolve(process.cwd(), directory);
+      // Use resolved projectRoot (may differ from [directory] when --clone uses repo name)
       const installRoot = findCliInstallRoot();
       const cliPackageVersion = (() => {
         try {
@@ -931,10 +974,13 @@ program
         'runtime/reports/traces',
         'runtime/artifacts',
         'runtime/healing-cache',
+        'runtime/knowledge',
         'runtime/reports/assets',
         'runtime/site-knowledge',
         'runtime/site-knowledge/pages',
         'runtime/site-knowledge/scenarios',
+        'runtime/codegen',
+        'runtime/codegen/failures',
         ...(isFullTypeScriptPlaywright(profile)
           ? [
               'packages/test-framework/apis',
@@ -1229,6 +1275,53 @@ Starter templates for this combination are not fully implemented yet. WebPilot c
         }
 
         spinner.succeed(chalk.green(`WebPilot project initialized at ${projectRoot}`));
+
+        // Index existing page objects / tests so CodegenAgent reuses them on first run.
+        let graphSummary = '';
+        if (!options.skipGraph) {
+          try {
+            const graphSpinner = ora('Building repository knowledge graph for CodegenAgent...').start();
+            const cliEntry = path.join(installRoot, 'dist', 'src', 'cli', 'index.js');
+            const { execFileSync } = require('child_process') as typeof import('child_process');
+            execFileSync(process.execPath, [cliEntry, 'graph'], {
+              cwd: projectRoot,
+              env: { ...process.env, WEBPILOT_PROJECT_ROOT: projectRoot },
+              stdio: 'pipe',
+              encoding: 'utf8',
+            });
+            const graphPath = path.join(projectRoot, 'runtime', 'knowledge', 'knowledge-graph.json');
+            let pageCount = 0;
+            let testCount = 0;
+            let methodCount = 0;
+            if (fs.existsSync(graphPath)) {
+              const graphJson = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
+              pageCount = graphJson?.stats?.pages ?? 0;
+              testCount = graphJson?.stats?.tests ?? 0;
+              methodCount = graphJson?.stats?.methods ?? 0;
+            }
+            graphSpinner.succeed(
+              chalk.green(
+                `Knowledge graph ready (${pageCount} pages, ${testCount} tests, ${methodCount} methods)`
+              )
+            );
+            graphSummary = 'runtime/knowledge/knowledge-graph.json';
+          } catch (graphErr: unknown) {
+            const message = graphErr instanceof Error ? graphErr.message : String(graphErr);
+            console.log(chalk.yellow(`  Knowledge graph build skipped: ${message}`));
+            console.log(chalk.dim(`  Run later from the project: webpilot graph`));
+          }
+        }
+
+        if (repoPrep.source !== 'none') {
+          console.log(
+            chalk.cyan(
+              `\nCodegenAgent will reuse page objects/methods from this repo via the knowledge graph` +
+                (graphSummary ? ` (${graphSummary})` : '') +
+                '.'
+            )
+          );
+        }
+
         console.log(`\n${chalk.cyan('Next steps:')}`);
         if (projectRoot !== process.cwd()) {
           console.log(`  1. ${chalk.bold(`cd ${path.relative(process.cwd(), projectRoot) || projectRoot}`)}`);
@@ -1856,12 +1949,33 @@ program
 program
   .command('setup')
   .description('Create the project Python environment and install the WebPilot browser engine')
-  .action(() => {
+  .option(
+    '--build-graph',
+    'Also refresh the repository knowledge graph after setup (for CodegenAgent reuse)'
+  )
+  .action(async (options: { buildGraph?: boolean }) => {
     const spinner = ora('Preparing the WebPilot Python environment...').start();
     try {
       spinner.stop();
       const python = setupPythonVenv();
       console.log(chalk.green(`Python environment ready: ${python}`));
+      if (options.buildGraph) {
+        const graphSpinner = ora('Building repository knowledge graph...').start();
+        try {
+          const graph = await RepoKnowledgeGraph.refreshAsync();
+          graphSpinner.succeed(
+            chalk.green(
+              `Knowledge graph ready (${graph.stats.pages} pages, ${graph.stats.tests} tests) → runtime/knowledge/knowledge-graph.json`
+            )
+          );
+          console.log(
+            chalk.dim('CodegenAgent loads this graph automatically before every generate/repair edit.')
+          );
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          graphSpinner.fail(chalk.red(`Knowledge graph build failed: ${message}`));
+        }
+      }
     } catch (error: any) {
       spinner.fail(chalk.red(`Setup failed: ${error.message}`));
       process.exitCode = 1;
@@ -2074,9 +2188,11 @@ program
   .option('--parallel <workers>', 'Run parallel workers', '1')
   .option('--provider <name>', 'Browser provider: local-playwright, browser-use, testmu')
   .option('--report', 'Automatically generate HTML report after run completes')
-  .option('--knowledge-only', 'Use learned capabilities only; never invoke WebPilot discovery')
-  .option('--force-discovery', 'Use WebPilot discovery for every step and refresh learned capabilities')
+  .option('--knowledge-only', 'Replay via Playwright (generated spec or ActHistory); no LLM discovery')
+  .option('--force-discovery', 'Force browser-use rediscovery (ignore prior ActHistory reuse)')
   .option('--codegen', 'Generate and validate Playwright code after execution', false)
+  .option('--force-codegen', 'Force codegen regenerate even when an existing spec already passes')
+  .option('--no-heal', 'Disable automatic locator self-heal on ActHistory replay / re-run failure')
   .option('--site-model-only', 'Deprecated alias for --knowledge-only')
   .option('--no-site-model', 'Deprecated alias for --force-discovery')
   .description('Run natural language scripts in fully autonomous execution mode')
@@ -2086,12 +2202,24 @@ program
     }
     if (options.forceDiscovery || options.siteModel === false) {
       process.env.WEBPILOT_DISABLE_SITE_KNOWLEDGE = '1';
+      process.env.WEBPILOT_FORCE_DISCOVERY = '1';
+      process.env.WEBPILOT_REUSE_HISTORY = '0';
     }
     if (options.codegen) {
       process.env.WEBPILOT_CODEGEN = '1';
+      // Prefer config/auto — do not force deterministic over ActHistory+agent repair.
       if (!process.env.WEBPILOT_CODEGEN_MODE) {
-        process.env.WEBPILOT_CODEGEN_MODE = 'deterministic';
+        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'auto');
+        process.env.WEBPILOT_CODEGEN_MODE =
+          cfgMode === 'deterministic' || cfgMode === 'llm' || cfgMode === 'auto' ? cfgMode : 'auto';
       }
+    }
+    if (options.forceCodegen) {
+      process.env.WEBPILOT_FORCE_CODEGEN = '1';
+      process.env.WEBPILOT_CODEGEN = '1';
+    }
+    if (options.noHeal) {
+      process.env.WEBPILOT_REPLAY_HEAL = '0';
     }
     const browserProvider = BrowserProviderRegistry.resolve(options.provider);
     if (!['local-playwright', 'browser-use', 'testmu'].includes(browserProvider.name)) {
@@ -2141,7 +2269,9 @@ program
     if (metadataCodegen) {
       process.env.WEBPILOT_CODEGEN = '1';
       if (!process.env.WEBPILOT_CODEGEN_MODE) {
-        process.env.WEBPILOT_CODEGEN_MODE = 'deterministic';
+        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'auto');
+        process.env.WEBPILOT_CODEGEN_MODE =
+          cfgMode === 'deterministic' || cfgMode === 'llm' || cfgMode === 'auto' ? cfgMode : 'auto';
       }
     }
     if (metadataReport) {
@@ -2173,6 +2303,12 @@ program
     
     let passes = 0;
     let fails = 0;
+    const pendingSummaries: Array<{
+      test: string;
+      success: boolean;
+      durationMs: number;
+      stepsExecuted?: number;
+    }> = [];
     
     const runTest = async (file: string) => {
       const nlFile = file;
@@ -2214,14 +2350,19 @@ program
       }
       
       if (success) passes++; else fails++;
-      
-      CliDisplay.printJobSummary({
+
+      pendingSummaries.push({
         test: testName,
         success,
         durationMs: Date.now() - testStart,
-        usage: UsageTracker.getSnapshot(),
-        stepsExecuted
+        stepsExecuted,
       });
+      if (!options.report) {
+        CliDisplay.printJobSummary({
+          ...pendingSummaries[pendingSummaries.length - 1],
+          usage: UsageTracker.getSnapshot(),
+        });
+      }
     };
     
     let i = 0;
@@ -2240,7 +2381,16 @@ program
     
     if (options.report) {
       Logger.info('\nGenerating HTML report...');
-      await generateExecutionReports({ env: runEnv });
+      await generateExecutionReports({
+        env: runEnv,
+        testSlugs: pendingSummaries.map((s) => s.test),
+      });
+      for (const summary of pendingSummaries) {
+        CliDisplay.printJobSummary({
+          ...summary,
+          usage: UsageTracker.getSnapshot(),
+        });
+      }
     }
 
     const manifest = writeArtifactManifest();
@@ -2260,20 +2410,71 @@ program
   });
 
 /**
- * COMMAND: replay <spec>
+ * COMMAND: replay
+ * - Generated specs: webpilot replay [paths...]
+ * - ActHistory (Playwright): webpilot replay --from <slug>
+ * - Self-heal on locator failure is ON by default; pass --no-heal to disable
  */
 program
   .command('replay')
   .argument(
     '[paths...]',
-    'Generated Playwright spec files or directories',
+    'Generated Playwright spec files or directories (ignored when --from is set)',
     ['packages/test-framework/tests']
   )
-  .option('--project <name>', 'Playwright project to run', 'chromium')
+  .option('--from <slug>', 'Replay saved ActHistory for this scenario slug via Playwright')
+  .option('--project <name>', 'Playwright project to run (spec replay only)', 'chromium')
   .option('--headed', 'Run the browser in headed mode', false)
-  .option('--grep <pattern>', 'Only run tests matching this expression')
-  .description('Replay generated Playwright tests without invoking WebPilot discovery or an LLM')
-  .action((paths: string[], options) => {
+  .option('--grep <pattern>', 'Only run tests matching this expression (spec replay only)')
+  .option('--heal', 'Force-enable self-heal on ActHistory locator failure (already on by default)')
+  .option('--no-heal', 'Disable self-heal on ActHistory locator failure')
+  .description(
+    'Replay without browser-use discovery: generated Playwright specs, or ActHistory via --from'
+  )
+  .action(async (paths: string[], options: {
+    from?: string;
+    project?: string;
+    headed?: boolean;
+    grep?: string;
+    heal?: boolean;
+    noHeal?: boolean;
+  }) => {
+    if (options.from) {
+      const { ActHistoryReplayService } = require('../core/replay/ActHistoryReplayService');
+      const { isReplayHealEnabled } = require('../core/replay/ReplayHealPolicy');
+      let heal = isReplayHealEnabled();
+      if (options.noHeal) heal = false;
+      if (options.heal) heal = true;
+      process.env.WEBPILOT_REPLAY_HEAL = heal ? '1' : '0';
+
+      console.log(chalk.magenta('\n=== WebPilot ActHistory Playwright Replay ==='));
+      console.log(`  Slug: ${chalk.cyan(options.from)}`);
+      console.log(`  Heal on failure: ${heal ? chalk.green('on') : chalk.dim('off')}`);
+      try {
+        const result = await ActHistoryReplayService.replay(options.from, {
+          headed: Boolean(options.headed),
+          heal,
+        });
+        if (result.success) {
+          console.log(
+            chalk.green(
+              `\nReplay passed (${result.stepsExecuted} steps` +
+                (result.healedCount ? `, ${result.healedCount} healed` : '') +
+                ').'
+            )
+          );
+          process.exit(0);
+        }
+        console.error(chalk.red(`\nReplay failed: ${result.failure}`));
+        process.exit(1);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(chalk.red(`Replay failed: ${msg}`));
+        process.exit(2);
+      }
+      return;
+    }
+
     const { spawnSync } = require('child_process');
     const playwrightCli = require.resolve('@playwright/test/cli');
     const args = [
@@ -2372,7 +2573,8 @@ program
   .description('Generate deterministic Playwright code from a saved execution trace')
   .option('--from <slug>', 'Scenario slug to generate from, or "latest"', 'latest')
   .option('--no-validate', 'Skip TypeScript and Playwright validation')
-  .action(async (options: { from?: string; validate?: boolean }) => {
+  .option('--repair', 'Allow CodegenAgent LLM repair when deterministic validation fails')
+  .action(async (options: { from?: string; validate?: boolean; repair?: boolean }) => {
     const slug =
       options.from === 'latest'
         ? readLatestPointer()?.slug || (() => {
@@ -2386,6 +2588,7 @@ program
     try {
       const result = await DeterministicCodegenPipeline.runFromSlug(slug, {
         validate: options.validate !== false,
+        agentRepair: Boolean(options.repair),
       });
       console.log(`\n${chalk.green('Generated files:')}`);
       for (const file of result.files) {
@@ -2456,7 +2659,7 @@ program
  * Build a repository knowledge graph (page objects, tests, methods, relationships)
  * that is fed into code generation so the model reuses existing code instead of
  * re-inventing it. Reuses the TypeScript AST and, if present, enrichment from an
- * Understand-Anything graph (.understand-anything/knowledge-graph.json).
+ * Understand-Anything graph (.ua/knowledge-graph.json or legacy .understand-anything/).
  */
 program
   .command('graph')
@@ -2465,6 +2668,7 @@ program
   .option('--summary', 'Print the compact prompt summary that is injected into codegen')
   .option('--out <path>', 'Write the graph JSON to a custom path')
   .action(async (options: { json?: boolean; summary?: boolean; out?: string }) => {
+    const uaStatus = RepoKnowledgeGraph.understandAnythingStatus();
     const graph = await RepoKnowledgeGraph.buildAsync();
     const outPath = options.out
       ? path.resolve(process.cwd(), options.out)
@@ -2491,6 +2695,14 @@ program
     console.log(`\n${chalk.magenta('=== WebPilot Repository Knowledge Graph ===')}`);
     console.log(`  Profile     : ${chalk.cyan(`${profile.language}/${profile.automationTool}/${profile.frameworkPattern}`)}`);
     console.log(`  Sources     : ${srcParts.join(' + ') || 'none'}`);
+    if (uaStatus.found) {
+      console.log(`  UA graph    : ${chalk.green(uaStatus.relativePath)}`);
+    } else {
+      console.log(
+        `  UA graph    : ${chalk.dim('optional — not present')} ` +
+          chalk.dim('(AST graph is enough; .ua/ merges automatically if you add it)')
+      );
+    }
     console.log(`  Files       : ${stats.files}`);
     console.log(`  Page objects: ${stats.pages}`);
     console.log(`  Tests       : ${stats.tests}`);

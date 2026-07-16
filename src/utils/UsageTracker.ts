@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { estimateCostUsd } from './ModelPricing';
 
-export type UsagePhase = 'design' | 'execution' | 'healing' | 'codegen';
+export type UsagePhase = 'design' | 'execution' | 'healing' | 'codegen' | 'analysis';
 
 export interface PhaseUsage {
   promptTokens: number;
@@ -47,6 +47,7 @@ export class UsageTracker {
     execution: emptyPhase(),
     healing: emptyPhase(),
     codegen: emptyPhase(),
+    analysis: emptyPhase(),
   };
 
   private static ensurePhase(phase: string): PhaseUsage {
@@ -95,6 +96,7 @@ export class UsageTracker {
       execution: emptyPhase(),
       healing: emptyPhase(),
       codegen: emptyPhase(),
+      analysis: emptyPhase(),
     };
   }
 

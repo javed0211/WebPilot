@@ -18,6 +18,8 @@ import {
   summaryPath as summaryFilePath,
   testReportHtmlPath,
 } from './ReportPaths';
+import { UsageTracker } from '../utils/UsageTracker';
+import { persistJobUsage } from '../utils/UsagePersistence';
 
 function ensureReportAssets(): void {
   fs.mkdirSync(REPORTS_ASSETS_DIR, { recursive: true });
@@ -199,6 +201,7 @@ export async function generateExecutionReports(
   if (!options.skipAi && report.testCases.length > 0) {
     try {
       console.log('\x1b[34m[ExecutionReport] Generating AI analysis...\x1b[0m');
+      UsageTracker.setPhase('analysis');
       const llm = new LLMClient();
       for (const t of report.testCases) {
         if (t.aiAnalysis) continue;
@@ -212,6 +215,10 @@ export async function generateExecutionReports(
       }
       if (report.testCases.length > 1) {
         report.suiteAiAnalysis = await analyzeSuite(llm, report);
+      }
+      // Fold analysis tokens into the job total for every test in this report.
+      for (const t of report.testCases) {
+        persistJobUsage(t.slug);
       }
     } catch (err: unknown) {
       console.warn(

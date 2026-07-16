@@ -67,6 +67,12 @@ runtime/screenshots/
 # Repository knowledge graph (regenerated before codegen)
 runtime/knowledge/
 
+# Understand-Anything local scratch (commit the graph JSON; ignore intermediates)
+.ua/intermediate/
+.ua/diff-overlay.json
+.understand-anything/intermediate/
+.understand-anything/diff-overlay.json
+
 # Codegen traces, plans, and metadata (regenerated per run)
 runtime/codegen/
 

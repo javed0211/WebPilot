@@ -15,8 +15,16 @@ export interface NormalizeOptions {
   urls?: string[];
 }
 
+function canonicalPomsEnabled(): boolean {
+  return process.env.WEBPILOT_CANONICAL_POMS === '1';
+}
+
 /**
- * Deterministic post-processing so generated automationexercise flows pass Playwright without manual edits.
+ * Light post-processing for generated files.
+ *
+ * By default: import path fixes only (no hardcoded POM/spec replacement).
+ * Opt-in legacy behavior: WEBPILOT_CANONICAL_POMS=1 replaces automationexercise
+ * output with battle-tested canonical POMs (deprecated — prefer ActHistory codegen).
  */
 export class CodegenNormalizer {
   public static touchesAutomationExercise(files: GeneratedFile[], options?: NormalizeOptions): boolean {
@@ -34,11 +42,22 @@ export class CodegenNormalizer {
   }
 
   public static normalize(files: GeneratedFile[], options?: NormalizeOptions): GeneratedFile[] {
-    if (!CodegenNormalizer.touchesAutomationExercise(files, options)) {
-      return files.map((f) => ({ ...f, content: CodegenNormalizer.normalizeSpecImports(f.content) }));
+    const withImports = files.map((f) => ({
+      ...f,
+      content: f.path.endsWith('.spec.ts')
+        ? CodegenNormalizer.normalizeSpecImports(f.content)
+        : f.content,
+    }));
+
+    if (!canonicalPomsEnabled() || !CodegenNormalizer.touchesAutomationExercise(withImports, options)) {
+      return withImports;
     }
 
-    const pathsPresent = new Set(files.map((f) => f.path.replace(/\\/g, '/')));
+    console.log(
+      '\x1b[33m[CodegenNormalizer] WEBPILOT_CANONICAL_POMS=1 — applying legacy canonical automationexercise POMs.\x1b[0m'
+    );
+
+    const pathsPresent = new Set(withImports.map((f) => f.path.replace(/\\/g, '/')));
     const normalized: GeneratedFile[] = [];
 
     if (ensureFrameworkTsConfig()) {
@@ -61,21 +80,18 @@ export class CodegenNormalizer {
         ? CANONICAL_SPEC_BY_SLUG[options.testSlug]
         : undefined;
 
-    for (const file of files) {
-      const path = file.path.replace(/\\/g, '/');
-      if (AUTOMATION_EXERCISE_CANONICAL_PATHS.has(path)) {
+    for (const file of withImports) {
+      const filePath = file.path.replace(/\\/g, '/');
+      if (AUTOMATION_EXERCISE_CANONICAL_PATHS.has(filePath)) {
         continue;
       }
-      if (path.endsWith('.spec.ts')) {
+      if (filePath.endsWith('.spec.ts')) {
         if (canonicalSpec) {
           normalized.push({ path: canonicalSpec.path, content: canonicalSpec.content });
           pathsPresent.add(canonicalSpec.path);
           continue;
         }
-        normalized.push({
-          path,
-          content: CodegenNormalizer.normalizeSpecImports(file.content),
-        });
+        normalized.push(file);
       } else {
         normalized.push(file);
       }

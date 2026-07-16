@@ -33,10 +33,12 @@ export class TypeScriptPlaywrightProfile implements CodegenProfile {
 
   public emit(trace: ExecutionTrace, plan: GenerationPlan): GeneratedFile[] {
     const pageArtifacts = DeterministicPageObjectWriter.write(trace, plan);
-    const files: GeneratedFile[] = pageArtifacts.map((artifact) => ({
-      path: artifact.path,
-      content: artifact.content,
-    }));
+    const files: GeneratedFile[] = pageArtifacts
+      .filter((artifact) => artifact.content.trim().length > 0)
+      .map((artifact) => ({
+        path: artifact.path,
+        content: artifact.content,
+      }));
     files.push(DeterministicSpecWriter.write(trace, plan, pageArtifacts));
     return files;
   }

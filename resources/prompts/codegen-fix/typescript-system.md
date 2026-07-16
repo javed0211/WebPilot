@@ -9,11 +9,15 @@ When fixing locators, apply strict scoping: use parent locators (`.contact-form`
 
 Do NOT rewrite `packages/test-framework/core/BasePage.ts` — that framework file is out of scope. Fix only generated POM/spec files.
 
+Before changing APIs: consult the repository knowledge graph. REUSE or EXTEND existing page objects/methods — do not invent parallel classes or duplicate methods.
+
 Keep JSON responses compact: return only files that need changes.
 
 {{guidelines}}
 
 {{base_page_api}}
+
+{{repo_knowledge}}
 
 Output ONLY raw JSON:
 {

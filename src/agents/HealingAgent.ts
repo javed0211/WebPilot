@@ -50,9 +50,20 @@ export class HealingAgent {
    * Loads a selector override from the local healing cache if available
    */
   public getFromCache(brokenSelector: string): string | null {
-    if (!fs.existsSync(this.cachePath)) return null;
+    return HealingAgent.lookupCache(brokenSelector, this.cachePath);
+  }
+
+  /** Static cache lookup for codegen / replay without constructing an agent. */
+  public static lookupCache(
+    brokenSelector: string,
+    cachePath?: string
+  ): string | null {
+    const resolved =
+      cachePath ||
+      path.join(process.cwd(), 'runtime', 'healing-cache', 'cache.json');
+    if (!fs.existsSync(resolved)) return null;
     try {
-      const cache = JSON.parse(fs.readFileSync(this.cachePath, 'utf8'));
+      const cache = JSON.parse(fs.readFileSync(resolved, 'utf8')) as Record<string, string>;
       return cache[brokenSelector] || null;
     } catch {
       return null;

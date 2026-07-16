@@ -1,0 +1,8 @@
+spec_run_1 PASSED 2s
+spec_run_2 PASSED 2s
+spec_run_3 PASSED 2s
+spec_run_4 PASSED 2s
+act_run_1 PASSED 2s
+act_run_2 PASSED 1s
+act_run_3 PASSED 2s
+act_run_4 PASSED 1s

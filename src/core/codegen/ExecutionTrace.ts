@@ -53,4 +53,6 @@ export interface RawExecutionStep {
   value?: string | null;
   url?: string | null;
   description: string;
+  /** Optional ActHistory locator candidates (preferred over parsing selector JSON). */
+  locators?: Array<{ kind: string; value?: string; name?: string; tag?: string }>;
 }

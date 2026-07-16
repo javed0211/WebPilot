@@ -1,6 +1,6 @@
 {
   "name": "@qubiqlabs/webpilot",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "AI-native web automation on top of Playwright: natural language execution, codegen, healing, and reports",
   "main": "./dist/src/cli/index.js",
   "bin": {
@@ -54,7 +54,11 @@
     "security:secrets:check": "node scripts/sanitize-publish-secrets.cjs --check",
     "security:secrets:fix": "node scripts/sanitize-publish-secrets.cjs --fix",
     "test:publish-security": "node scripts/test-publish-secret-sanitizer.cjs",
-    "test:codegen-validation": "npm run build && node scripts/test-codegen-validation.cjs"
+    "test:codegen-validation": "npm run build && node scripts/test-codegen-validation.cjs",
+    "test:act-history-replay": "npm run build && node scripts/test-act-history-replay.cjs",
+    "test:act-history-codegen": "npm run build && node scripts/test-act-history-codegen.cjs",
+    "test:knowledge-only-replay": "npm run build && node scripts/test-knowledge-only-replay.cjs",
+    "test:understand-anything-import": "npm run build && node scripts/test-understand-anything-import.cjs"
   },
   "keywords": [
     "web-automation",

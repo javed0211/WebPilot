@@ -1,308 +1,22 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-07-14T23:16:39.569Z",
+  "lastUpdated": "2026-07-16T12:27:10.315Z",
   "classes": [
     {
-      "name": "BookingBasePage",
+      "name": "EnwikipediaorgIndexPhpPage",
       "extendsClass": "BasePage",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/BookingBasePage.ts",
+      "pageIdentity": "EnwikipediaorgIndexPhpPage",
+      "urlPattern": "https://en.wikipedia.org/w/index.php?title=Software_testing&action=history",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/EnwikipediaorgIndexPhpPage.ts",
       "properties": [],
       "methods": [
         {
-          "name": "cookieAcceptButton",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "signInInfoDismissButton",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "dismissCookieConsentIfPresent",
+          "name": "goBackNavigatedBack",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "dismissSignInInfoIfPresent",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "handleInitialOverlays",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "BookingHomePage",
-      "extendsClass": "BookingBasePage",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/BookingHomePage.ts",
-      "properties": [
-        {
-          "name": "urlPattern",
-          "type": "any",
-          "value": "/https:\\/\\/www\\.booking\\.com\\/(\\?.*)?$/"
-        }
-      ],
-      "methods": [
-        {
-          "name": "headerLogo",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "searchForm",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "destinationInput",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "autocompleteList",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "autocompleteOptionForDestination",
-          "parameters": [
-            {
-              "name": "destination",
-              "type": "string"
-            }
-          ],
-          "returnType": "Locator"
-        },
-        {
-          "name": "dateCell",
-          "parameters": [
-            {
-              "name": "date",
-              "type": "string"
-            }
-          ],
-          "returnType": "Locator"
-        },
-        {
-          "name": "searchButton",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "goto",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertLoaded",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "searchHotels",
-          "parameters": [
-            {
-              "name": "destination",
-              "type": "string"
-            },
-            {
-              "name": "checkIn",
-              "type": "string"
-            },
-            {
-              "name": "checkOut",
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<BookingSearchResultsPage>"
-        }
-      ]
-    },
-    {
-      "name": "BookingSearchResultsPage",
-      "extendsClass": "BookingBasePage",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/BookingSearchResultsPage.ts",
-      "properties": [
-        {
-          "name": "urlPattern",
-          "type": "any",
-          "value": "/https:\\/\\/www\\.booking\\.com\\/searchresults\\.html/"
-        }
-      ],
-      "methods": [
-        {
-          "name": "destinationField",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "resultsTitle",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "propertyCards",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "waitForLoaded",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertLoaded",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertDestinationIsLondon",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertAccommodationResultsVisible",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "DemoApplitoolsAppPage",
-      "extendsClass": "BasePage",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/DemoApplitoolsAppPage.ts",
-      "properties": [
-        {
-          "name": "urlPattern",
-          "type": "any",
-          "value": "/https:\\/\\/demo\\.applitools\\.com\\/app\\.html$/"
-        }
-      ],
-      "methods": [
-        {
-          "name": "pageShell",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "sidebar",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "topBar",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "loggedInUserName",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "topBarIcons",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "settingsIcon",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "assertLoaded",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertUsernameVisible",
-          "parameters": [
-            {
-              "name": "username",
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertLoggedInUserVisible",
-          "parameters": [
-            {
-              "name": "username",
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertSettingsIconVisible",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertNoSettingsIconInTopBar",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "DemoApplitoolsLoginPage",
-      "extendsClass": "BasePage",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/DemoApplitoolsLoginPage.ts",
-      "properties": [
-        {
-          "name": "urlPattern",
-          "type": "any",
-          "value": "/https:\\/\\/demo\\.applitools\\.com\\/?$/"
-        }
-      ],
-      "methods": [
-        {
-          "name": "loginForm",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "usernameInput",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "passwordInput",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "signInButton",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "goto",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "login",
-          "parameters": [
-            {
-              "name": "username",
-              "type": "string"
-            },
-            {
-              "name": "password",
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<DemoApplitoolsAppPage>"
-        },
-        {
-          "name": "assertOnLoginPage",
+          "name": "assertCustomSearchedPageForRevisionHistory3MatchesFound",
           "parameters": [],
           "returnType": "Promise<void>"
         }
@@ -317,17 +31,77 @@
       "properties": [],
       "methods": [
         {
-          "name": "assertVerifyPageUrlContainsSoftwareTesting",
+          "name": "assertCustomSearchedPageForSoftwareTesting3MatchesFound",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickViewHistory",
+          "name": "assertCustomSearchedPageForSoftwareTesting100MatchesFound",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickTalk",
+          "name": "assertCustomSearchedPageForFromWikipediaTheFreeEncyclopedia2MatchesFound",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForArticle34MatchesFound",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickViewHistoryClickedAViewHistory",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForSoftwareTesting100MatchesFound1",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForSeeAlso5MatchesFound",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForReferences14MatchesFound",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForExternalLinks3MatchesFound",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForWikipedia21MatchesFound",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "navigateToHttpsEnWikipediaOrgWikiSoftwareTesting",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickTalkClickedATalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForSoftwareTesting100MatchesFound2",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForCategories6MatchesFound",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCustomSearchedPageForThisPageWasLastEdited2MatchesFound",
           "parameters": [],
           "returnType": "Promise<void>"
         }
@@ -342,232 +116,27 @@
       "properties": [],
       "methods": [
         {
-          "name": "assertVerifyPageUrlContainsTalk",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "GithubcomActionsPage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "GithubcomActionsPage",
-      "urlPattern": "https://github.com/microsoft/playwright/actions",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomActionsPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "clickActions",
+          "name": "assertCustomSearchedPageForTalk33MatchesFound",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertVerifyPageUrlContainsActions",
+          "name": "goBackNavigatedBack",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickSecurity",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "GithubcomHomePage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "GithubcomHomePage",
-      "urlPattern": "https://github.com/",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomHomePage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "goto",
+          "name": "assertCustom",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertVerifyGithubHomepageLoadsSuccessfully",
+          "name": "assertCustom1",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickSearchOrJumpTo",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "GithubcomIssuesPage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "GithubcomIssuesPage",
-      "urlPattern": "https://github.com/microsoft/playwright/issues",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomIssuesPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertVerifyPageUrlContainsIssues",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickPullRequests",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "GithubcomPlaywrightPage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "GithubcomPlaywrightPage",
-      "urlPattern": "https://github.com/microsoft/playwright",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomPlaywrightPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertVerifyPageUrlContainsMicrosoftPlaywright",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickIssues",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyPageUrlContainsMicrosoftPlaywright1",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "GithubcomPulsePage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "GithubcomPulsePage",
-      "urlPattern": "https://github.com/microsoft/playwright/pulse",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomPulsePage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertVerifyPageUrlContainsPulse",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickCode",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "GithubcomSearchPage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "GithubcomSearchPage",
-      "urlPattern": "https://github.com/search?q=microsoft%2Fplaywright&type=repositories",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomSearchPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "fillEnterMicrosoftPlaywrightIntoTheSearchInput",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "pressEnter",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyPageUrlContainsSearch",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickMicrosoftPlaywright",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "GithubcomSecurityPage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "GithubcomSecurityPage",
-      "urlPattern": "https://github.com/microsoft/playwright/security",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/GithubcomSecurityPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertVerifyPageUrlContainsSecurity",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickInsights",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "PlaywrightdevHomePage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "PlaywrightdevHomePage",
-      "urlPattern": "https://playwright.dev/",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevHomePage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "goto",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyPlaywrightHomepageLoadsSuccessfully",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickGetStarted",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyPageUrlContainsIntro",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickDocs",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyPageUrlContainsDocs",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "PlaywrightdevIntroPage",
-      "extendsClass": "BasePage",
-      "pageIdentity": "PlaywrightdevIntroPage",
-      "urlPattern": "https://playwright.dev/docs/intro",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/PlaywrightdevIntroPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertVerifyPageUrlContainsIntro",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertVerifyPageUrlContainsDocs",
+          "name": "assertCustom2",
           "parameters": [],
           "returnType": "Promise<void>"
         }
@@ -587,113 +156,121 @@
           "returnType": "Promise<void>"
         },
         {
+          "name": "fillInputSearchWikipediaTypedSoftwareTesting",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSearchClickedButtonSearch",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
           "name": "assertVerifyWikipediaHomepageLoadsSuccessfully",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "fillEnterSoftwareTestingIntoTheSearchInput",
+          "name": "assertVerifyPageUrlContainsSoftwareTesting",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickSearch",
+          "name": "assertVerifyPageUrlContainsTalk",
           "parameters": [],
           "returnType": "Promise<void>"
         }
       ]
     },
     {
-      "name": "AutomationExerciseBasePage",
+      "name": "PlaywrightGettingStartedPage",
       "extendsClass": "BasePage",
-      "pageIdentity": "AutomationExerciseBasePage\nShared Automation Exercise helpers (cookie banner, global nav).",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseBasePage.ts",
+      "pageIdentity": "PlaywrightGettingStartedPage",
+      "urlPattern": "/docs/intro",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/playwright/PlaywrightGettingStartedPage.ts",
       "properties": [],
       "methods": [
         {
-          "name": "assertCountAtLeast",
+          "name": "assertGettingStartedPageLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "PlaywrightHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "PlaywrightHomePage",
+      "urlPattern": "https://playwright\\.dev/?$",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/playwright/PlaywrightHomePage.ts",
+      "properties": [
+        {
+          "name": "url",
+          "type": "any",
+          "value": "'https://playwright.dev/'"
+        }
+      ],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "getStartedLink",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "clickGetStarted",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertHomePageLoaded",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertSectionVisible",
           "parameters": [
             {
-              "name": "locator",
-              "type": "Locator"
-            },
-            {
-              "name": "minimum",
-              "type": "number"
+              "name": "sectionText",
+              "type": "string"
             }
           ],
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertHeadingVisible",
+          "name": "scrollToSection",
+          "parameters": [
+            {
+              "name": "heading",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertFooterCopyright",
           "parameters": [
             {
               "name": "text",
-              "type": "string | RegExp"
+              "type": "string"
             }
           ],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickByRole",
+          "name": "screenshotSection",
           "parameters": [
             {
-              "name": "role",
-              "type": "Role"
+              "name": "sectionText",
+              "type": "string"
             },
             {
-              "name": "options",
-              "type": "RoleOptions"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "dismissCookieConsentIfPresent",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "openProductsFromNav",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "AutomationExerciseCartPage",
-      "extendsClass": "AutomationExerciseBasePage",
-      "pageIdentity": "AutomationExerciseCartPage",
-      "urlPattern": "https://automationexercise.com/view_cart",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseCartPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertOnCartPage",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertCartPageLoaded",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertCartProducts",
-          "parameters": [
-            {
-              "name": "expected",
-              "type": "CartLineItem[]"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertProductsInCart",
-          "parameters": [
-            {
-              "name": "expected",
-              "type": "Array<{ name: string; price: string; quantity: string; total: string; description?: string }>"
+              "name": "filePath",
+              "type": "string"
             }
           ],
           "returnType": "Promise<void>"
@@ -701,40 +278,55 @@
       ]
     },
     {
-      "name": "AutomationExerciseContactUsPage",
-      "extendsClass": "AutomationExerciseBasePage",
-      "pageIdentity": "AutomationExerciseContactUsPage",
-      "urlPattern": "https://automationexercise.com/contact_us",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseContactUsPage.ts",
-      "properties": [],
+      "name": "WikipediaArticlePage",
+      "extendsClass": "BasePage",
+      "urlPattern": "\\/wiki\\/Software_testing",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaArticlePage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/\\/wiki\\/Software_testing/"
+        }
+      ],
       "methods": [
         {
-          "name": "contactForm",
+          "name": "articleMain",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "heading",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "viewHistoryLink",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "talkLink",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "assertOnArticlePage",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "openFromNav",
+          "name": "clickViewHistory",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertContactPageLoaded",
+          "name": "clickTalk",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "fillContactForm",
-          "parameters": [
-            {
-              "name": "data",
-              "type": "{\n    name: string;\n    email: string;\n    subject: string;\n    message: string;\n  }"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "uploadFile",
+          "name": "screenshotHeading",
           "parameters": [
             {
               "name": "filePath",
@@ -744,29 +336,114 @@
           "returnType": "Promise<void>"
         },
         {
-          "name": "submitAndAcceptAlert",
+          "name": "subtitle",
           "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "viewHistoryTab",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "talkTab",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "assertOnArticle",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "string"
+            }
+          ],
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertSubmissionSuccess",
-          "parameters": [],
+          "name": "assertTextVisible",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "string | RegExp"
+            }
+          ],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickHome",
+          "name": "assertSectionVisible",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickTalkTab",
           "parameters": [],
           "returnType": "Promise<void>"
         }
       ]
     },
     {
-      "name": "AutomationExerciseHomePage",
-      "extendsClass": "AutomationExerciseBasePage",
-      "pageIdentity": "AutomationExerciseHomePage",
-      "urlPattern": "https://automationexercise.com/?",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseHomePage.ts",
-      "properties": [],
+      "name": "WikipediaHistoryPage",
+      "extendsClass": "BasePage",
+      "urlPattern": "\\/w\\/index.php\\?title=Software_testing&action=history",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaHistoryPage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/\\/w\\/index.php\\?title=Software_testing&action=history/"
+        }
+      ],
+      "methods": [
+        {
+          "name": "historyMain",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "heading",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "assertOnHistoryPage",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertRevisionHistoryVisible",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertTextVisible",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "string | RegExp"
+            }
+          ],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "WikipediaHomePage",
+      "extendsClass": "BasePage",
+      "urlPattern": "^https:\\/\\/www\\.wikipedia\\.org\\/?$",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaHomePage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/^https:\\/\\/www\\.wikipedia\\.org\\/?$/"
+        }
+      ],
       "methods": [
         {
           "name": "goto",
@@ -774,86 +451,41 @@
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertFeaturedItemsVisible",
+          "name": "searchInput",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "searchButton",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "assertHomePageLoaded",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "goToProductsPage",
+          "name": "fillSearch",
+          "parameters": [
+            {
+              "name": "term",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "submitSearch",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickProductsNav",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        }
-      ]
-    },
-    {
-      "name": "AutomationExerciseProductDetailPage",
-      "extendsClass": "AutomationExerciseBasePage",
-      "pageIdentity": "AutomationExerciseProductDetailPage",
-      "urlPattern": "https://automationexercise.com/product_details/",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseProductDetailPage.ts",
-      "properties": [],
-      "methods": [
-        {
-          "name": "assertProductNameVisible",
+          "name": "search",
           "parameters": [
             {
-              "name": "name",
-              "type": "string | RegExp"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertCategoryVisible",
-          "parameters": [
-            {
-              "name": "category",
-              "type": "string | RegExp"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertPriceVisible",
-          "parameters": [
-            {
-              "name": "price",
-              "type": "string | RegExp"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertAvailabilityVisible",
-          "parameters": [
-            {
-              "name": "status",
-              "type": "string | RegExp"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertConditionVisible",
-          "parameters": [
-            {
-              "name": "condition",
-              "type": "string | RegExp"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "assertBrandVisible",
-          "parameters": [
-            {
-              "name": "brand",
-              "type": "string | RegExp"
+              "name": "term",
+              "type": "string"
             }
           ],
           "returnType": "Promise<void>"
@@ -861,84 +493,44 @@
       ]
     },
     {
-      "name": "AutomationExerciseProductsPage",
-      "extendsClass": "AutomationExerciseBasePage",
-      "pageIdentity": "AutomationExerciseProductsPage",
-      "urlPattern": "https://automationexercise.com/products",
-      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/automationexercise/AutomationExerciseProductsPage.ts",
-      "properties": [],
+      "name": "WikipediaTalkPage",
+      "extendsClass": "BasePage",
+      "urlPattern": "\\/wiki\\/Talk:Software_testing",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaTalkPage.ts",
+      "properties": [
+        {
+          "name": "urlPattern",
+          "type": "any",
+          "value": "/\\/wiki\\/Talk:Software_testing/"
+        }
+      ],
       "methods": [
         {
-          "name": "productCards",
+          "name": "mainContent",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "heading",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
+          "name": "assertOnTalkPage",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertAllProductsVisible",
+          "name": "assertTalkPageLoaded",
           "parameters": [],
           "returnType": "Promise<void>"
         },
         {
-          "name": "assertAllProductsPageLoaded",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "hoverProductAt",
+          "name": "assertTextVisible",
           "parameters": [
             {
-              "name": "index",
-              "type": "number"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "hoverProductCard",
-          "parameters": [
-            {
-              "name": "index",
-              "type": "number"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "hoverProductByIndex",
-          "parameters": [
-            {
-              "name": "index",
-              "type": "number"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "addToCartProductAt",
-          "parameters": [
-            {
-              "name": "index",
-              "type": "number"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickAddToCartByIndex",
-          "parameters": [
-            {
-              "name": "index",
-              "type": "number"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "handleCartModal",
-          "parameters": [
-            {
-              "name": "action",
-              "type": "'continue' | 'view'"
+              "name": "text",
+              "type": "string | RegExp"
             }
           ],
           "returnType": "Promise<void>"

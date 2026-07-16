@@ -5,6 +5,11 @@ import os
 os.environ.setdefault('ANONYMIZED_TELEMETRY', 'false')
 os.environ.setdefault('BROWSER_USE_VERSION_CHECK', 'false')
 os.environ.setdefault('BROWSER_USE_CLOUD_SYNC', 'false')
+# Quiet agent step dumps by default (override with WEBPILOT_VERBOSE=1 or BROWSER_USE_LOGGING_LEVEL=info).
+if os.environ.get('WEBPILOT_VERBOSE', '').strip().lower() in ('1', 'true', 'yes', 'on'):
+    os.environ.setdefault('BROWSER_USE_LOGGING_LEVEL', 'info')
+else:
+    os.environ.setdefault('BROWSER_USE_LOGGING_LEVEL', 'result')
 # First browser launch on Windows often exceeds browser-use's 30s event timeout while
 # default extensions download; disable them and allow a longer launch handshake.
 os.environ.setdefault('BROWSER_USE_DISABLE_EXTENSIONS', 'true')
@@ -55,9 +60,7 @@ import asyncio
 import re
 import datetime
 import yaml
-import glob
 import shutil
-import tempfile
 from typing import Any
 from urllib.parse import urlparse
 
@@ -95,7 +98,6 @@ from .execution_history import (
     append_recipe_replay_history,
     append_replay_history_from_capability,
     build_full_execution_context,
-    build_nl_aligned_codegen_history,
     format_history_for_prompt,
 )
 from .branding import (
@@ -107,7 +109,6 @@ from .testmu import load_testmu_config
 from .prompt_loader import load_framework_rules, load_prompt_with_vars, load_discovery_step_rules
 from .knowledge import (
     actions_from_output,
-    capability_from_aligned_history_step,
     capability_from_step,
     compact_page_state,
     complete_microsoft_login_if_needed,
@@ -115,7 +116,6 @@ from .knowledge import (
     execute_capability,
     KnowledgeRepository,
     load_knowledge_config,
-    origin_for_url,
     prepare_page_for_interaction,
     progressive_outcome_indicates_success,
     try_recipe_step,
@@ -137,6 +137,7 @@ from .credentials import (
 from .capability_contract import classify_failure, infer_intent, is_replay_allowed, route_failure
 from .intent_resolver import detect_page_type, resolve_step_intent
 from .repair_prompt import build_scoped_task
+from .report_artifacts import finalize_artifacts, persist_screenshots
 
 BDD_PREFIXES = ('given', 'when', 'then', 'and', 'but')
 NUMBERED_STEP_RE = re.compile(r'^\d+\.\s+')
@@ -670,20 +671,20 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
 
 
 def build_native_scenario_task(steps: list[str], discovery_rules: str) -> str:
-    """Full-scenario task for stock browser-use — no per-step artificial stop rules."""
+    """Full-scenario task for stock browser-use — consume engine behavior, light policy only."""
     numbered = "\n".join(f"{i}. {step}" for i, step in enumerate(steps, start=1))
     return "\n".join(
         [
             "Execute this test scenario end-to-end in the browser.",
-            "Handle cookie/consent banners, overlays, and auth flows yourself as needed.",
-            "Complete every step in order. Do not stop after a single step.",
-            "Prefer semantic locators (role, label, accessible name).",
+            "Complete every numbered step in order.",
+            "Handle cookie/consent banners, overlays, and auth flows when they block progress;",
+            "otherwise stick to the test steps.",
             "Call done(success=true) only when the full scenario outcome is satisfied.",
             "",
             "Test steps:",
             numbered,
             "",
-            "=== LOCATOR HINTS ===",
+            "=== OPTIONAL HINTS ===",
             discovery_rules,
         ]
     )
@@ -704,12 +705,9 @@ async def run_native_browser_use_scenario(
     perf: dict | None = None,
 ) -> tuple[bool, dict, Any | None]:
     """Run one browser-use Agent on the full scenario; history/codegen follow engine actions."""
-    from .capability_contract import resolve_navigate_target
-
     perf = perf or dict(PERFORMANCE_DEFAULTS)
     judge_mode = str(perf.get('judgeMode', 'verification')).strip().lower()
     resolved_use_vision = _resolve_use_vision(perf.get('useVision', 'auto'))
-    knowledge_repo = KnowledgeRepository(load_knowledge_config(), test_slug)
     from .prompt_loader import load_discovery_native_rules
 
     discovery_rules = load_discovery_native_rules()
@@ -792,13 +790,11 @@ async def run_native_browser_use_scenario(
         directly_open_url=True,
         llm_timeout=int(os.environ.get('WEBPILOT_LLM_TIMEOUT', '180') or 180),
         extend_system_message=(
-            "You are executing a WebPilot QE scenario end-to-end. "
-            "Follow the numbered Test steps in order without skipping. "
-            "Never call done(success=true) after a single field fill or click — "
-            "only when the full scenario outcome (last numbered step) is satisfied. "
-            "Preserve session state. Dismiss blocking cookie/consent UIs before interacting with forms. "
-            "For in-app navigation instructions (for example navigate to a menu or subarea), "
-            "use click/search on the page — do not invent raw URLs."
+            "You are running a WebPilot QE scenario via browser-use. "
+            "Follow the numbered test steps in order. "
+            "Dismiss blocking overlays only when they prevent progress. "
+            "Call done(success=true) only when the last step outcome is satisfied. "
+            "Do not invent raw URLs for in-app navigation — use on-page click/search."
         ),
         **(
             {'sensitive_data': step_sensitive_data}
@@ -831,116 +827,20 @@ async def run_native_browser_use_scenario(
     llm_usage_totals['llmCalls'] += max(0, after_calls - before_calls)
 
     agent_ok = bool(getattr(history, 'is_successful', lambda: False)())
+    # ActHistory from browser-use is the sole executionHistory source of truth.
+    # Do NOT overwrite with NL-aligned zipper (legacy build_nl_aligned_codegen_history).
     context = build_full_execution_context(history, steps, test_name)
     context['engineMode'] = 'native'
     context['learnedSteps'] = 0
     context['reusedSteps'] = 0
+    # Callback captures remain available for debug; they are not the act history.
+    if captured_actions:
+        context['nativeCapturedActions'] = captured_actions
 
-    # Prefer locator-rich captures AND NL-aligned verify/screenshot steps for codegen.
-    aligned = build_nl_aligned_codegen_history(
-        steps,
-        captured_actions=captured_actions,
-        url_sequence=context.get('urlSequence') or [],
-    )
-    if aligned:
-        context['executionHistory'] = aligned
-        if captured_actions:
-            context['nativeCapturedActions'] = captured_actions
-
+    # Site-knowledge promotion from NL zipper is deferred (Phase 3: Playwright replay).
+    # ActHistory already carries locator candidates for codegen / future PW runner.
     learned = 0
-    if agent_ok and aligned:
-        # Promote NL-aligned history so knowledge-only can replay clicks/asserts/go_back.
-        browser_url = (context.get('urlSequence') or [None])[0] or 'about:blank'
-        seq = list(context.get('urlSequence') or [])
-        for nl_step, hist_step in zip(steps, aligned):
-            hist_url = hist_step.get('url') or browser_url
-            action = str(hist_step.get('action') or '')
-            if action == 'click':
-                after_url = browser_url
-                if browser_url in seq:
-                    idx = seq.index(browser_url)
-                    if idx + 1 < len(seq):
-                        after_url = seq[idx + 1]
-                hist_step = {**hist_step, '_afterUrl': after_url}
-            cap = capability_from_aligned_history_step(nl_step, hist_step, page_url=hist_url)
-            if cap:
-                before_pattern = cap.get('before', {}).get('urlPattern') or url_pattern(hist_url)
-                # Verify/assert/screenshot: root origin precondition so homepage↔docs replay matches.
-                if action in ('assert', 'screenshot') or str(cap.get('intent') or '') == 'verify':
-                    origin = origin_for_url(before_pattern)
-                    if origin and origin != '_global':
-                        before_pattern = f"https://{origin}/"
-                cap.setdefault('before', {})['urlPattern'] = before_pattern
-                # Partition by BEFORE page origin so cross-origin navigations (portal→enwiki)
-                # can still find the click/input capability on the page where it runs.
-                if action != 'navigate':
-                    cap['origin'] = origin_for_url(hist_url) or cap.get('origin')
-                if action == 'go_back' or re.search(r'\b(navigate\s+back|go\s+back)\b', nl_step, re.I):
-                    cap['postconditions'] = {
-                        'urlPattern': None,
-                        'requiredAnchors': [],
-                        'notAllowedAnchors': [],
-                        'requiredEvidence': [],
-                        'requiredText': [],
-                        'urlContains': [],
-                        'forbiddenText': [],
-                    }
-                if str(cap.get('intent') or '') in ('interact', 'input'):
-                    cap['postconditions'] = {
-                        'urlPattern': None,
-                        'requiredAnchors': [],
-                        'notAllowedAnchors': [],
-                        'requiredEvidence': [],
-                        'requiredText': [],
-                        'urlContains': [],
-                        'forbiddenText': [],
-                    }
-                knowledge_repo.promote(cap)
-                learned += 1
-            if action == 'navigate' and hist_step.get('url'):
-                browser_url = hist_step['url']
-            elif action == 'go_back':
-                for candidate in reversed(seq):
-                    if candidate != browser_url:
-                        browser_url = candidate
-                        break
-            elif action == 'click':
-                browser_url = hist_step.get('_afterUrl') or browser_url
-    elif agent_ok and captured_actions:
-        # Fallback legacy path when aligned history was unavailable.
-        after_state = await compact_page_state(browser)
-        url_now = after_state.get('url') or await browser.get_current_page_url()
-        action_idx = 0
-        for step in steps:
-            nav = resolve_navigate_target(step)
-            if nav:
-                before = {'url': 'about:blank', 'urlPattern': 'about:blank', 'anchors': [], 'evidence': []}
-                after = {'url': nav, 'urlPattern': nav, 'anchors': [], 'evidence': []}
-                cap = capability_from_step(step, before, after, [{'type': 'navigate', 'url': nav}])
-                if cap:
-                    knowledge_repo.promote(cap)
-                    learned += 1
-                continue
-            if re.match(r'^(verify|assert|check|ensure)\b', step.strip(), re.I):
-                continue
-            while action_idx < len(captured_actions):
-                action = captured_actions[action_idx]
-                action_idx += 1
-                if action.get('type') not in ('click', 'input', 'press', 'go_back'):
-                    continue
-                before = {
-                    'url': url_now,
-                    'urlPattern': url_now,
-                    'anchors': [],
-                    'evidence': [],
-                }
-                after = await compact_page_state(browser)
-                cap = capability_from_step(step, before, after, [action])
-                if cap:
-                    knowledge_repo.promote(cap)
-                    learned += 1
-                break
-
+    act_count = len(context.get('actHistory') or context.get('executionHistory') or [])
     context['learnedSteps'] = learned
     context['knowledgeMetrics'] = {
         'totalSteps': len(steps),
@@ -952,13 +852,16 @@ async def run_native_browser_use_scenario(
         'unsafeSkipped': 0,
         'quarantinedSkipped': 0,
         'blockingUnknownSteps': [] if agent_ok else list(range(1, len(steps) + 1)),
-        'knowledgeCoverage': f"{round((learned / len(steps)) * 100, 1) if steps else 0.0}%",
+        'knowledgeCoverage': '0.0%',
         'fullReplayEligible': False,
         'engineMode': 'native',
+        'actHistorySteps': act_count,
+        'assertionPlanCount': len(context.get('assertionPlan') or []),
     }
     if not agent_ok:
         context['failure'] = 'Native browser-use agent did not complete the scenario successfully'
         context['errors'] = [context['failure']]
+        context.setdefault('runLog', {})['failures'] = [context['failure']]
     return agent_ok, context, native_agent
 
 
@@ -1441,6 +1344,7 @@ def load_browser_artifact_config():
         'traces_dir': str(REPORTS_TRACES_DIR),
         'record_video': False,
         'record_trace': True,
+        'screenshots_mode': 'only-on-failure',
         'provider': 'browser-use',
     }
     try:
@@ -1479,6 +1383,9 @@ def load_browser_artifact_config():
             except ValueError:
                 print(f"Warning: Ignoring invalid WEBPILOT_VIEWPORT_SCALE={scale_raw!r}")
         defaults['record_video'] = browser.get('video', 'off') not in ('off', False, None)
+        ss_mode = str(browser.get('screenshots', 'only-on-failure') or 'only-on-failure').strip().lower()
+        if ss_mode in ('off', 'on', 'only-on-failure'):
+            defaults['screenshots_mode'] = ss_mode
         trace_val = browser.get('trace', True)
         defaults['record_trace'] = trace_val not in ('off', False, None)
         if active_provider == 'testmu':
@@ -1528,56 +1435,6 @@ def browser_provider_summary(browser_cfg):
         'platform': 'local',
     }
 
-def _latest_files(search_roots, patterns):
-    """Collect files matching patterns under each root (newest mtime wins)."""
-    found = []
-    for root in search_roots:
-        if not root or not os.path.isdir(root):
-            continue
-        for pattern in patterns:
-            found.extend(glob.glob(os.path.join(root, '**', pattern), recursive=True))
-    found.sort(key=os.path.getmtime)
-    return found
-
-
-def persist_screenshots(test_slug, history_path):
-    """Copy browser-use step screenshots into reports/ before temp dirs are removed."""
-    if not history_path or not os.path.isfile(history_path):
-        return []
-    try:
-        with open(history_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    except Exception:
-        return []
-
-    dest_dir = str(REPORTS_SCREENSHOTS_DIR / test_slug)
-    os.makedirs(dest_dir, exist_ok=True)
-    saved = []
-    seen = set()
-
-    dump = data.get('fullHistoryDump') or {}
-    for item in dump.get('history') or []:
-        if not isinstance(item, dict):
-            continue
-        state = item.get('state') or {}
-        if not isinstance(state, dict):
-            continue
-        sp = state.get('screenshot_path')
-        if not sp or not os.path.isfile(sp) or sp in seen:
-            continue
-        seen.add(sp)
-        dest = os.path.join(dest_dir, os.path.basename(sp))
-        try:
-            shutil.copy2(sp, dest)
-            saved.append(dest.replace('\\', '/'))
-        except Exception as e:
-            print(f"Warning: could not copy screenshot {sp}: {e}")
-
-    if saved:
-        print(f"Saved {len(saved)} screenshot(s) under {dest_dir}")
-    return saved
-
-
 def trigger_html_reports(test_slug, env_name, test_file_path, skip_ai=False):
     """Generate reports/index.html (fast path via run-cli.ts)."""
     import subprocess
@@ -1589,51 +1446,10 @@ def trigger_html_reports(test_slug, env_name, test_file_path, skip_ai=False):
     cmd = [node, cli, '--env', env_name, '--test', test_slug]
     if skip_ai:
         cmd.append('--no-ai')
-    reuse_only = False
     try:
         subprocess.run(cmd, cwd=os.getcwd(), check=False, timeout=300)
     except Exception as e:
         print(f"Warning: HTML report generation skipped: {e}")
-
-
-def finalize_artifacts(test_slug, video_dir, traces_dir):
-    """Copy latest browser-use recordings into reports/ with stable names."""
-    artifacts = {}
-
-    video_roots = []
-    for d in (video_dir, str(REPORTS_VIDEOS_DIR)):
-        if d:
-            video_roots.append(os.path.abspath(d))
-    video_roots.append(tempfile.gettempdir())
-
-    videos = _latest_files(video_roots, ('*.webm', '*.mp4'))
-    if videos:
-        src = videos[-1]
-        ext = os.path.splitext(src)[1] or '.webm'
-        dest = str(REPORTS_VIDEOS_DIR / f'{test_slug}{ext}')
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        if os.path.abspath(src) != os.path.abspath(dest):
-            shutil.copy2(src, dest)
-        artifacts['video'] = dest
-        print(f"Saved execution video: {dest}")
-
-    trace_roots = []
-    for d in (traces_dir, str(REPORTS_TRACES_DIR)):
-        if d:
-            trace_roots.append(os.path.abspath(d))
-    trace_roots.append(tempfile.gettempdir())
-
-    traces = _latest_files(trace_roots, ('*.zip',))
-    if traces:
-        src = traces[-1]
-        dest = str(REPORTS_TRACES_DIR / f'{test_slug}_trace.zip')
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        if os.path.abspath(src) != os.path.abspath(dest):
-            shutil.copy2(src, dest)
-        artifacts['trace'] = dest
-        print(f"Saved execution trace: {dest}")
-
-    return artifacts
 
 
 def resolve_codegen_mode() -> str:
@@ -1800,6 +1616,13 @@ async def main():
     try:
         engine_mode = str(perf.get('engineMode', 'native')).strip().lower()
         knowledge_only = os.environ.get('WEBPILOT_KNOWLEDGE_ONLY') == '1'
+        legacy_js = os.environ.get('WEBPILOT_LEGACY_KNOWLEDGE_REPLAY') == '1'
+        if knowledge_only and not legacy_js:
+            print(
+                '[WebPilot] WEBPILOT_KNOWLEDGE_ONLY without LEGACY flag reached Python runner unexpectedly. '
+                'Knowledge-only replay is handled in Node via Playwright ActHistory/spec. '
+                'Set WEBPILOT_LEGACY_KNOWLEDGE_REPLAY=1 only for deprecated JS site-knowledge.'
+            )
         if engine_mode == 'native' and not knowledge_only:
             agent_ok, execution_context, scoped_agent = await run_native_browser_use_scenario(
                 browser=browser,
@@ -1816,7 +1639,10 @@ async def main():
             )
         else:
             if engine_mode == 'native' and knowledge_only:
-                print('[WebPilot] WEBPILOT_KNOWLEDGE_ONLY=1 — using scoped/deterministic runner')
+                print(
+                    '[WebPilot] DEPRECATED: JS site-knowledge / scoped runner '
+                    '(WEBPILOT_LEGACY_KNOWLEDGE_REPLAY=1). Prefer Playwright ActHistory replay.'
+                )
             agent_ok, execution_context, scoped_agent = await run_intelligent_steps(
                 browser=browser,
                 llm=llm,
@@ -2077,7 +1903,11 @@ async def main():
             print(f"Warning: could not save LLM usage: {usage_err}")
 
         history_path = str(execution_history_path(base_file_name))
-        screenshot_paths = persist_screenshots(base_file_name, history_path)
+        screenshot_paths = persist_screenshots(
+            base_file_name,
+            history_path,
+            mode=browser_cfg.get('screenshots_mode', 'only-on-failure'),
+        )
         try:
             await shutdown_browser(browser, scoped_agent)
         except Exception as close_error:
@@ -2087,18 +1917,18 @@ async def main():
             browser_cfg['video_dir'] if browser_cfg['record_video'] else None,
             browser_cfg['traces_dir'] if browser_cfg['record_trace'] else None,
         )
-        if screenshot_paths:
-            artifact_paths = artifact_paths or {}
-            artifact_paths['screenshots'] = screenshot_paths
+        artifact_paths = artifact_paths or {}
+        artifact_paths['screenshots'] = screenshot_paths
         report_path = str(resolve_summary_path(base_file_name))
         if os.path.exists(report_path):
             with open(report_path, 'r', encoding='utf-8') as f_rep:
                 report_summary = json.load(f_rep)
-            if artifact_paths:
-                report_summary['artifacts'] = {
-                    **(report_summary.get('artifacts') or {}),
-                    **artifact_paths,
-                }
+            merged = dict(report_summary.get('artifacts') or {})
+            merged.update(artifact_paths)
+            # Drop stale video when this run did not produce a usable recording.
+            if 'video' not in artifact_paths:
+                merged.pop('video', None)
+            report_summary['artifacts'] = merged
             with open(report_path, 'w', encoding='utf-8') as f_rep:
                 json.dump(report_summary, f_rep, indent=2)
         trigger_html_reports(base_file_name, env_name, test_file_path, skip_ai=True)

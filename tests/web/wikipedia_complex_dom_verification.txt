@@ -1,7 +1,7 @@
 @smoke @wikipedia @complex-dom
 target: web
 baseUrl: https://en.wikipedia.org/
-codegen: false
+codegen: true
 report: true
 
 Test: Wikipedia Complex DOM Verification

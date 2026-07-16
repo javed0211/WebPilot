@@ -51,8 +51,9 @@ export function parseSpecImports(
 }
 
 /**
- * Expands generated output with canonical POMs, BasePage, and spec import dependencies
+ * Expands generated output with BasePage and spec import dependencies
  * so validation runs against the same files Playwright will execute.
+ * Canonical POM injection is opt-in via WEBPILOT_CANONICAL_POMS=1.
  */
 export class CodegenValidationBundle {
   public static expand(files: GeneratedFile[], options?: NormalizeOptions): GeneratedFile[] {

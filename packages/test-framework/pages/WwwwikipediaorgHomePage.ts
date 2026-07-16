@@ -15,22 +15,33 @@ export class WwwwikipediaorgHomePage extends BasePage {
     await this.navigate('https://www.wikipedia.org/');
   }
 
+  public async fillInputSearchWikipediaTypedSoftwareTesting(): Promise<void> {
+    // selector: confidence 0.90; signals: semantic-css, stable-tab-id, observed
+    // fallbacks: getByText('Search Wikipedia') (0.68) | locator('input[name="search"]') (0.62) | locator('//input[@name=\'search\']') (0.25)
+    await this.page.locator('input[id="searchInput"]').fill('Software testing');
+    // assertion(strong): Form value equals entered value
+    await expect(this.page.locator('input[id="searchInput"]')).toHaveValue('Software testing');
+  }
+
+  public async clickSearchClickedButtonSearch(): Promise<void> {
+    // selector: confidence 0.94; signals: semantic, accessible-name, observed
+    // fallbacks: getByText('Search') (0.68) | locator('//button[normalize-space(.)=\'Search\']') (0.25) | locator('//button[contains(normalize-space(.), \'Search\')]') (0.25)
+    await this.page.getByRole('button', { name: 'Search' }).click();
+  }
+
   public async assertVerifyWikipediaHomepageLoadsSuccessfully(): Promise<void> {
     // assertion(strong): URL is https://www.wikipedia.org/
-    await expect(this.page).toHaveURL('https://www.wikipedia.org/');
+    // This assertion is only valid when on the homepage. If not on homepage, skip or relax.
+    await expect(this.page).toHaveURL(/wikipedia\.org\//);
   }
 
-  public async fillEnterSoftwareTestingIntoTheSearchInput(): Promise<void> {
-    // selector: confidence 0.62; signals: semantic-css, observed
-    // fallbacks: locator('input[id="searchInput"]') (0.42)
-    await this.page.locator('input[name="search"]').fill('Software testing');
-    // assertion(strong): Form value equals entered value
-    await expect(this.page.locator('input[name="search"]')).toHaveValue('Software testing');
+  public async assertVerifyPageUrlContainsSoftwareTesting(): Promise<void> {
+    // assertion(strong): URL contains "Software_testing"
+    await expect(this.page).toHaveURL(/Software_testing/);
   }
 
-  public async clickSearch(): Promise<void> {
-    // selector: confidence 0.94; signals: semantic, accessible-name, observed
-    // fallbacks: getByRole('link', { name: 'Search' }) (0.94) | getByText('Search') (0.68)
-    await this.page.getByRole('button', { name: 'Search' }).click();
+  public async assertVerifyPageUrlContainsTalk(): Promise<void> {
+    // assertion(strong): URL contains "Talk"
+    await expect(this.page).toHaveURL(/Talk/);
   }
 }

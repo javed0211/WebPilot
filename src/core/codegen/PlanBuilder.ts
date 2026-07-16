@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigManager } from '../ConfigManager';
-import { RepoKnowledgeGraph } from '../knowledge/RepoKnowledgeGraph';
+import { RepoKnowledgeGraph, KnowledgeNode } from '../knowledge/RepoKnowledgeGraph';
 import { ExecutionTrace } from './ExecutionTrace';
 import { CodegenProfilePlan, GenerationPlan, PlannedFile } from './GenerationPlan';
 import { CodegenProfile } from './profiles/CodegenProfile';
@@ -19,9 +19,71 @@ function readProfile(): CodegenProfilePlan {
   };
 }
 
-function pagePathForClass(profileAdapter: CodegenProfile, profile: CodegenProfilePlan, className: string, filePath?: string): string {
+function pagePathForClass(
+  profileAdapter: CodegenProfile,
+  profile: CodegenProfilePlan,
+  className: string,
+  filePath?: string
+): string {
   if (filePath) return filePath.replace(/\\/g, '/');
   return profileAdapter.pagePath(className, profile);
+}
+
+function hostnameFromUrl(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function patternMatchesUrl(pattern: string, url: string): boolean {
+  if (!pattern || !url) return false;
+  const raw = pattern.replace(/^\/([\s\S]+)\/[a-z]*$/i, '$1');
+  try {
+    if (new RegExp(raw).test(url)) return true;
+  } catch {
+    /* fall through */
+  }
+  return url.includes(pattern);
+}
+
+function scorePageNode(node: KnowledgeNode, url: string, host: string | null): number {
+  const file = (node.filePath || '').toLowerCase();
+  const name = (node.name || '').toLowerCase();
+  const pattern = String(node.meta?.urlPattern || '');
+  let score = 0;
+
+  if (host) {
+    const hostToken = host.split('.')[0];
+    if (file.includes(`/pages/${hostToken}/`) || file.includes(`/pages/${host.replace(/\./g, '')}/`)) {
+      score += 12;
+    }
+    if (name.includes(hostToken)) score += 3;
+    if (pattern.toLowerCase().includes(host)) score += 4;
+    if (pattern.toLowerCase().includes(hostToken)) score += 2;
+  }
+
+  // Deprioritize invented flat names from prior bad codegen (Www*, Enwikipediaorg*).
+  if (/^www/i.test(node.name) || /^en[a-z0-9]+org/i.test(node.name)) score -= 20;
+
+  if (pattern && patternMatchesUrl(pattern, url)) score += 15;
+
+  try {
+    const pathName = new URL(url).pathname.replace(/\/$/, '') || '/';
+    if ((pathName === '/' || pathName === '') && /homepage$/i.test(node.name)) score += 4;
+    if (pathName.includes('/wiki/Talk:') && /talk/i.test(node.name)) score += 6;
+    if (pathName.includes('action=history') && /history/i.test(node.name)) score += 6;
+    if (/\/wiki\/[^/]+$/i.test(pathName) && !/Talk:/i.test(pathName) && /article/i.test(node.name)) {
+      score += 5;
+    }
+    const lastSeg = pathName.split('/').filter(Boolean).pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+    if (lastSeg && name.includes(lastSeg)) score += 2;
+  } catch {
+    /* ignore */
+  }
+
+  return score;
 }
 
 function matchPageForUrl(
@@ -32,38 +94,34 @@ function matchPageForUrl(
 ): PlannedFile | null {
   if (!url || !graph) return null;
   if (profile.language !== 'typescript' || profile.automationTool !== 'playwright') return null;
-  for (const node of graph.nodes) {
-    if (node.type !== 'page') continue;
-    const pattern = (node.meta?.urlPattern as string) || '';
-    if (!pattern) continue;
-    try {
-      const regex = new RegExp(pattern);
-      if (regex.test(url)) {
-        return {
-          path: pagePathForClass(profileAdapter, profile, node.name, node.filePath),
-          operation: fs.existsSync(
-            path.join(process.cwd(), node.filePath || pagePathForClass(profileAdapter, profile, node.name))
-          )
-            ? 'extend'
-            : 'create',
-          reason: `Matched existing page object ${node.name} via urlPattern ${pattern}`,
-          className: node.name,
-          urlPattern: pattern,
-        };
-      }
-    } catch {
-      if (url.includes(pattern)) {
-        return {
-          path: pagePathForClass(profileAdapter, profile, node.name, node.filePath),
-          operation: 'extend',
-          reason: `Matched existing page object ${node.name} via url substring ${pattern}`,
-          className: node.name,
-          urlPattern: pattern,
-        };
-      }
-    }
-  }
-  return null;
+
+  const host = hostnameFromUrl(url);
+  const pageNodes = graph.nodes.filter((node) => node.type === 'page');
+
+  const scored = pageNodes
+    .map((node) => ({ node, score: scorePageNode(node, url, host) }))
+    .filter((row) => row.score >= 8)
+    .sort((a, b) => b.score - a.score || a.node.name.localeCompare(b.node.name));
+
+  if (!scored.length) return null;
+
+  const node = scored[0].node;
+  const pattern = (node.meta?.urlPattern as string) || host || url;
+  const summaryHint = node.meta?.summary ? ` — ${String(node.meta.summary).slice(0, 120)}` : '';
+  const fullPath = path.join(
+    process.cwd(),
+    node.filePath || pagePathForClass(profileAdapter, profile, node.name)
+  );
+  const exists = fs.existsSync(fullPath);
+  const curated = (node.filePath || '').includes('/pages/') && (node.filePath || '').split('/').length > 4;
+
+  return {
+    path: pagePathForClass(profileAdapter, profile, node.name, node.filePath),
+    operation: exists ? (curated ? 'reuse' : 'extend') : 'create',
+    reason: `Matched existing page object ${node.name} (score ${scored[0].score})${summaryHint}`,
+    className: node.name,
+    urlPattern: pattern,
+  };
 }
 
 function inferPageClassName(url: string): string {
@@ -93,12 +151,28 @@ export class PlanBuilder {
     const seenPages = new Set<string>();
 
     const urls = [...new Set(trace.steps.map((step) => step.url).filter(Boolean) as string[])];
+    const graph = RepoKnowledgeGraph.load();
     for (const url of urls) {
-      const matched = matchPageForUrl(url, profileAdapter, profile);
+      const matched = matchPageForUrl(url, profileAdapter, profile, graph || undefined);
       if (matched) {
         if (!seenPages.has(matched.path)) {
           pageObjects.push(matched);
           seenPages.add(matched.path);
+          if (graph) {
+            const pageNode = graph.nodes.find(
+              (node) => node.type === 'page' && node.name === matched.className
+            );
+            if (pageNode) {
+              const methods = graph.edges
+                .filter((edge) => edge.from === pageNode.id && edge.type === 'contains')
+                .map((edge) => graph.nodes.find((node) => node.id === edge.to)?.name)
+                .filter(Boolean)
+                .slice(0, 8);
+              if (methods.length) {
+                notes.push(`Reuse methods on ${matched.className}: ${methods.join(', ')}`);
+              }
+            }
+          }
         }
         continue;
       }

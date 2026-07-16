@@ -60,7 +60,7 @@ export interface TestRunHistory {
 }
 
 export interface ReportCodegenInfo {
-  mode: 'deterministic' | 'llm' | 'auto';
+  mode: 'deterministic' | 'llm' | 'auto' | 'reuse';
   specPath: string;
   pageObjectPaths: string[];
   metadataPath: string;
@@ -70,6 +70,7 @@ export interface ReportCodegenInfo {
   validationCommand?: string | null;
   assertionSummary?: AssertionSummary;
   generatedFiles: string[];
+  notes?: string[];
 }
 
 export interface TestCaseReport {

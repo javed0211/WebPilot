@@ -5,7 +5,7 @@ import { GeneratedFile } from '../../agents/CodegenAgent';
 import { CodegenWriter } from '../CodegenWriter';
 import { LLMClient } from '../LLMClient';
 import { RepoKnowledgeGraph } from '../knowledge/RepoKnowledgeGraph';
-import { resolveExecutionHistoryPath } from '../ReportPaths';
+import { ActHistoryCodegenAdapter } from './ActHistoryCodegenAdapter';
 import {
   codegenMetadataPath,
   ensureCodegenDirs,
@@ -28,6 +28,27 @@ import {
   ensureCsharpSeleniumFramework,
 } from '../CsharpFrameworkTemplates';
 import { ensureWebdriverIOFramework, ensureWdioTsConfig } from '../WebdriverIOFrameworkTemplates';
+import { CodegenAgent } from '../../agents/CodegenAgent';
+import { CodegenFailureMemory } from './CodegenFailureMemory';
+import { fingerprintHistoryFile } from './HistoryReuse';
+import { resolveExecutionHistoryPath } from '../ReportPaths';
+import { WriteAndValidateResult } from '../CodegenWriter';
+import { CodegenContext } from '../CodegenContext';
+import { Logger } from '../../utils/Logger';
+
+function formatValidationFailure(validation: WriteAndValidateResult): string {
+  const parts = [
+    `Validation failed for: ${validation.paths.join(', ') || '(unknown files)'}`,
+    validation.tsIssues?.length ? `TypeScript issues:\n${validation.tsIssues.slice(0, 20).join('\n')}` : '',
+    validation.referenceIssues?.length
+      ? `Reference issues:\n${validation.referenceIssues.slice(0, 12).join('\n')}`
+      : '',
+    validation.playwrightOutput
+      ? `Playwright failure (tail):\n${validation.playwrightOutput.slice(-5000)}`
+      : '',
+  ].filter(Boolean);
+  return parts.join('\n\n');
+}
 
 export interface PipelineInput {
   scenario: string;
@@ -35,6 +56,8 @@ export interface PipelineInput {
   sourceFile?: string;
   steps: RawExecutionStep[];
   targetUrl?: string;
+  historySource?: string;
+  symbolGraphContext?: string;
 }
 
 export interface PipelineResult {
@@ -49,20 +72,17 @@ function profileKey(plan: GenerationPlan): string {
   return `${language}-${automationTool}-${frameworkPattern}`;
 }
 
-function loadHistorySteps(slug: string): { steps: RawExecutionStep[]; scenario?: string; sourceFile?: string } | null {
-  const historyFile = resolveExecutionHistoryPath(slug);
-  if (!fs.existsSync(historyFile)) return null;
-  try {
-    const raw = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
-    const steps = (raw.executionHistory || raw.steps || []) as RawExecutionStep[];
-    return {
-      steps,
-      scenario: raw.scenario || raw.testName || slug,
-      sourceFile: raw.sourceFile,
-    };
-  } catch {
-    return null;
-  }
+function loadHistorySteps(slug: string): PipelineInput | null {
+  const loaded = ActHistoryCodegenAdapter.loadFromSlug(slug);
+  if (!loaded) return null;
+  return {
+    scenario: loaded.scenario,
+    scenarioSlug: loaded.scenarioSlug,
+    sourceFile: loaded.sourceFile,
+    steps: loaded.steps,
+    targetUrl: loaded.targetUrl,
+    historySource: loaded.historySource,
+  };
 }
 
 export class DeterministicCodegenPipeline {
@@ -133,11 +153,9 @@ export class DeterministicCodegenPipeline {
     const loaded = loadHistorySteps(slug);
     if (!loaded || loaded.steps.length === 0) return null;
     return {
+      ...loaded,
       scenario: scenario || loaded.scenario || slug,
-      scenarioSlug: slug,
       sourceFile: sourceFile || loaded.sourceFile,
-      steps: loaded.steps,
-      targetUrl: loaded.steps.find((step) => step.url)?.url || undefined,
     };
   }
 
@@ -224,24 +242,98 @@ export class DeterministicCodegenPipeline {
     }
   }
 
-  public static async run(input: PipelineInput, options?: { validate?: boolean }): Promise<PipelineResult> {
+  public static async run(input: PipelineInput, options?: { validate?: boolean; agentRepair?: boolean }): Promise<PipelineResult> {
     await RepoKnowledgeGraph.refreshAsync();
+    const graphContext =
+      input.symbolGraphContext || CodegenContext.buildSymbolGraphContext();
     const { trace, plan } = DeterministicCodegenPipeline.buildTraceAndPlan(input);
-    const files = DeterministicCodegenPipeline.generateDeterministicFiles(trace, plan);
-    const metadata = DeterministicCodegenPipeline.persist(trace, plan, files);
+    if (input.historySource) {
+      plan.notes.push(`History source: ${input.historySource}`);
+    }
+    let files = DeterministicCodegenPipeline.generateDeterministicFiles(trace, plan);
+    let metadata = DeterministicCodegenPipeline.persist(trace, plan, files);
+    metadata = { ...metadata, mode: 'deterministic' };
 
     const profile = CodegenProfileRegistry.resolve(plan.profile);
     DeterministicCodegenPipeline.ensureProfileScaffold(plan);
     if (options?.validate === false) {
       CodegenWriter.writeFiles(files);
-    } else if (profile.language === 'typescript' && profile.automationTool === 'playwright') {
+      return { trace, plan, files, metadata };
+    }
+
+    if (profile.language === 'typescript' && profile.automationTool === 'playwright') {
       const llm = new LLMClient();
-      const { ok, paths } = await CodegenWriter.writeAndValidate(files, llm, {
+      const validation = await CodegenWriter.writeAndValidate(files, llm, {
         testSlug: trace.scenarioSlug,
         urls: [...new Set(trace.steps.map((step) => step.url).filter(Boolean) as string[])],
       });
-      if (!ok) {
-        throw new Error(`Generated code failed validation for ${paths.join(', ')}`);
+      if (!validation.ok) {
+        const allowAgentRepair = options?.agentRepair !== false;
+        const historyFp =
+          fingerprintHistoryFile(resolveExecutionHistoryPath(trace.scenarioSlug)) || undefined;
+        CodegenFailureMemory.save({
+          slug: trace.scenarioSlug,
+          updatedAt: new Date().toISOString(),
+          paths: validation.paths,
+          playwrightOutput: validation.playwrightOutput,
+          tsIssues: validation.tsIssues,
+          referenceIssues: validation.referenceIssues,
+          historyFingerprint: historyFp,
+        });
+        if (!allowAgentRepair) {
+          throw new Error(`Generated code failed validation for ${validation.paths.join(', ')}`);
+        }
+        Logger.warn(
+          `Deterministic codegen validation failed; invoking CodegenAgent repair with repo knowledge graph + prior failure memory.`
+        );
+        const agent = new CodegenAgent(llm);
+        const llmSteps = input.steps.map((step) => ({
+          action: step.action,
+          selector: step.selector ?? undefined,
+          value: step.value ?? undefined,
+          url: step.url ?? undefined,
+          description: step.description,
+        }));
+        const failureDetail = formatValidationFailure(validation);
+        const prior = CodegenFailureMemory.toPromptBlock(trace.scenarioSlug);
+        const generated = await agent.generateCode(
+          input.scenario,
+          llmSteps,
+          'pom',
+          graphContext,
+          [failureDetail, prior].filter(Boolean).join('\n\n')
+        );
+        const repaired = await CodegenWriter.writeAndValidate(generated.files, llm, {
+          testSlug: trace.scenarioSlug,
+          urls: [...new Set(input.steps.map((step) => step.url).filter(Boolean) as string[])],
+        });
+        if (!repaired.ok) {
+          CodegenFailureMemory.save({
+            slug: trace.scenarioSlug,
+            updatedAt: new Date().toISOString(),
+            paths: repaired.paths,
+            playwrightOutput: repaired.playwrightOutput,
+            tsIssues: repaired.tsIssues,
+            referenceIssues: repaired.referenceIssues,
+            fixReport: generated.fixReport,
+            historyFingerprint: historyFp,
+          });
+          throw new Error(
+            `CodegenAgent repair still failed validation for ${repaired.paths.join(', ')}`
+          );
+        }
+        CodegenFailureMemory.clear(trace.scenarioSlug);
+        files = generated.files;
+        metadata = DeterministicCodegenPipeline.persist(trace, plan, files);
+        metadata.mode = 'llm';
+        fs.writeFileSync(
+          codegenMetadataPath(trace.scenarioSlug),
+          JSON.stringify(metadata, null, 2),
+          'utf8'
+        );
+        plan.notes.push('Repaired by CodegenAgent using ActHistory + repository knowledge graph');
+      } else {
+        CodegenFailureMemory.clear(trace.scenarioSlug);
       }
     } else {
       CodegenWriter.writeFiles(files);
@@ -253,7 +345,7 @@ export class DeterministicCodegenPipeline {
 
   public static async runFromSlug(
     slug: string,
-    options?: { validate?: boolean; scenario?: string; sourceFile?: string }
+    options?: { validate?: boolean; scenario?: string; sourceFile?: string; agentRepair?: boolean }
   ): Promise<PipelineResult> {
     const input = DeterministicCodegenPipeline.fromSlug(slug, options?.scenario, options?.sourceFile);
     if (!input) {

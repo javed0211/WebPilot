@@ -10,7 +10,10 @@ Rules:
 - Spec imports MUST use `@pages/automationexercise/...` when those pages apply.
 - Use catalog method names when applicable: `goToProductsPage`, `assertAllProductsVisible`, `hoverProductAt`, `addToCartProductAt`, `handleCartModal`, `assertOnCartPage`, `assertCartProducts`, `fillContactForm`, etc.
 - For strict mode violations: scope with region locators or `.first()` — not invented testids.
+- Before editing: consult the repository knowledge graph. REUSE or EXTEND existing page/method APIs instead of inventing new ones.
 
 {{guidelines}}
+
+{{repo_knowledge}}
 
 Output ONLY raw JSON: { "files": [ { "path": "...", "content": "..." } ] }

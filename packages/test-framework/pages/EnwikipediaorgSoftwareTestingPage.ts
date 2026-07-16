@@ -11,20 +11,70 @@ export class EnwikipediaorgSoftwareTestingPage extends BasePage {
     super(page);
   }
 
-  public async assertVerifyPageUrlContainsSoftwareTesting(): Promise<void> {
-    // assertion(strong): URL contains "Software_testing"
+  public async assertCustomSearchedPageForSoftwareTesting3MatchesFound(): Promise<void> {
+    // assertion(medium): URL contains "Software_testing"
     await expect(this.page).toHaveURL(/Software_testing/);
   }
 
-  public async clickViewHistory(): Promise<void> {
-    // selector: confidence 0.94; signals: semantic, accessible-name, observed
-    // fallbacks: getByRole('button', { name: 'View history' }) (0.94) | getByText('View history') (0.68) | getByText('Past revisions of this page [ctrl-option-h]') (0.68)
+  public async assertCustomSearchedPageForSoftwareTesting100MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async assertCustomSearchedPageForFromWikipediaTheFreeEncyclopedia2MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async assertCustomSearchedPageForArticle34MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async clickViewHistoryClickedAViewHistory(): Promise<void> {
+    // selector: confidence 0.99; signals: semantic, accessible-name, observed
+    // fallbacks: getByText('View history') (0.68) | locator('a[href="/w/index.php?title=Software_testing&action=history"]') (0.64) | locator('//a[normalize-space(.)=\'View history\']') (0.25)
     await this.page.getByRole('link', { name: 'View history' }).click();
   }
 
-  public async clickTalk(): Promise<void> {
+  public async assertCustomSearchedPageForSoftwareTesting100MatchesFound1(): Promise<void> {
+    // assertion(medium): URL contains "Software_testing"
+    await expect(this.page).toHaveURL(/Software_testing/);
+  }
+
+  public async assertCustomSearchedPageForSeeAlso5MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async assertCustomSearchedPageForReferences14MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async assertCustomSearchedPageForExternalLinks3MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async assertCustomSearchedPageForWikipedia21MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async navigateToHttpsEnWikipediaOrgWikiSoftwareTesting(): Promise<void> {
+    await this.page.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });
+  }
+
+  public async clickTalkClickedATalk(): Promise<void> {
     // selector: confidence 0.94; signals: semantic, accessible-name, observed
-    // fallbacks: getByRole('button', { name: 'Talk' }) (0.94) | getByText('Talk') (0.68) | getByText('Discuss improvements to the content page [ctrl-option-t]') (0.68)
+    // fallbacks: getByText('Talk') (0.68) | locator('a[href="/wiki/Talk:Software_testing"]') (0.64) | locator('//a[normalize-space(.)=\'Talk\']') (0.25)
     await this.page.getByRole('link', { name: 'Talk' }).click();
+  }
+
+  public async assertCustomSearchedPageForSoftwareTesting100MatchesFound2(): Promise<void> {
+    // assertion(medium): URL contains "Software_testing"
+    await expect(this.page).toHaveURL(/Software_testing/);
+  }
+
+  public async assertCustomSearchedPageForCategories6MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
+  }
+
+  public async assertCustomSearchedPageForThisPageWasLastEdited2MatchesFound(): Promise<void> {
+    await expect(this.page).toHaveURL("https://en.wikipedia.org/wiki/Software_testing");
   }
 }

@@ -21,7 +21,9 @@ import { SymbolParser, ClassSymbolInfo } from '../SymbolParser';
  * We do not vendor those repos. CodeFlow currently has no license, and
  * Understand-Anything is a coding-agent plugin rather than an embeddable npm
  * library. Instead, WebPilot reuses the same core pattern and interoperates with
- * `.understand-anything/knowledge-graph.json` when it exists.
+ * Understand-Anything graph JSON when present:
+ *   - `.ua/knowledge-graph.json` (current)
+ *   - `.understand-anything/knowledge-graph.json` (legacy)
  */
 
 export type KnowledgeNodeType =
@@ -106,6 +108,7 @@ type ImportedUnderstandGraph = {
   summaries: Map<string, string>;
   nodes: KnowledgeNode[];
   edges: KnowledgeEdge[];
+  sourcePath: string | null;
 };
 
 type ScanFile = {
@@ -144,6 +147,7 @@ const IGNORED_DIRS = new Set([
   '.svn',
   '.cursor',
   '.understand-anything',
+  '.ua',
   'node_modules',
   'dist',
   'build',
@@ -157,6 +161,23 @@ const IGNORED_DIRS = new Set([
   'bin',
   'obj',
 ]);
+
+/**
+ * Candidate paths for Understand-Anything knowledge graphs (first hit wins).
+ * Prefer legacy `.understand-anything/` when present (UA keeps that dir), else `.ua/`.
+ */
+export const UNDERSTAND_ANYTHING_GRAPH_CANDIDATES = [
+  path.join('.understand-anything', 'knowledge-graph.json'),
+  path.join('.ua', 'knowledge-graph.json'),
+] as const;
+
+export function resolveUnderstandAnythingGraphPath(root: string = PROJECT_ROOT): string | null {
+  for (const rel of UNDERSTAND_ANYTHING_GRAPH_CANDIDATES) {
+    const abs = path.join(root, rel);
+    if (fs.existsSync(abs)) return abs;
+  }
+  return null;
+}
 
 function readProfile(): RepoKnowledgeProfile {
   try {
@@ -479,70 +500,164 @@ function cleanImportSpecifier(text: string, language: TreeSitterLanguageKey): st
   return null;
 }
 
-function loadUnderstandAnythingGraph(): ImportedUnderstandGraph {
-  const result: ImportedUnderstandGraph = { summaries: new Map(), nodes: [], edges: [] };
-  const candidate = path.join(PROJECT_ROOT, '.understand-anything', 'knowledge-graph.json');
-  if (!fs.existsSync(candidate)) return result;
+function mapUnderstandNodeType(
+  rawType: string,
+  name: string,
+  filePath?: string
+): KnowledgeNodeType {
+  const t = rawType.toLowerCase();
+  const pathLower = (filePath || '').toLowerCase();
+  const nameLower = name.toLowerCase();
 
-  try {
-    const raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
-    const rawNodes: any[] = Array.isArray(raw) ? raw : raw.nodes || raw.graph?.nodes || [];
-    const rawEdges: any[] = raw.edges || raw.links || raw.graph?.edges || raw.graph?.links || [];
+  if (t.includes('page') || pathLower.includes('/pages/') || /page$/i.test(name)) return 'page';
+  if (t.includes('test') || pathLower.includes('/tests/') || pathLower.includes('.spec.')) return 'test';
+  if (t.includes('api') || pathLower.includes('/apis/')) return 'api';
+  if (t.includes('domain') || t.includes('flow') || t.includes('concept')) return 'domain';
+  if (t.includes('file') || t.includes('module')) return 'file';
+  if (t.includes('class')) return 'class';
+  if (t.includes('method')) return 'method';
+  if (t.includes('function') || t.includes('step')) return 'function';
+  if (nameLower.endsWith('page') && pathLower) return 'page';
+  return 'unknown';
+}
 
-    for (const rawNode of rawNodes) {
-      if (!rawNode || typeof rawNode !== 'object') continue;
-      const name = String(rawNode.name || rawNode.label || rawNode.id || 'unknown');
-      const rawPath = rawNode.path || rawNode.file || rawNode.filePath || rawNode.relativePath;
-      const normalizedPath = typeof rawPath === 'string' ? normalizePath(rawPath) : undefined;
-      const summary = rawNode.summary || rawNode.description || rawNode.explanation;
-      const rawType = String(rawNode.type || rawNode.kind || '').toLowerCase();
-      const type: KnowledgeNodeType =
-        rawType.includes('file') ? 'file' :
-        rawType.includes('class') ? 'class' :
-        rawType.includes('function') ? 'function' :
-        rawType.includes('method') ? 'method' :
-        rawType.includes('domain') ? 'domain' :
-        'unknown';
+function mapUnderstandEdgeType(label: string): KnowledgeEdgeType {
+  const t = label.toLowerCase();
+  if (t.includes('import')) return 'imports';
+  if (t.includes('export')) return 'exports';
+  if (t.includes('extend') || t.includes('inherit')) return 'extends';
+  if (t.includes('call') || t.includes('invoke')) return 'calls';
+  if (t.includes('contain') || t.startsWith('has_') || t.includes('contains_flow') || t.includes('flow_step')) {
+    return 'contains';
+  }
+  if (t.includes('depend') || t.includes('uses') || t.includes('reference') || t.includes('cross_domain')) {
+    return 'depends_on';
+  }
+  return 'semantic';
+}
 
-      if (typeof summary === 'string') {
-        result.summaries.set(normalizeKey(name), summary.trim());
-        if (normalizedPath) result.summaries.set(normalizeKey(normalizedPath), summary.trim());
+/** Parse Understand-Anything (or understand-quickly) graph JSON into WebPilot nodes/edges. */
+export function parseUnderstandAnythingPayload(raw: unknown): Omit<ImportedUnderstandGraph, 'sourcePath'> {
+  const result: Omit<ImportedUnderstandGraph, 'sourcePath'> = {
+    summaries: new Map(),
+    nodes: [],
+    edges: [],
+  };
+  if (!raw || typeof raw !== 'object') return result;
+
+  const payload = raw as Record<string, any>;
+  const rawNodes: any[] = Array.isArray(raw)
+    ? raw
+    : payload.nodes || payload.graph?.nodes || [];
+  const rawEdges: any[] =
+    payload.edges || payload.links || payload.graph?.edges || payload.graph?.links || [];
+
+  for (const rawNode of rawNodes) {
+    if (!rawNode || typeof rawNode !== 'object') continue;
+    const name = String(rawNode.name || rawNode.label || rawNode.id || 'unknown');
+    const rawPath = rawNode.path || rawNode.file || rawNode.filePath || rawNode.relativePath;
+    const normalizedPath = typeof rawPath === 'string' ? normalizePath(rawPath) : undefined;
+    const summary =
+      rawNode.summary ||
+      rawNode.description ||
+      rawNode.explanation ||
+      rawNode.domainMeta?.description;
+    const rawType = String(rawNode.type || rawNode.kind || '').toLowerCase();
+    const type = mapUnderstandNodeType(rawType, name, normalizedPath);
+
+    const urlPattern =
+      rawNode.urlPattern ||
+      rawNode.meta?.urlPattern ||
+      rawNode.tags?.urlPattern ||
+      (typeof rawNode.url === 'string' ? rawNode.url : undefined);
+
+    if (typeof summary === 'string' && summary.trim()) {
+      const trimmed = summary.trim();
+      result.summaries.set(normalizeKey(name), trimmed);
+      if (normalizedPath) {
+        result.summaries.set(normalizeKey(normalizedPath), trimmed);
+        result.summaries.set(normalizeKey(path.basename(normalizedPath)), trimmed);
       }
-
-      result.nodes.push({
-        id: `understand:${normalizePath(String(rawNode.id || normalizedPath || name))}`,
-        type,
-        name,
-        filePath: normalizedPath,
-        layer: normalizedPath ? layerForPath(normalizedPath) : undefined,
-        language: normalizedPath ? languageForFile(normalizedPath) : undefined,
-        meta: {
-          source: 'understand-anything',
-          ...(typeof summary === 'string' ? { summary: summary.trim() } : {}),
-        },
-      });
+      // Class name without extension / path suffix
+      const baseName = name.replace(/\.(ts|tsx|js|jsx|py|java|cs|go)$/i, '');
+      if (baseName !== name) result.summaries.set(normalizeKey(baseName), trimmed);
     }
 
-    for (const rawEdge of rawEdges) {
-      if (!rawEdge || typeof rawEdge !== 'object') continue;
-      const from = rawEdge.from || rawEdge.source || rawEdge.sourceId;
-      const to = rawEdge.to || rawEdge.target || rawEdge.targetId;
-      if (!from || !to) continue;
-      result.edges.push({
-        from: `understand:${normalizePath(String(from))}`,
-        to: `understand:${normalizePath(String(to))}`,
-        type: 'semantic',
-        meta: {
-          source: 'understand-anything',
-          label: rawEdge.type || rawEdge.label || rawEdge.relationship,
-        },
-      });
-    }
-  } catch {
-    return { summaries: new Map(), nodes: [], edges: [] };
+    result.nodes.push({
+      id: `understand:${normalizePath(String(rawNode.id || normalizedPath || name))}`,
+      type,
+      name,
+      filePath: normalizedPath,
+      layer: normalizedPath ? layerForPath(normalizedPath) : undefined,
+      language: normalizedPath ? languageForFile(normalizedPath) : undefined,
+      meta: {
+        source: 'understand-anything',
+        ...(typeof summary === 'string' && summary.trim() ? { summary: summary.trim() } : {}),
+        ...(typeof urlPattern === 'string' && urlPattern ? { urlPattern } : {}),
+        ...(rawType ? { uaKind: rawType } : {}),
+      },
+    });
+  }
+
+  for (const rawEdge of rawEdges) {
+    if (!rawEdge || typeof rawEdge !== 'object') continue;
+    const from = rawEdge.from || rawEdge.source || rawEdge.sourceId;
+    const to = rawEdge.to || rawEdge.target || rawEdge.targetId;
+    if (!from || !to) continue;
+    const label = String(rawEdge.type || rawEdge.kind || rawEdge.label || rawEdge.relationship || 'semantic');
+    result.edges.push({
+      from: `understand:${normalizePath(String(from))}`,
+      to: `understand:${normalizePath(String(to))}`,
+      type: mapUnderstandEdgeType(label),
+      meta: {
+        source: 'understand-anything',
+        label,
+      },
+    });
   }
 
   return result;
+}
+
+function loadUnderstandAnythingGraph(root: string = PROJECT_ROOT): ImportedUnderstandGraph {
+  const empty: ImportedUnderstandGraph = {
+    summaries: new Map(),
+    nodes: [],
+    edges: [],
+    sourcePath: null,
+  };
+
+  const primary = resolveUnderstandAnythingGraphPath(root);
+  if (!primary) return empty;
+
+  try {
+    const raw = JSON.parse(fs.readFileSync(primary, 'utf8'));
+    const parsed = parseUnderstandAnythingPayload(raw);
+    const result: ImportedUnderstandGraph = {
+      ...parsed,
+      sourcePath: primary,
+    };
+
+    // Optional domain graph from the same UA data directory
+    const domainPath = path.join(path.dirname(primary), 'domain-graph.json');
+    if (fs.existsSync(domainPath) && path.resolve(domainPath) !== path.resolve(primary)) {
+      try {
+        const domainRaw = JSON.parse(fs.readFileSync(domainPath, 'utf8'));
+        const domainParsed = parseUnderstandAnythingPayload(domainRaw);
+        for (const [key, value] of domainParsed.summaries) {
+          if (!result.summaries.has(key)) result.summaries.set(key, value);
+        }
+        result.nodes.push(...domainParsed.nodes);
+        result.edges.push(...domainParsed.edges);
+      } catch {
+        // Domain graph is optional enrichment; ignore parse failures.
+      }
+    }
+
+    return result;
+  } catch {
+    return empty;
+  }
 }
 
 class GraphAccumulator {
@@ -569,6 +684,40 @@ class GraphAccumulator {
   public addEdge(edge: KnowledgeEdge): void {
     this.edges.push(edge);
     if (edge.type === 'imports') this.importCount++;
+  }
+
+  public findStructuralMatch(node: KnowledgeNode): KnowledgeNode | null {
+    if (node.type === 'domain') return null;
+    const nodePath = node.filePath ? normalizeKey(node.filePath) : '';
+    const nodeName = normalizeKey(String(node.name).replace(/\.(ts|tsx|js|jsx|mjs|cjs)$/i, ''));
+    const candidates = [...this.nodes.values()].filter((existing) => !existing.id.startsWith('understand:'));
+
+    if (nodePath) {
+      const samePath = candidates.filter(
+        (existing) => existing.filePath && normalizeKey(existing.filePath) === nodePath
+      );
+      const declaration = samePath.find(
+        (existing) =>
+          (existing.type === 'page' || existing.type === 'class') &&
+          normalizeKey(existing.name) === nodeName
+      );
+      if (declaration) return declaration;
+
+      // Only fall back to the file node when the UA node itself is file-level.
+      if (node.type === 'file') {
+        const file = samePath.find((existing) => existing.type === 'file');
+        if (file) return file;
+      }
+    }
+
+    return (
+      candidates.find(
+        (existing) =>
+          (existing.type === 'page' || existing.type === 'class') &&
+          normalizeKey(existing.name) === nodeName &&
+          (node.type === 'page' || node.type === 'class' || node.type === 'unknown')
+      ) || null
+    );
   }
 }
 
@@ -901,7 +1050,20 @@ export class RepoKnowledgeGraph {
       }
     }
 
-    for (const node of imported.nodes) acc.addNode(node);
+    for (const node of imported.nodes) {
+      const existing = acc.findStructuralMatch(node);
+      if (existing) {
+        const mergedMeta = {
+          ...(existing.meta ?? {}),
+          ...(node.meta?.summary && !existing.meta?.summary ? { summary: node.meta.summary } : {}),
+          ...(node.meta?.urlPattern && !existing.meta?.urlPattern ? { urlPattern: node.meta.urlPattern } : {}),
+          ...(node.meta?.summary || node.meta?.urlPattern ? { enrichedBy: 'understand-anything' } : {}),
+        };
+        acc.addNode({ ...existing, meta: mergedMeta });
+        continue;
+      }
+      acc.addNode(node);
+    }
     acc.edges.push(...imported.edges);
 
     const nodes = [...acc.nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
@@ -916,6 +1078,12 @@ export class RepoKnowledgeGraph {
           `Tree-sitter extraction is the next backend for full Python/Java/C#/Go AST nodes.`
       );
     }
+    if (imported.sourcePath) {
+      notes.push(
+        `Enriched from Understand-Anything graph at ${path.relative(PROJECT_ROOT, imported.sourcePath)}` +
+          ` (${imported.nodes.length} nodes, ${imported.edges.length} edges, ${imported.summaries.size} summaries).`
+      );
+    }
 
     return {
       version: GRAPH_VERSION,
@@ -925,7 +1093,7 @@ export class RepoKnowledgeGraph {
       sources: {
         typescriptCompiler: true,
         symbolParser: true,
-        understandAnything: imported.nodes.length > 0 || imported.summaries.size > 0,
+        understandAnything: Boolean(imported.sourcePath) && (imported.nodes.length > 0 || imported.summaries.size > 0),
         treeSitter: false,
       },
       stats,
@@ -937,10 +1105,11 @@ export class RepoKnowledgeGraph {
 
   public static async buildAsync(): Promise<RepoKnowledgeGraphData> {
     const graph = RepoKnowledgeGraph.build();
-    const imported: ImportedUnderstandGraph = {
+    const importedStub: ImportedUnderstandGraph = {
       summaries: new Map(),
-      nodes: new Array(graph.stats.importedNodes).fill(null),
-      edges: new Array(graph.stats.importedEdges).fill(null),
+      nodes: new Array(graph.stats.importedNodes).fill(null as unknown as KnowledgeNode),
+      edges: new Array(graph.stats.importedEdges).fill(null as unknown as KnowledgeEdge),
+      sourcePath: resolveUnderstandAnythingGraphPath(),
     };
     const acc = new GraphAccumulator();
     for (const node of graph.nodes) acc.addNode(node);
@@ -978,7 +1147,7 @@ export class RepoKnowledgeGraph {
         ...graph.sources,
         treeSitter: treeSitterFiles > 0,
       },
-      stats: calculateStats(nodes, edges, acc.importCount, acc.enrichedCount, imported),
+      stats: calculateStats(nodes, edges, acc.importCount, acc.enrichedCount, importedStub),
       notes,
       nodes,
       edges,
@@ -1030,6 +1199,12 @@ export class RepoKnowledgeGraph {
         `${stats.apis} API modules, ${stats.imports} imports/dependencies ` +
         `(source: ${srcParts.join(' + ') || 'none'}).`
     );
+    if (!sources.understandAnything) {
+      lines.push(
+        'Note: Semantic enrichment optional — AST graph alone is used for reuse. ' +
+          'If `.ua/knowledge-graph.json` exists it is merged automatically on refresh.'
+      );
+    }
     for (const note of graph.notes) lines.push(`Note: ${note}`);
 
     const allPages = graph.nodes
@@ -1057,6 +1232,39 @@ export class RepoKnowledgeGraph {
       }
     }
 
+    if (sources.understandAnything) {
+      const seenSemantic = new Set<string>();
+      const semantic = graph.nodes
+        .filter((node) => {
+          if (!node.meta?.summary) return false;
+          if (node.meta?.source === 'understand-anything' || node.meta?.enrichedBy === 'understand-anything') {
+            return true;
+          }
+          return node.type === 'domain';
+        })
+        .filter((node) => node.type !== 'method')
+        .sort((a, b) => {
+          const rank = (n: KnowledgeNode) =>
+            n.type === 'page' ? 0 : n.type === 'domain' ? 1 : n.type === 'file' ? 2 : 3;
+          return rank(a) - rank(b) || a.name.localeCompare(b.name);
+        })
+        .filter((node) => {
+          const key = normalizeKey(`${node.name}|${node.filePath || ''}|${node.type}`);
+          if (seenSemantic.has(key)) return false;
+          seenSemantic.add(key);
+          return true;
+        })
+        .slice(0, 20);
+      if (semantic.length > 0) {
+        lines.push('');
+        lines.push('Semantic enrichment (Understand-Anything) — prefer these meanings when naming/extending APIs:');
+        for (const node of semantic) {
+          const where = node.filePath ? ` (${node.filePath})` : '';
+          lines.push(`- [${node.type}] ${node.name}${where}: ${String(node.meta?.summary).slice(0, 220)}`);
+        }
+      }
+    }
+
     const tests = graph.nodes
       .filter((node) => node.type === 'test')
       .filter((node) => codegenRelevanceScore(node.filePath) >= 65)
@@ -1079,6 +1287,20 @@ export class RepoKnowledgeGraph {
     }
 
     return lines.join('\n');
+  }
+
+  /** Resolve whether an Understand-Anything graph is available for enrichment. */
+  public static understandAnythingStatus(root: string = PROJECT_ROOT): {
+    found: boolean;
+    path: string | null;
+    relativePath: string | null;
+  } {
+    const abs = resolveUnderstandAnythingGraphPath(root);
+    return {
+      found: Boolean(abs),
+      path: abs,
+      relativePath: abs ? path.relative(root, abs) : null,
+    };
   }
 
   public static contextSummary(): string {

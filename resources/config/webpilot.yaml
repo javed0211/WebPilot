@@ -10,8 +10,10 @@ framework:
   defaultEnvironment: "qa"
   interactive: true
   useBrowserUse: true
-  codegenMode: deterministic # deterministic | llm | auto (auto falls back to LLM if validation fails)
+  codegenMode: auto # deterministic | llm | auto (auto = ActHistory draft + CodegenAgent repair via knowledge graph)
   healingCachePath: "./runtime/healing-cache/cache.json"
+  # ActHistory locator self-heal on failure (default on). Override: --no-heal or WEBPILOT_REPLAY_HEAL=0
+  replayHeal: true
   generatedCodePath: "./packages/test-framework"
   validationLoopEnabled: true
   validationRetries: 3
@@ -95,10 +97,13 @@ intelligentRunner:
 browser:
   target: "chrome" # chrome (Google Chrome), chromium, msedge — browser-use channel
   headless: false
-  video: "off" # off | on — BA discovery no longer uses imageio/ffmpeg screencast.
-  # Playwright-native video is used for generated specs (`webpilot replay` / playwright.config.ts).
+  video: "off" # off | on | retain-on-failure
+  # BA discovery does not record ffmpeg video. Playwright records video for:
+  #   - generated specs (playwright.config.ts)
+  #   - ActHistory replay (`webpilot replay --from <slug>`) when not off
   # Keep browser.trace: on for BA session timeline evidence.
-  screenshots: "only-on-failure" # off, on, only-on-failure
+  screenshots: "only-on-failure" # off, on, only-on-failure — report media for failed steps only
+  # Agent console noise: default BROWSER_USE_LOGGING_LEVEL=result (quiet). Set WEBPILOT_VERBOSE=1 for full step dumps.
   trace: "on" # off, on, retain-on-failure — saves Playwright trace zips under reports/traces
   viewport:
     width: 1280

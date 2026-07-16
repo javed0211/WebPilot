@@ -131,6 +131,34 @@ export class SymbolParser {
               value = member.initializer.getText(sourceFile);
             }
             properties.push({ name: propName, type: propType, value });
+            // static readonly urlPattern = /…/ or '…' → treat as urlPattern when JSDoc missing
+            if (
+              !meta.urlPattern &&
+              propName === 'urlPattern' &&
+              value &&
+              member.modifiers?.some((m) => m.kind === ts.SyntaxKind.StaticKeyword)
+            ) {
+              const regexLit = value.match(/^\/([\s\S]+)\/([a-z]*)$/);
+              if (regexLit) {
+                meta.urlPattern = regexLit[1];
+              } else {
+                const lit = value.replace(/^['"`]|['"`]$/g, '').trim();
+                if (lit) meta.urlPattern = lit;
+              }
+            }
+            // static readonly url = 'https://…' → treat as urlPattern when JSDoc missing
+            if (
+              !meta.urlPattern &&
+              propName === 'url' &&
+              value &&
+              (member.modifiers?.some((m) => m.kind === ts.SyntaxKind.StaticKeyword) ||
+                /https?:\/\//.test(value))
+            ) {
+              const lit = value.replace(/^['"`]|['"`]$/g, '').trim();
+              if (/^https?:\/\//i.test(lit)) {
+                meta.urlPattern = lit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              }
+            }
           } else if (ts.isMethodDeclaration(member) && member.name) {
             const methodName = member.name.getText(sourceFile);
             const parameters = member.parameters.map((p) => ({

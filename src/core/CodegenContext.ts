@@ -55,19 +55,37 @@ export class CodegenContext {
   }
 
   /**
+   * Fresh knowledge-graph summary for an LLM edit (generate or repair).
+   * Refreshes the AST graph so the agent sees pages/methods that already exist
+   * before it proposes file changes. Understand-Anything enrichment is included
+   * automatically when `.ua/` / `.understand-anything/` is present — no manual step.
+   */
+  public static knowledgeForEdit(): string {
+    try {
+      RepoKnowledgeGraph.refresh();
+      return RepoKnowledgeGraph.contextSummary();
+    } catch {
+      return CodegenContext.buildRepoKnowledgeSummary();
+    }
+  }
+
+  /**
    * Compact repository knowledge graph summary (page objects, methods, layers),
-   * built from the TypeScript AST and enriched by an Understand-Anything graph if present.
+   * built from the TypeScript AST and enriched by Understand-Anything (.ua/ or
+   * .understand-anything/) when that graph JSON is present.
    * Returns '' when unavailable so callers can omit the section cleanly.
    */
   public static buildRepoKnowledgeSummary(): string {
     return RepoKnowledgeGraph.contextSummary();
   }
 
-  public static buildFullPromptContext(symbolGraphJson?: string): string {
+  public static buildFullPromptContext(symbolGraphJson?: string, repoKnowledgeOverride?: string): string {
     const graph =
       symbolGraphJson?.trim() ||
       CodegenContext.buildSymbolGraphContext();
-    const repoKnowledge = CodegenContext.buildRepoKnowledgeSummary();
+    const repoKnowledge =
+      repoKnowledgeOverride?.trim() ||
+      CodegenContext.buildRepoKnowledgeSummary();
     return [
       '=== CODE GENERATION GUIDELINES ===',
       CodegenContext.loadGuidelines(),

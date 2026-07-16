@@ -101,7 +101,20 @@ function loadExecutionContext(slug: string): Record<string, unknown> | null {
   }
 }
 
-function collectScreenshots(slug: string, summary: Record<string, unknown>): string[] {
+function collectScreenshots(
+  slug: string,
+  summary: Record<string, unknown>,
+  screenshotsMode: string
+): string[] {
+  const mode = String(screenshotsMode || 'only-on-failure').toLowerCase();
+  const status = String(summary.status ?? '').toUpperCase();
+  if (mode === 'off' || mode === 'false' || mode === '0' || mode === 'no') {
+    return [];
+  }
+  if (mode === 'only-on-failure' && status === 'PASSED') {
+    return [];
+  }
+
   const fromSummary = (summary.artifacts as ReportArtifacts | undefined)?.screenshots;
   if (Array.isArray(fromSummary) && fromSummary.length > 0) {
     return fromSummary.map(hrefFromReportsHtml);
@@ -113,6 +126,21 @@ function collectScreenshots(slug: string, summary: Record<string, unknown>): str
     .filter((f) => /\.(png|jpg|jpeg|webp)$/i.test(f))
     .sort()
     .map((f) => hrefFromReportsHtml(`screenshots/${slug}/${f}`));
+}
+
+function resolveUsableVideoHref(rawPath: string | undefined): string | undefined {
+  if (!rawPath) return undefined;
+  const href = hrefFromReportsHtml(rawPath);
+  const abs = path.isAbsolute(rawPath)
+    ? rawPath
+    : path.resolve(path.join(process.cwd(), 'runtime', 'reports', 'html'), href);
+  try {
+    // Stub scavenged recordings are typically <10KB and will not play in the report.
+    if (!fs.existsSync(abs) || fs.statSync(abs).size < 10_000) return undefined;
+  } catch {
+    return undefined;
+  }
+  return href;
 }
 
 function buildPricing(slug: string, summary: Record<string, unknown>): ReportPricing {
@@ -145,8 +173,9 @@ export function collectTestCaseReport(slug: string): TestCaseReport | null {
 
   const summary = JSON.parse(fs.readFileSync(summaryFile, 'utf8')) as Record<string, unknown>;
   const ctx = loadExecutionContext(slug);
-  const artifactsRaw = (summary.artifacts as Record<string, string>) || {};
+  const artifactsRaw = (summary.artifacts as Record<string, string | string[]>) || {};
   const summaryBrowser = summary.browser as { provider?: ReportBrowser['provider'] } | undefined;
+  const browserCfg = loadBrowserConfig(summaryBrowser?.provider);
 
   const executionSteps: ReportStep[] = ((ctx?.executionHistory as ReportStep[]) || []).slice(0, 80);
   const nlSteps = (ctx?.nlSteps as string[]) || [];
@@ -203,9 +232,11 @@ export function collectTestCaseReport(slug: string): TestCaseReport | null {
     codegenSummary,
     codegen,
     artifacts: {
-      video: artifactsRaw.video ? hrefFromReportsHtml(artifactsRaw.video) : undefined,
-      trace: artifactsRaw.trace ? hrefFromReportsHtml(artifactsRaw.trace) : undefined,
-      screenshots: collectScreenshots(slug, summary),
+      video: resolveUsableVideoHref(
+        typeof artifactsRaw.video === 'string' ? artifactsRaw.video : undefined
+      ),
+      trace: typeof artifactsRaw.trace === 'string' ? hrefFromReportsHtml(artifactsRaw.trace) : undefined,
+      screenshots: collectScreenshots(slug, summary, browserCfg.screenshots),
     },
     pricing: buildPricing(slug, summary),
     browserProvider: summaryBrowser?.provider,

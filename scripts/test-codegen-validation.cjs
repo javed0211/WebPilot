@@ -81,14 +81,23 @@ test('comments only', async () => {
     commentOnly.issues.map((issue) => issue.code).join(', ')
   );
 
-  const cartSpecPath = path.join(
-    root,
-    'packages/test-framework/tests/add-products-in-cart-automation-exercise.spec.ts'
-  );
-  assert(fs.existsSync(cartSpecPath), 'Cart spec fixture exists', cartSpecPath);
+  // Canonical POM injection is opt-in (Phase 4). Exercise that path explicitly.
+  process.env.WEBPILOT_CANONICAL_POMS = '1';
   const cartSpec = {
     path: 'packages/test-framework/tests/add-products-in-cart-automation-exercise.spec.ts',
-    content: fs.readFileSync(cartSpecPath, 'utf8'),
+    content: `import { test } from '@playwright/test';
+import { AutomationExerciseHomePage } from '../pages/automationexercise/AutomationExerciseHomePage';
+import { AutomationExerciseProductsPage } from '../pages/automationexercise/AutomationExerciseProductsPage';
+
+test('cart', async ({ page }) => {
+  const home = new AutomationExerciseHomePage(page);
+  const products = new AutomationExerciseProductsPage(page);
+  await home.goto();
+  await home.goToProductsPage();
+  await products.assertAllProductsPageLoaded();
+  await products.addToCartProductAt(0);
+});
+`,
   };
 
   const bundle = CodegenValidationBundle.expand([cartSpec], {
@@ -98,10 +107,11 @@ test('comments only', async () => {
   const canonicalCount = bundle.filter((file) =>
     file.path.includes('automationexercise/')
   ).length;
-  assert(canonicalCount >= 4, 'Bundle includes canonical automationexercise POMs', String(canonicalCount));
+  assert(canonicalCount >= 4, 'Bundle includes canonical automationexercise POMs when opted in', String(canonicalCount));
 
   const ok = CodegenReferenceValidator.validate(bundle);
   assert(ok.valid, 'Cart spec + canonical POMs pass reference validation', ok.issues.map((i) => i.message).join(' | '));
+  delete process.env.WEBPILOT_CANONICAL_POMS;
 
   const productsCanonical =
     CANONICAL_PAGE_CONTENT[
