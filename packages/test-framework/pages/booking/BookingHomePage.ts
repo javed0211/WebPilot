@@ -15,65 +15,116 @@ export class BookingHomePage extends BasePage {
     await this.navigate('https://www.booking.com/');
   }
 
-  public async wait3WaitedFor3Seconds(): Promise<void> {
-    await this.page.waitForLoadState('networkidle');
+  public async clickAccept(): Promise<void> {
+    await this.dismissOverlays();
   }
 
-  public async clickAcceptClickedButtonAcceptIdOnetrustAcceptBtn(): Promise<void> {
-    // selector: confidence 0.94; signals: semantic, accessible-name, observed
-    // fallbacks: locator('button[id="onetrust-accept-btn-handler"]') (0.90) | getByText('Accept') (0.68) | locator('//button[normalize-space(.)=\'Accept\']') (0.25)
-    await this.page.getByRole('button', { name: 'Accept' }).click();
+  public async clickDismissSignIn(): Promise<void> {
+    await this.dismissOverlays();
   }
 
-  public async screenshotRequestedScreenshotForNextObservation(): Promise<void> {
-    await this.page.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });
+  public async fillDestination(): Promise<void> {
+    await this.dismissOverlays();
+    const destination = this.page
+      .locator('input[name="ss"], #searchbox-horizontal-destination-input, input[type="search"]')
+      .first();
+    await destination.waitFor({ state: 'visible' });
+    await destination.fill('London');
   }
 
-  public async clickDismissSignInInformationClickedButtonAriaLabelDismissSignInInfo(): Promise<void> {
-    // selector: confidence 0.99; signals: semantic, accessible-name, observed
-    // fallbacks: getByText('Dismiss sign in information.') (0.68) | locator('button[aria-label="Dismiss sign in information."]') (0.62) | locator('//button[@aria-label=\'Dismiss sign in information.\']') (0.25)
-    // Fix: Only click if the button is visible (do not block test if not present)
-    const dismissBtn = this.page.getByRole('button', { name: 'Dismiss sign in information.', exact: true });
-    if (await dismissBtn.isVisible({ timeout: 3000 })) {
-      await dismissBtn.click();
+  public async clickLondonOption(): Promise<void> {
+    const option = () => this.page
+        .locator('[role="listbox"] [role="option"], [data-testid*="autocomplete"] li, li[id^="autocomplete-result"]')
+        .filter({ hasText: /London/i })
+        .first();
+    // Booking can display cookie/Genius overlays several seconds after load.
+    // Re-open autocomplete after each dismissal rather than waiting behind it.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await this.dismissOverlays();
+      await this.fillDestination();
+      if (await option().isVisible({ timeout: 4000 }).catch(() => false)) {
+        await option().click();
+        return;
+      }
+    }
+    await option().waitFor({ state: 'visible', timeout: 8000 });
+    await option().click();
+  }
+
+  public async selectCheckInDate(): Promise<void> {
+    await this.selectRelativeDate(7);
+  }
+
+  public async selectCheckOutDate(): Promise<void> {
+    await this.selectRelativeDate(9);
+  }
+
+  public async clickSearch(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Search' }).click();
+  }
+
+  public async assertBooking(): Promise<void> {
+    await expect(this.page.getByRole('link', { name: /Booking\.com/i }).first()).toBeVisible();
+    await expect(this.page.locator('input[name="ss"], #searchbox-horizontal-destination-input').first()).toBeVisible();
+  }
+
+  private async selectRelativeDate(offsetDays: number): Promise<void> {
+    const target = new Date();
+    target.setHours(12, 0, 0, 0);
+    target.setDate(target.getDate() + offsetDays);
+    const iso = target.toISOString().slice(0, 10);
+    let date = this.page.locator(`[data-date="${iso}"]`).first();
+    if (!(await date.isVisible().catch(() => false))) {
+      const picker = this.page
+        .locator('[data-testid="searchbox-dates-container"], [data-testid="date-display-field-start"]')
+        .first();
+      if (await picker.isVisible().catch(() => false)) await picker.click();
+    }
+    for (let month = 0; month < 3 && !(await date.isVisible().catch(() => false)); month++) {
+      const next = this.page.getByRole('button', { name: /next month|next/i }).first();
+      if (!(await next.isVisible().catch(() => false))) break;
+      await next.click();
+      date = this.page.locator(`[data-date="${iso}"]`).first();
+    }
+    await date.click();
+  }
+
+  private async dismissOverlays(): Promise<void> {
+    for (let pass = 0; pass < 2; pass++) {
+      const cookieChoice = this.page
+        .getByRole('button', { name: /^(accept|decline)$/i })
+        .first();
+      if (await cookieChoice.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await cookieChoice.click({ timeout: 2000 }).catch(() => undefined);
+        await this.page.waitForTimeout(250);
+      }
+
+      const geniusDismiss = this.page
+        .locator('button[aria-label*="Dismiss" i], button[aria-label*="Close" i]')
+        .first();
+      if (await geniusDismiss.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await geniusDismiss.click({ timeout: 2000 }).catch(() => undefined);
+        await this.page.waitForTimeout(250);
+        continue;
+      }
+      const namedDismiss = this.page.getByRole('button', { name: /dismiss sign|close/i }).first();
+      if (await namedDismiss.isVisible({ timeout: 750 }).catch(() => false)) {
+        await namedDismiss.click({ timeout: 2000 }).catch(() => undefined);
+        await this.page.waitForTimeout(250);
+      }
     }
   }
 
-  public async fillNavigateToHttpsWwwBookingComIndexEnGbHtmlAid304142LabelGen173nr10caeoggi46adim1geafciaqgyato4aqfiaqzyaqpoaqh4aqgiaggoagg4ap2s5digwaib0gikotqxmtuymzmtmwrjzc00ytu0lwi5ymetnmqzyjnlmzq5nthl2aib4aibChalT1784236316566ForceReferer(): Promise<void> {
-    // selector: confidence 0.99; signals: semantic, accessible-name, observed
-    // fallbacks: locator('input[id="searchbox-horizontal-destination-input"]') (0.90) | getByPlaceholder('Family-friendly apartments in Paris that allow pets') (0.82) | getByText('Enter destination') (0.68)
-    const input = this.page.getByRole('combobox', { name: 'Enter destination' });
-    await input.fill('London');
-    // Wait for autocomplete suggestions to appear
-    await this.page.waitForSelector('li[id^="autocomplete-result-"]', { timeout: 10000 });
-    // Do not press Enter or assert value here; suggestion will be clicked in next step
-  }
 
-  public async wait2WaitedFor2Seconds(): Promise<void> {
-    await this.page.waitForLoadState('networkidle');
-  }
+  public async waitForPage(): Promise<void> {
+      await this.page.waitForLoadState('networkidle');
+    }
 
-  public async clickNavigateToHttpsWwwBookingComIndexEnGbHtmlAid304142LabelGen173nr10caeoggi46adim1geafciaqgyato4aqfiaqzyaqpoaqh4aqgiaggoagg4ap2s5digwaib0gikotqxmtuymzmtmwrjzc00ytu0lwi5ymetnmqzyjnlmzq5nthl2aib4aibChalT1784236316566ForceReferer(): Promise<void> {
-    // selector: confidence 0.99; signals: semantic, accessible-name, observed
-    // fallbacks: locator('li[id="autocomplete-result-0"]') (0.90) | getByText('London Greater London, United Kingdom') (0.68) | locator('//li[@id=\'autocomplete-result-0\']') (0.25)
-    await this.page.getByRole('option', { name: 'London Greater London, United Kingdom' }).click();
-  }
+  public async capturePageScreenshot(): Promise<void> {
+      await this.page.screenshot({ path: 'test-results/codegen-page.png', fullPage: true });
+    }
 
-  public async clickNavigateToHttpsWwwBookingComIndexEnGbHtmlAid304142LabelGen173nr10caeoggi46adim1geafciaqgyato4aqfiaqzyaqpoaqh4aqgiaggoagg4ap2s5digwaib0gikotqxmtuymzmtmwrjzc00ytu0lwi5ymetnmqzyjnlmzq5nthl2aib4aibChalT1784236316566ForceReferer1(): Promise<void> {
-    // selector: confidence 0.82; signals: semantic, accessible-name, observed; risks: counter-suffixed-name
-    // fallbacks: getByText('Thursday, 23 July 2026') (0.68) | locator('span[aria-label="Thursday, 23 July 2026"]') (0.62) | locator('//span[@aria-label=\'Thursday, 23 July 2026\']') (0.25)
-    await this.page.getByRole('checkbox', { name: 'Thursday, 23 July 2026' }).click();
-  }
-
-  public async clickNavigateToHttpsWwwBookingComIndexEnGbHtmlAid304142LabelGen173nr10caeoggi46adim1geafciaqgyato4aqfiaqzyaqpoaqh4aqgiaggoagg4ap2s5digwaib0gikotqxmtuymzmtmwrjzc00ytu0lwi5ymetnmqzyjnlmzq5nthl2aib4aibChalT1784236316566ForceReferer2(): Promise<void> {
-    // selector: confidence 0.82; signals: semantic, accessible-name, observed; risks: counter-suffixed-name
-    // fallbacks: getByText('Saturday, 25 July 2026') (0.68) | locator('span[aria-label="Saturday, 25 July 2026"]') (0.62) | locator('//span[@aria-label=\'Saturday, 25 July 2026\']') (0.25)
-    await this.page.getByRole('checkbox', { name: 'Saturday, 25 July 2026' }).click();
-  }
-
-  public async clickSearchClickedButtonSearch(): Promise<void> {
-    // selector: confidence 0.94; signals: semantic, accessible-name, observed
-    // fallbacks: getByText('Search') (0.68) | locator('//button[normalize-space(.)=\'Search\']') (0.25) | locator('//button[contains(normalize-space(.), \'Search\')]') (0.25)
-    await this.page.getByRole('button', { name: 'Search' }).click();
-  }
+  public async waitForPage1(): Promise<void> {
+      await this.page.waitForLoadState('networkidle');
+    }
 }

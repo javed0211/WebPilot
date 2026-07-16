@@ -11,6 +11,13 @@ framework:
   interactive: true
   useBrowserUse: true
   codegenMode: auto # deterministic | llm | auto (auto = ActHistory draft + CodegenAgent repair via knowledge graph)
+  codegenQuality:
+    # Set false to reject deterministic specs containing raw page.* fallbacks
+    # for interactions/assertions. Waits and screenshots remain audit-visible
+    # but do not count against the primary POM mapping quality ratio.
+    allowRawPageFallback: true
+    # 0 disables ratio enforcement; values are clamped to the range 0..1.
+    minPomMappedStepRatio: 0.6
   healingCachePath: "./runtime/healing-cache/cache.json"
   # ActHistory locator self-heal on failure (default on). Override: --no-heal or WEBPILOT_REPLAY_HEAL=0
   replayHeal: true

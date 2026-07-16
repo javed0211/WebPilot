@@ -13,6 +13,8 @@ import {
   tracePath,
   writeLatestPointer,
 } from './CodegenPaths';
+import { CodegenAuditWriter } from './CodegenAuditWriter';
+import { DeterministicSpecWriter } from './DeterministicSpecWriter';
 import { ExecutionTrace, RawExecutionStep } from './ExecutionTrace';
 import { CodegenMetadata, GenerationPlan } from './GenerationPlan';
 import { PlanBuilder } from './PlanBuilder';
@@ -35,6 +37,8 @@ import { resolveExecutionHistoryPath } from '../ReportPaths';
 import { WriteAndValidateResult } from '../CodegenWriter';
 import { CodegenContext } from '../CodegenContext';
 import { Logger } from '../../utils/Logger';
+import { ConfigManager } from '../ConfigManager';
+import { enforceCodegenQuality } from './CodegenQualityPolicy';
 
 function formatValidationFailure(validation: WriteAndValidateResult): string {
   const parts = [
@@ -250,7 +254,45 @@ export class DeterministicCodegenPipeline {
     if (input.historySource) {
       plan.notes.push(`History source: ${input.historySource}`);
     }
+
     let files = DeterministicCodegenPipeline.generateDeterministicFiles(trace, plan);
+    let codegenAudit: ReturnType<typeof CodegenAuditWriter.build> | undefined;
+    try {
+      codegenAudit = CodegenAuditWriter.write(
+        input.steps,
+        trace,
+        plan,
+        DeterministicSpecWriter.diagnosticsFor(plan)
+      );
+      Logger.detail(
+        `Codegen audit: ${codegenAudit.mappedPomSteps}/${codegenAudit.traceSteps} POM-mapped step(s), ` +
+          `${codegenAudit.unmappedSteps} unmapped, raw fallback ${codegenAudit.rawFallbackUsed ? 'used' : 'not used'}, ` +
+          `quality ${codegenAudit.quality} (${CodegenAuditWriter.relativePath(trace.scenarioSlug)})`
+      );
+      if (codegenAudit.quality === 'degraded') {
+        Logger.warn(`Codegen audit: DEGRADED — ${codegenAudit.qualityReasons.join(' ')}`);
+      }
+    } catch (err) {
+      Logger.detail(`Codegen audit skipped: ${err instanceof Error ? err.message : err}`);
+    }
+    if (codegenAudit) {
+      const config = ConfigManager.getInstance();
+      try {
+        enforceCodegenQuality(codegenAudit, {
+          allowRawPageFallback: Boolean(
+            config.get('framework.codegenQuality.allowRawPageFallback', true)
+          ),
+          minPomMappedStepRatio: Number(
+            config.get('framework.codegenQuality.minPomMappedStepRatio', 0)
+          ),
+        });
+      } catch (error) {
+        throw new Error(
+          `${error instanceof Error ? error.message : error} ` +
+            `See ${CodegenAuditWriter.relativePath(trace.scenarioSlug)}.`
+        );
+      }
+    }
     let metadata = DeterministicCodegenPipeline.persist(trace, plan, files);
     metadata = { ...metadata, mode: 'deterministic' };
 
@@ -303,7 +345,17 @@ export class DeterministicCodegenPipeline {
           graphContext,
           [failureDetail, prior].filter(Boolean).join('\n\n')
         );
-        const repaired = await CodegenWriter.writeAndValidate(generated.files, llm, {
+        // The repair agent may edit only page objects. Always re-validate with the
+        // spec included, otherwise Playwright validation silently gets skipped and
+        // a still-broken repair is reported as PASSED.
+        const repairFiles = [...generated.files];
+        if (!repairFiles.some((file) => file.path.endsWith('.spec.ts'))) {
+          const specOnDisk = path.join(process.cwd(), plan.specPath);
+          if (fs.existsSync(specOnDisk)) {
+            repairFiles.push({ path: plan.specPath, content: fs.readFileSync(specOnDisk, 'utf8') });
+          }
+        }
+        const repaired = await CodegenWriter.writeAndValidate(repairFiles, llm, {
           testSlug: trace.scenarioSlug,
           urls: [...new Set(input.steps.map((step) => step.url).filter(Boolean) as string[])],
         });

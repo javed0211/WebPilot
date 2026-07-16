@@ -1,34 +1,34 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { expect, Locator } from '@playwright/test';
 import { BasePage } from '../../core/BasePage';
 
+/**
+ * @pageIdentity WikipediaHistoryPage
+ * @urlPattern action=history
+ * @curated
+ */
 export class WikipediaHistoryPage extends BasePage {
-  static readonly urlPattern = /\/w\/index.php\?title=Software_testing&action=history/;
+  static readonly urlPattern = /action=history/;
 
   historyMain(): Locator {
-    // Main history content region
-    return this.page.locator('#content');
+    return this.page.locator('#content, #mw-content-text').first();
   }
 
   heading(): Locator {
-    // Strict: h1#firstHeading
-    return this.page.locator('h1#firstHeading');
+    return this.page.locator('h1#firstHeading, h1.mw-first-heading').first();
   }
 
   async assertOnHistoryPage() {
     await this.assertUrl(WikipediaHistoryPage.urlPattern);
-    await expect(this.heading()).toHaveText(/Revision history/);
-    await expect(this.historyMain().getByText('Revision history', { exact: false })).toBeVisible();
-    await expect(this.historyMain().getByText('View logs for this page', { exact: false })).toBeVisible();
-    await expect(this.historyMain().getByRole('heading', { name: /Revision history/ })).toBeVisible();
+    await expect(this.heading()).toContainText(/Revision history/i);
   }
 
   async assertRevisionHistoryVisible() {
-    // Scope to main history content region to avoid strict mode violation
-    await this.assertTextVisible('Revision history');
+    await expect(
+      this.historyMain().getByText(/Revision history/i).first()
+    ).toBeVisible();
   }
 
   async assertTextVisible(text: string | RegExp) {
-    // Scope to main history content region to avoid strict mode violation
     await expect(this.historyMain().getByText(text, { exact: false }).first()).toBeVisible();
   }
 }

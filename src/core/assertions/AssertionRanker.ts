@@ -168,6 +168,9 @@ function assertTextOrUrlValue(step: TraceStep): AssertionCandidate | null {
       risks: [],
     };
   }
+  // A grounded selector is stronger than repeating the NL value as literal
+  // page text (for example, a Booking.com brand link assertion).
+  if (step.selector) return null;
   return {
     kind: 'text_visible',
     strength: 'strong',

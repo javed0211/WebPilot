@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigManager } from '../ConfigManager';
 import { RepoKnowledgeGraph, KnowledgeNode } from '../knowledge/RepoKnowledgeGraph';
-import { ExecutionTrace } from './ExecutionTrace';
+import { ExecutionTrace, stepUrlCandidates } from './ExecutionTrace';
 import { CodegenProfilePlan, GenerationPlan, PlannedFile } from './GenerationPlan';
 import { CodegenProfile } from './profiles/CodegenProfile';
 import { CodegenProfileRegistry } from './profiles/CodegenProfileRegistry';
@@ -37,13 +37,25 @@ function pagePathForClass(
 
 function patternMatchesUrl(pattern: string, url: string): boolean {
   if (!pattern || !url) return false;
-  const raw = pattern.replace(/^\/([\s\S]+)\/[a-z]*$/i, '$1');
-  try {
-    if (new RegExp(raw).test(url)) return true;
-  } catch {
-    /* fall through */
+  const regex = pattern.match(/^\/([\s\S]+)\/([a-z]*)$/i);
+  if (regex) {
+    try {
+      return new RegExp(regex[1], regex[2]).test(url);
+    } catch {
+      return false;
+    }
   }
-  return url.includes(pattern);
+  try {
+    const expected = new URL(pattern);
+    const actual = new URL(url);
+    const expectedPath = expected.pathname.replace(/\/$/, '') || '/';
+    const actualPath = actual.pathname.replace(/\/$/, '') || '/';
+    const homeAlias =
+      expectedPath === '/' && /^\/(?:index|default)(?:\.[a-z]{2}(?:-[a-z]{2})?)?\.(?:html?|php|aspx)$/i.test(actualPath);
+    return expected.origin === actual.origin && (expectedPath === actualPath || homeAlias);
+  } catch {
+    return url.includes(pattern);
+  }
 }
 
 function scorePageNode(node: KnowledgeNode, url: string, host: string | null): number {
@@ -68,6 +80,7 @@ function scorePageNode(node: KnowledgeNode, url: string, host: string | null): n
   }
 
   if (pattern && patternMatchesUrl(pattern, url)) score += 15;
+  else if (pattern && /^https?:\/\//i.test(pattern)) score -= 18;
 
   try {
     const pathName = new URL(url).pathname.replace(/\/$/, '') || '/';
@@ -141,7 +154,11 @@ export class PlanBuilder {
     const pageObjects: PlannedFile[] = [];
     const seenPages = new Set<string>();
 
-    const urls = [...new Set(trace.steps.map((step) => step.url).filter(Boolean) as string[])];
+    const urls = [
+      ...new Set(
+        trace.steps.flatMap((step) => stepUrlCandidates(step)).concat(trace.targetUrl || [])
+      ),
+    ];
     const graph = RepoKnowledgeGraph.load();
     for (const url of urls) {
       const matched = matchPageForUrl(url, profileAdapter, profile, graph || undefined);

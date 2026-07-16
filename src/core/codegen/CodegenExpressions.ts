@@ -68,14 +68,58 @@ function selectorMetadataComment(selector: TraceSelector | undefined): string[] 
 
 const STEP_PREFIX_STOP_WORDS = new Set(['and', 'then', 'when', 'given', 'but', 'also']);
 
+/**
+ * Clicking an autocomplete option right after a fill is racy — the dropdown can
+ * close before the click. Emit a deterministic retype-and-retry, mirroring what
+ * the ActHistory replay runner does at execution time.
+ */
+function autocompleteOptionRetry(
+  step: TraceStep,
+  lastFill: TraceStep | undefined,
+  locator: string,
+  receiver = 'this.page'
+): string[] | null {
+  if (step.action !== 'click' || !lastFill?.selector || !lastFill.value) return null;
+  const isOptionClick =
+    /getByRole\(\s*['"](option|listbox)['"]/.test(locator) ||
+    /autocomplete/i.test(step.selector?.value || '');
+  if (!isOptionClick) return null;
+  const fillLocator = locatorExpression(lastFill.selector, receiver);
+  if (!fillLocator) return null;
+  return [
+    `const option = ${locator}.first();`,
+    `try {`,
+    `  await option.waitFor({ state: 'visible', timeout: 8000 });`,
+    `} catch {`,
+    `  // Suggestions closed — retype to reopen the autocomplete dropdown.`,
+    `  await ${fillLocator}.click();`,
+    `  await ${fillLocator}.fill('${escapeTsString(lastFill.value)}');`,
+    `  await option.waitFor({ state: 'visible', timeout: 8000 });`,
+    `}`,
+    `await option.click();`,
+  ];
+}
+
+const MAX_METHOD_NAME_WORDS = 8;
+const MAX_METHOD_NAME_LENGTH = 60;
+
 export function methodNameFromStep(step: TraceStep, used: Set<string>): string {
   if (step.action === 'navigate') return ensureUnique('goto', used, step.index);
 
-  const words = step.intent
+  // Prefer the semantic target over raw descriptions — descriptions may embed
+  // giant tracking URLs that produce unusable method names.
+  const nameSource =
+    step.semanticTarget && /https?:|www\./i.test(step.intent)
+      ? `${step.action} ${step.semanticTarget}`
+      : step.intent;
+
+  const words = nameSource
+    .replace(/https?:\/\/\S+/gi, ' ')
     .replace(/[^a-zA-Z0-9]+/g, ' ')
     .trim()
     .split(/\s+/)
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, MAX_METHOD_NAME_WORDS);
   while (words.length > 0 && STEP_PREFIX_STOP_WORDS.has(words[0].toLowerCase())) {
     words.shift();
   }
@@ -101,6 +145,7 @@ export function methodNameFromStep(step: TraceStep, used: Set<string>): string {
   }
 
   base = base.replace(/[^a-zA-Z0-9]/g, '');
+  if (base.length > MAX_METHOD_NAME_LENGTH) base = base.slice(0, MAX_METHOD_NAME_LENGTH);
   if (!base) base = `${step.action}Step${step.index}`;
   return ensureUnique(base, used, step.index);
 }
@@ -116,7 +161,49 @@ function ensureUnique(base: string, used: Set<string>, index: number): string {
   return name;
 }
 
-export function pageMethodBody(step: TraceStep): string[] {
+/** Overlay dismissals (cookie banners, sign-in modals) may not appear on fresh contexts. */
+function isOptionalOverlayStep(step: TraceStep): boolean {
+  const haystack = `${step.intent || ''} ${step.description || ''} ${step.selector?.value || ''}`.toLowerCase();
+  return /dismiss|close.*(dialog|modal|popup|banner)|sign.?in information|got it|no thanks|maybe later/i.test(
+    haystack
+  );
+}
+
+function optionalOverlayClick(locator: string): string[] {
+  return [
+    `// Overlay may not appear on fresh sessions — dismiss only when present.`,
+    `const overlay = ${locator}.first();`,
+    `if (await overlay.isVisible({ timeout: 5000 }).catch(() => false)) {`,
+    `  await overlay.click();`,
+    `}`,
+  ];
+}
+
+function dynamicCalendarDateClick(offsetDays: number): string[] {
+  return [
+    `const targetDate = new Date();`,
+    `targetDate.setHours(12, 0, 0, 0);`,
+    `targetDate.setDate(targetDate.getDate() + ${offsetDays});`,
+    `const isoDate = targetDate.toISOString().slice(0, 10);`,
+    `let date = this.page.locator(\`[data-date="\${isoDate}"]\`).first();`,
+    `if (!(await date.isVisible().catch(() => false))) {`,
+    `  const datePicker = this.page.locator('[data-testid="searchbox-dates-container"], [data-testid="date-display-field-start"]').first();`,
+    `  if (await datePicker.isVisible().catch(() => false)) await datePicker.click();`,
+    `}`,
+    `for (let month = 0; month < 3 && !(await date.isVisible().catch(() => false)); month++) {`,
+    `  const next = this.page.getByRole('button', { name: /next month|next/i }).first();`,
+    `  if (!(await next.isVisible().catch(() => false))) break;`,
+    `  await next.click();`,
+    `  date = this.page.locator(\`[data-date="\${isoDate}"]\`).first();`,
+    `}`,
+    `await date.click();`,
+  ];
+}
+
+export function pageMethodBody(
+  step: TraceStep,
+  context?: { lastFill?: TraceStep; calendarOffsetDays?: number }
+): string[] {
   const locator = locatorExpression(step.selector, 'this.page');
   const metadata = selectorMetadataComment(step.selector);
   const primaryAssertion = (step.assertions || [])[0];
@@ -127,11 +214,21 @@ export function pageMethodBody(step: TraceStep): string[] {
     case 'navigate':
       return step.url ? [`await this.navigate('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
     case 'click':
+      if (context?.calendarOffsetDays) {
+        return dynamicCalendarDateClick(context.calendarOffsetDays);
+      }
       if (!locator) {
         if (/\bpress\s+enter\b/i.test(step.intent) || /^enter$/i.test(step.intent.trim())) {
           return [`await this.page.keyboard.press('Enter');`, ...assertionLines];
         }
         return [`// click: ${step.intent}`];
+      }
+      {
+        if (isOptionalOverlayStep(step)) {
+          return [...metadata, ...optionalOverlayClick(locator)];
+        }
+        const retry = autocompleteOptionRetry(step, context?.lastFill, locator, 'this.page');
+        if (retry) return [...metadata, ...retry, ...assertionLines];
       }
       return [...metadata, `await ${locator}.click();`, ...assertionLines];
     case 'fill':

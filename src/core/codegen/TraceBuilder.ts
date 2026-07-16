@@ -199,12 +199,87 @@ function parseSelector(raw?: string | null, url?: string, intent?: string): Trac
   return toTraceSelector(ranked.primary, ranked.fallbacks);
 }
 
-function stepIntent(step: RawExecutionStep): string {
+function humanizeLocatorName(name: string): string {
+  return name.replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
+function conciseDescription(description: string, action: string): string {
+  const firstLine = description.split('\n')[0].trim();
+  const pipeParts = firstLine.split('|').map((part) => part.trim()).filter(Boolean);
+  // browser-use descriptions are commonly "action | target | outcome". The
+  // outcome is execution telemetry, not method-name intent.
+  if (pipeParts.length >= 2) return pipeParts[1].slice(0, 80);
+  return firstLine
+    .replace(/\b(clicked|typed|selected|navigated|waited)\b[\s\S]*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, action === 'assert' ? 110 : 80);
+}
+
+/** Derive a human-meaningful target from locator candidates (role name > text > label). */
+function semanticTargetFromStep(step: RawExecutionStep): string | undefined {
+  const locators = step.locators || [];
+  const parsed: Array<{ kind: string; value?: string; name?: string }> = locators.length
+    ? locators
+    : (() => {
+        try {
+          const raw = step.selector?.trim();
+          if (raw && raw.startsWith('[')) return JSON.parse(raw);
+        } catch {
+          /* ignore */
+        }
+        return [];
+      })();
+
+  for (const loc of parsed) {
+    if (loc.kind === 'role' && loc.name) {
+      return humanizeLocatorName(`${loc.name} ${loc.value || ''}`.trim());
+    }
+  }
+  for (const loc of parsed) {
+    if ((loc.kind === 'text' || loc.kind === 'label' || loc.kind === 'placeholder') && loc.value) {
+      return humanizeLocatorName(loc.value);
+    }
+  }
+  for (const loc of parsed) {
+    if (loc.name) return humanizeLocatorName(loc.name);
+  }
+  return undefined;
+}
+
+function stepIntent(step: RawExecutionStep, semanticTarget?: string): string {
   const description = step.description?.trim();
-  if (description && description.length < 120) return description;
-  if (step.url) return `navigate to ${step.url}`;
-  if (step.selector && step.value) return `fill ${step.selector}`;
-  if (step.selector) return `${step.action} ${step.selector}`;
+  const action = step.action?.toLowerCase() || 'step';
+  // Locator-derived semantics are more stable than browser-use outcome prose.
+  if (semanticTarget) {
+    if (action === 'input' || action === 'fill' || action === 'type') {
+      return `fill ${semanticTarget}`;
+    }
+    if (action === 'click' || action === 'tap') return `click ${semanticTarget}`;
+    if (['assert', 'verify', 'expect', 'check'].includes(action)) return `assert ${semanticTarget}`;
+    if (action === 'screenshot') return `capture ${semanticTarget}`;
+    return `${action} ${semanticTarget}`;
+  }
+  if (action === 'navigate' && step.url) {
+    try {
+      const parsed = new URL(step.url);
+      return `navigate to ${parsed.origin}${parsed.pathname}`;
+    } catch {
+      return `navigate to ${step.url.slice(0, 80)}`;
+    }
+  }
+  if ((action === 'input' || action === 'fill') && step.value) return `enter ${step.value}`;
+  if (action === 'wait') return 'wait for page';
+  if (action === 'screenshot') return 'capture page screenshot';
+  if (['assert', 'verify', 'expect', 'check'].includes(action) && description) {
+    const assertionIntent = conciseDescription(description, 'assert')
+      .replace(/^(verify|assert|check|ensure)\s+/i, '')
+      .replace(/\s+(is|are)\s+(visible|displayed|shown|present|loaded).*$/i, '')
+      .replace(/^the\s+/i, '')
+      .trim();
+    return assertionIntent ? `assert ${assertionIntent}` : 'assert page state';
+  }
+  if (description) return conciseDescription(description, action) || action;
   return step.action;
 }
 
@@ -222,10 +297,12 @@ export class TraceBuilder {
 
     for (const [index, step] of input.steps.entries()) {
       const action = normalizeAction(step.action);
+      const urlBefore = step.urlBefore || currentUrl;
       if (step.url) currentUrl = step.url;
       if (action === 'navigate' && step.url) currentUrl = step.url;
 
-      const intent = stepIntent(step);
+      const semanticTarget = semanticTargetFromStep(step);
+      const intent = stepIntent(step, semanticTarget);
       // Do not inherit page URL onto asserts/screenshots — inherited URLs create noisy
       // toHaveURL assertions that swamp explicit text checks from NL verify steps.
       const stepUrl =
@@ -249,7 +326,19 @@ export class TraceBuilder {
             : step.value || undefined,
         description: step.description,
         pageCandidate: currentUrl,
+        urlBefore,
+        urlAfter: step.urlAfter || undefined,
+        semanticTarget,
       });
+    }
+
+    // Backfill urlAfter from the next step's page state so page mapping can use
+    // "where did this action land" even when the runner didn't record it.
+    for (let i = 0; i < normalized.length; i++) {
+      if (!normalized[i].urlAfter) {
+        const next = normalized[i + 1];
+        normalized[i].urlAfter = next?.urlBefore || next?.url || normalized[i].pageCandidate;
+      }
     }
 
     for (const [index, step] of normalized.entries()) {

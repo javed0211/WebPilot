@@ -45,6 +45,7 @@ export function routeLabelFromUrl(url: string): string {
     // searchresults.en-gb.html → SearchResults
     last = last.replace(/\.(html?|php|aspx)$/i, '');
     last = last.replace(/\.[a-z]{2}(-[a-z]{2})?$/i, ''); // .en-gb
+    last = last.replace(/^searchresults$/i, 'search results');
     const label = pascalCaseToken(last.replace(/[-_]+/g, ' '));
     if (!label || /^(Index|Default|Main)$/i.test(label)) return 'Home';
     return label;

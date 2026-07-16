@@ -3,6 +3,7 @@ import * as path from 'path';
 import { SymbolParser } from '../SymbolParser';
 import { ExecutionTrace, TraceStep } from './ExecutionTrace';
 import { GenerationPlan, PlannedFile } from './GenerationPlan';
+import { stepsForPage as mappedStepsForPage } from './PageMapping';
 import {
   escapeTsString,
   methodNameFromStep,
@@ -18,30 +19,7 @@ export interface PageObjectArtifact {
   stepMethods: Record<number, string>;
 }
 
-function normalizeUrlKey(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const path = parsed.pathname.replace(/\/$/, '') || '/';
-    return `${parsed.origin}${path}`;
-  } catch {
-    return url.replace(/\/$/, '') || url;
-  }
-}
-
-function urlsMatchPage(pattern: string, url: string): boolean {
-  if (!pattern || !url) return false;
-  const raw = pattern.replace(/^\/([\s\S]+)\/[a-z]*$/i, '$1');
-  try {
-    if (new RegExp(raw).test(url)) return true;
-  } catch {
-    /* fall through */
-  }
-  try {
-    return normalizeUrlKey(pattern) === normalizeUrlKey(url);
-  } catch {
-    return url.includes(pattern);
-  }
-}
+export const POM_STEP_COVERED = '__covered_by_pom__';
 
 function mapStepToExistingMethod(step: TraceStep, existing: Set<string>): string | null {
   const action = (step.action || '').toLowerCase();
@@ -51,6 +29,15 @@ function mapStepToExistingMethod(step: TraceStep, existing: Set<string>): string
   if (action === 'go_back' || intent.includes('navigate back') || intent.includes('go back')) {
     return 'goBack';
   }
+
+  // Generic intent/target-based reuse: tokenize the step's semantic target and
+  // intent, and score against every existing method name. Reuse only when the
+  // action prefix agrees (click→click*, fill→fill*/search, assert→assert*) and
+  // token overlap is strong. This replaces per-site hardcoded mappings.
+  const generic = genericMethodMatch(step, existing);
+  if (generic) return generic;
+
+  // Legacy curated mappings (Wikipedia demo pages) — kept as fallback.
   if ((intent.includes('view history') || intent.includes('click view history')) && existing.has('clickViewHistory')) {
     return 'clickViewHistory';
   }
@@ -112,11 +99,70 @@ function mapStepToExistingMethod(step: TraceStep, existing: Set<string>): string
   return null;
 }
 
-function stepsForPage(page: PlannedFile, trace: ExecutionTrace): TraceStep[] {
+const GENERIC_STOP_TOKENS = new Set([
+  'the', 'a', 'an', 'to', 'in', 'on', 'of', 'and', 'or', 'is', 'are', 'was',
+  'click', 'clicked', 'fill', 'filled', 'enter', 'entered', 'input', 'assert',
+  'verify', 'check', 'button', 'link', 'field', 'page', 'element',
+]);
+
+function tokenizeForMatch(text: string): Set<string> {
+  return new Set(
+    text
+      .replace(/https?:\/\/\S+/gi, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t.length > 2 && !GENERIC_STOP_TOKENS.has(t))
+  );
+}
+
+function actionPrefixCompatible(action: string, methodName: string): boolean {
+  const m = methodName.toLowerCase();
+  if (action === 'click') return m.startsWith('click') || m.startsWith('open') || m.startsWith('select') || m.startsWith('submit');
+  if (action === 'fill') return m.startsWith('fill') || m.startsWith('enter') || m.startsWith('search') || m.startsWith('type');
+  if (action === 'assert') return m.startsWith('assert') || m.startsWith('verify') || m.startsWith('expect');
+  if (action === 'select') return m.startsWith('select') || m.startsWith('choose');
+  return false;
+}
+
+/**
+ * Score existing page-object methods against the step's semantic target/intent.
+ * Reuse requires a compatible action prefix and ≥60% token overlap of the
+ * step's meaningful tokens with the method-name tokens.
+ */
+function genericMethodMatch(step: TraceStep, existing: Set<string>): string | null {
+  const action = (step.action || '').toLowerCase();
+  if (!['click', 'fill', 'assert', 'select'].includes(action)) return null;
+
+  const stepTokens = tokenizeForMatch(
+    `${step.semanticTarget || ''} ${step.intent || ''}`
+  );
+  if (stepTokens.size === 0) return null;
+
+  let best: { name: string; score: number } | null = null;
+  for (const name of existing) {
+    if (!actionPrefixCompatible(action, name)) continue;
+    const methodTokens = tokenizeForMatch(name);
+    if (methodTokens.size === 0) continue;
+    let overlap = 0;
+    for (const t of methodTokens) {
+      if (stepTokens.has(t)) overlap += 1;
+    }
+    // Ratio against the smaller token set — a short focused method name that is
+    // fully contained in the step intent should score 1.0.
+    const ratio = overlap / Math.min(methodTokens.size, stepTokens.size);
+    if (ratio >= 0.6 && overlap >= 1 && (!best || ratio > best.score)) {
+      best = { name, score: ratio };
+    }
+  }
+  return best?.name || null;
+}
+
+function stepsForPage(page: PlannedFile, trace: ExecutionTrace, allPages: PlannedFile[]): TraceStep[] {
   if (!page.urlPattern) return [];
-  // Prefer exact origin+pathname match. Raw RegExp(urlPattern) wrongly treated
-  // https://github.com/ as matching every github.com page, and broke on ?query URLs.
-  return trace.steps.filter((step) => step.url && urlsMatchPage(page.urlPattern!, step.url));
+  // Shared mapping: url → pageCandidate → urlBefore → urlAfter, one page per step.
+  return mappedStepsForPage(page, trace, allPages);
 }
 
 function existingMethodNames(filePath: string, className: string): Set<string> {
@@ -148,7 +194,12 @@ function pageIdentity(className: string): string {
   return className;
 }
 
-function buildMethod(step: TraceStep, usedNames: Set<string>, existing: Set<string>): {
+function buildMethod(
+  step: TraceStep,
+  usedNames: Set<string>,
+  existing: Set<string>,
+  context?: { lastFill?: TraceStep; calendarOffsetDays?: number }
+): {
   name: string;
   body: string;
 } | null {
@@ -156,7 +207,7 @@ function buildMethod(step: TraceStep, usedNames: Set<string>, existing: Set<stri
   if (existing.has(name)) return null;
   if (step.action === 'navigate' && existing.has('goto')) return null;
 
-  const bodyLines = pageMethodBody(step);
+  const bodyLines = pageMethodBody(step, context);
   if (bodyLines.length === 0 || bodyLines.every((line) => line.trim().startsWith('//'))) {
     return null;
   }
@@ -227,7 +278,7 @@ export class DeterministicPageObjectWriter {
 
     for (const page of plan.pageObjects) {
       if (!page.className) continue;
-      const pageSteps = stepsForPage(page, trace);
+      const pageSteps = stepsForPage(page, trace, plan.pageObjects);
       if (pageSteps.length === 0) continue;
 
       const usedNames = new Set<string>();
@@ -236,22 +287,43 @@ export class DeterministicPageObjectWriter {
       const stepMethods: Record<number, string> = {};
       let usedCombinedSearch = false;
       const usedAsserts = new Set<string>();
+      let lastFill: TraceStep | undefined;
+      let calendarDateIndex = 0;
 
       for (const step of pageSteps) {
+        const isCalendarDate =
+          step.action === 'click' &&
+          /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
+            `${step.semanticTarget || ''} ${step.intent || ''} ${step.selector?.value || ''}`
+          ) &&
+          /\b20\d{2}\b/.test(`${step.semanticTarget || ''} ${step.intent || ''} ${step.selector?.value || ''}`);
+        const calendarOffsetDays = isCalendarDate ? (calendarDateIndex++ === 0 ? 7 : 9) : undefined;
+        if (calendarOffsetDays && existing.has(calendarOffsetDays === 7 ? 'selectCheckInDate' : 'selectCheckOutDate')) {
+          stepMethods[step.index] = calendarOffsetDays === 7 ? 'selectCheckInDate' : 'selectCheckOutDate';
+          continue;
+        }
         const reused = mapStepToExistingMethod(step, existing);
         if (reused) {
           if (reused === 'search') usedCombinedSearch = true;
-          if (reused === 'submitSearch' && usedCombinedSearch) continue;
-          if (reused.startsWith('assert') && usedAsserts.has(reused)) continue;
+          if (reused === 'submitSearch' && usedCombinedSearch) {
+            stepMethods[step.index] = POM_STEP_COVERED;
+            continue;
+          }
+          if (reused.startsWith('assert') && usedAsserts.has(reused)) {
+            stepMethods[step.index] = POM_STEP_COVERED;
+            continue;
+          }
           if (reused.startsWith('assert')) usedAsserts.add(reused);
           stepMethods[step.index] = reused;
+          if (step.action === 'fill') lastFill = step;
           continue;
         }
         if (page.operation === 'reuse') {
           // Curated POM — do not invent parallel assertCustom* methods.
           continue;
         }
-        const method = buildMethod(step, usedNames, existing);
+        const method = buildMethod(step, usedNames, existing, { lastFill, calendarOffsetDays });
+        if (step.action === 'fill') lastFill = step;
         if (!method) {
           if (step.action === 'navigate' && existing.has('goto')) {
             stepMethods[step.index] = 'goto';

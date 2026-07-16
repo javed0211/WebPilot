@@ -8,11 +8,22 @@ import {
 } from '../ProjectPaths';
 
 export const CODEGEN_LATEST_POINTER = path.join(CODEGEN_ROOT, 'latest.json');
+export const CODEGEN_AUDIT_DIR = path.join(CODEGEN_ROOT, 'audit');
 
 export function ensureCodegenDirs(): void {
-  for (const dir of [CODEGEN_ROOT, CODEGEN_TRACES_DIR, CODEGEN_PLANS_DIR, CODEGEN_HISTORY_DIR]) {
+  for (const dir of [
+    CODEGEN_ROOT,
+    CODEGEN_TRACES_DIR,
+    CODEGEN_PLANS_DIR,
+    CODEGEN_HISTORY_DIR,
+    CODEGEN_AUDIT_DIR,
+  ]) {
     fs.mkdirSync(dir, { recursive: true });
   }
+}
+
+export function auditPath(slug: string): string {
+  return path.join(CODEGEN_AUDIT_DIR, `${slug}.json`);
 }
 
 export function tracePath(slug: string): string {

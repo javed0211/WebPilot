@@ -36,9 +36,34 @@ function extractAssertText(step: string): string | null {
 
 function assertionPlanToSteps(
   plan: AssertionPlanItem[],
-  urlHint?: string
+  urlHint?: string,
+  finalUrl?: string
 ): RawExecutionStep[] {
   const steps: RawExecutionStep[] = [];
+  const finalHost = (() => {
+    try {
+      return finalUrl ? new URL(finalUrl).hostname.toLowerCase() : '';
+    } catch {
+      return '';
+    }
+  })();
+
+  /** Token from the NL assert that truthfully appears in the final URL (excluding the domain). */
+  const urlTokenFor = (nl: string): string | null => {
+    if (!finalUrl) return null;
+    const lowerUrl = finalUrl.toLowerCase();
+    const tokens = nl
+      .replace(/[^a-zA-Z0-9]+/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t.length >= 5 && !/^(verify|assert|check|ensure|visible|displayed|shown|present|loaded|page|results?)$/i.test(t));
+    for (const token of tokens) {
+      const lower = token.toLowerCase();
+      if (finalHost.includes(lower)) continue; // domain match is trivially true
+      if (lowerUrl.includes(lower)) return token;
+    }
+    return null;
+  };
+
   for (const item of plan) {
     const nl = (item.nlStep || '').trim();
     if (!nl) continue;
@@ -84,6 +109,41 @@ function assertionPlanToSteps(
     }
 
     const text = extractAssertText(nl);
+
+    // Brand/logo asserts: "Verify the Booking.com logo…" → assert the brand link,
+    // not the literal sentence (which never exists as page text).
+    const brandWord = nl.match(/([A-Z][a-zA-Z0-9]*\.(?:com|org|net|io))/)?.[1];
+    if (brandWord && /\blogo\b/i.test(nl) && finalHost.includes(brandWord.split('.')[0].toLowerCase())) {
+      steps.push({
+        index: steps.length + 1,
+        action: 'assert',
+        description: nl,
+        value: brandWord,
+        selector: JSON.stringify([{ kind: 'role', value: 'link', name: brandWord }]),
+        url: urlHint || null,
+      });
+      continue;
+    }
+
+    // Ground multi-clause / page-state asserts against the observed final URL.
+    // "Verify the search results page is displayed" has no literal page text, but
+    // the final URL truthfully contains "search"; assert that instead.
+    const looksLikePageStateAssert =
+      !text || text.length > 40 || / and /i.test(nl) || /\bpage\b/i.test(nl);
+    if (looksLikePageStateAssert) {
+      const token = urlTokenFor(nl);
+      if (token) {
+        steps.push({
+          index: steps.length + 1,
+          action: 'assert',
+          description: nl,
+          value: `__url_contains__:${token}`,
+          url: finalUrl || urlHint || null,
+        });
+        continue;
+      }
+    }
+
     // Plain verify-text must use getByText — never invent role:link (flaky for body copy).
     const locators = text
       ? [
@@ -116,9 +176,26 @@ function normalizeActStep(step: any, index: number): RawExecutionStep {
     selector,
     value: step.value ?? null,
     url: step.url ?? null,
+    urlBefore: step.urlBefore ?? null,
+    urlAfter: step.urlAfter ?? null,
     description: String(step.description || `${step.action || 'step'} ${index + 1}`),
     locators: Array.isArray(step.locators) ? step.locators : undefined,
   };
+}
+
+/** Backfill urlBefore/urlAfter from surrounding steps so page mapping keeps context. */
+function backfillStepUrls(steps: RawExecutionStep[]): void {
+  let lastKnown: string | null = null;
+  for (const step of steps) {
+    if (!step.urlBefore) step.urlBefore = lastKnown;
+    if (step.url) lastKnown = step.url;
+  }
+  let nextKnown: string | null = null;
+  for (let i = steps.length - 1; i >= 0; i--) {
+    if (!steps[i].urlAfter) steps[i].urlAfter = steps[i].url ?? nextKnown;
+    if (steps[i].url) nextKnown = steps[i].url ?? nextKnown;
+    else if (steps[i].urlBefore) nextKnown = steps[i].urlBefore ?? nextKnown;
+  }
 }
 
 /**
@@ -137,7 +214,8 @@ export class ActHistoryCodegenAdapter {
       acts.find((s) => s.action === 'navigate' && s.url)?.url ||
       acts.find((s) => s.url)?.url ||
       undefined;
-    const assertSteps = assertionPlanToSteps(assertionPlan, firstUrl || undefined);
+    const finalUrl = [...acts].reverse().find((s) => s.url)?.url || undefined;
+    const assertSteps = assertionPlanToSteps(assertionPlan, firstUrl || undefined, finalUrl);
 
     // Acts first (browser-use truth), then NL assertion intents for codegen expects.
     // Drop search_page / extract / evaluate noise — those invent bad POM methods.
@@ -155,6 +233,7 @@ export class ActHistoryCodegenAdapter {
       );
     }
     const merged = sanitized.steps as RawExecutionStep[];
+    backfillStepUrls(merged);
 
     return {
       scenario: raw.scenario || raw.testName || slug,

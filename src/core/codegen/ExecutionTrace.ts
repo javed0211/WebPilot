@@ -33,6 +33,12 @@ export interface TraceStep {
   value?: string;
   description: string;
   pageCandidate?: string;
+  /** URL before this step executed (page-state context for mapping). */
+  urlBefore?: string;
+  /** URL after this step executed (navigation outcome). */
+  urlAfter?: string;
+  /** Human-meaningful target ("Products navigation link"), derived from locators. */
+  semanticTarget?: string;
   assertions?: AssertionCandidate[];
 }
 
@@ -52,7 +58,15 @@ export interface RawExecutionStep {
   selector?: string | null;
   value?: string | null;
   url?: string | null;
+  urlBefore?: string | null;
+  urlAfter?: string | null;
   description: string;
   /** Optional ActHistory locator candidates (preferred over parsing selector JSON). */
   locators?: Array<{ kind: string; value?: string; name?: string; tag?: string }>;
+}
+
+/** All URL candidates for page mapping — step.url alone loses assert/merged-step context. */
+export function stepUrlCandidates(step: TraceStep): string[] {
+  const urls = [step.url, step.pageCandidate, step.urlBefore, step.urlAfter];
+  return [...new Set(urls.filter(Boolean) as string[])];
 }

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-07-16T21:26:20.792Z",
+  "lastUpdated": "2026-07-16T23:27:59.758Z",
   "classes": [
     {
       "name": "EnwikipediaorgIndexPhpPage",
@@ -177,6 +177,111 @@
         },
         {
           "name": "assertVerifyPageUrlContainsTalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "BookingHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "BookingHomePage",
+      "urlPattern": "https://www.booking.com/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/booking/BookingHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickAccept",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickDismissSignIn",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "fillDestination",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickLondonOption",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "selectCheckInDate",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "selectCheckOutDate",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSearch",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertBooking",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "selectRelativeDate",
+          "parameters": [
+            {
+              "name": "offsetDays",
+              "type": "number"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "dismissOverlays",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "waitForPage",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "capturePageScreenshot",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "waitForPage1",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "BookingSearchResultsPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "BookingSearchResultsPage",
+      "urlPattern": "/\\/searchresults(?:\\.[a-z-]+)?\\.html/i",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/booking/BookingSearchResultsPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertSearchResults",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertLondonResults",
           "parameters": [],
           "returnType": "Promise<void>"
         }
@@ -482,7 +587,17 @@
           "returnType": "Locator"
         },
         {
+          "name": "docsLink",
+          "parameters": [],
+          "returnType": "Locator"
+        },
+        {
           "name": "clickGetStarted",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickDocs",
           "parameters": [],
           "returnType": "Promise<void>"
         },
@@ -540,7 +655,8 @@
     {
       "name": "WikipediaArticlePage",
       "extendsClass": "BasePage",
-      "urlPattern": "\\/wiki\\/Software_testing",
+      "pageIdentity": "WikipediaArticlePage",
+      "urlPattern": "/wiki/Software_testing",
       "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaArticlePage.ts",
       "properties": [
         {
@@ -576,51 +692,6 @@
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickViewHistory",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "clickTalk",
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "screenshotHeading",
-          "parameters": [
-            {
-              "name": "filePath",
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "name": "subtitle",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "viewHistoryTab",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "talkTab",
-          "parameters": [],
-          "returnType": "Locator"
-        },
-        {
-          "name": "assertOnArticle",
-          "parameters": [
-            {
-              "name": "title",
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
           "name": "assertTextVisible",
           "parameters": [
             {
@@ -641,8 +712,38 @@
           "returnType": "Promise<void>"
         },
         {
-          "name": "clickTalkTab",
+          "name": "assertArticleTabVisible",
           "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCategoriesVisible",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertLastEditedVisible",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickViewHistory",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickTalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "screenshotHeading",
+          "parameters": [
+            {
+              "name": "fileName",
+              "type": "string"
+            }
+          ],
           "returnType": "Promise<void>"
         }
       ]
@@ -650,13 +751,14 @@
     {
       "name": "WikipediaHistoryPage",
       "extendsClass": "BasePage",
-      "urlPattern": "\\/w\\/index.php\\?title=Software_testing&action=history",
+      "pageIdentity": "WikipediaHistoryPage",
+      "urlPattern": "action=history",
       "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaHistoryPage.ts",
       "properties": [
         {
           "name": "urlPattern",
           "type": "any",
-          "value": "/\\/w\\/index.php\\?title=Software_testing&action=history/"
+          "value": "/action=history/"
         }
       ],
       "methods": [
@@ -695,7 +797,8 @@
     {
       "name": "WikipediaHomePage",
       "extendsClass": "BasePage",
-      "urlPattern": "^https:\\/\\/www\\.wikipedia\\.org\\/?$",
+      "pageIdentity": "WikipediaHomePage",
+      "urlPattern": "https://www.wikipedia.org/",
       "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaHomePage.ts",
       "properties": [
         {
@@ -755,13 +858,14 @@
     {
       "name": "WikipediaTalkPage",
       "extendsClass": "BasePage",
-      "urlPattern": "\\/wiki\\/Talk:Software_testing",
+      "pageIdentity": "WikipediaTalkPage",
+      "urlPattern": "/wiki/Talk:",
       "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaTalkPage.ts",
       "properties": [
         {
           "name": "urlPattern",
           "type": "any",
-          "value": "/\\/wiki\\/Talk:Software_testing/"
+          "value": "/\\/wiki\\/Talk:/"
         }
       ],
       "methods": [

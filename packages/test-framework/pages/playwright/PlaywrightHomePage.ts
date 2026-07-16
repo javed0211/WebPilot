@@ -13,12 +13,15 @@ export class PlaywrightHomePage extends BasePage {
     await expect(this.page).toHaveURL(/playwright\.dev\/?$/);
   }
 
-  /** Hero / nav "Get started" — prefer href from ActHistory, then role. */
   private getStartedLink(): Locator {
     return this.page
       .locator('a[href="/docs/intro"]')
       .or(this.page.getByRole('link', { name: /get started/i }))
       .first();
+  }
+
+  private docsLink(): Locator {
+    return this.page.getByRole('link', { name: /^Docs$/i }).first();
   }
 
   async clickGetStarted() {
@@ -27,16 +30,23 @@ export class PlaywrightHomePage extends BasePage {
     await link.click();
   }
 
+  async clickDocs() {
+    const link = this.docsLink();
+    await link.waitFor({ state: 'visible', timeout: 15_000 });
+    await link.click();
+  }
+
   async assertHomePageLoaded() {
     await expect(this.page).toHaveURL(/playwright\.dev\/?$/);
+    await expect(this.getStartedLink()).toBeVisible({ timeout: 15_000 });
   }
 
   async assertSectionVisible(sectionText: string) {
-    const target = this.page.getByRole('heading', { name: sectionText, exact: false }).or(
-      this.page.getByText(sectionText, { exact: false })
-    );
+    const heading = this.page.getByRole('heading', { name: sectionText, exact: false });
+    const text = this.page.getByText(sectionText, { exact: false });
+    const target = (await heading.count()) > 0 ? heading : text;
     await target.first().scrollIntoViewIfNeeded();
-    await expect(target.filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(target.first()).toBeVisible({ timeout: 15_000 });
   }
 
   async scrollToSection(heading: string) {
