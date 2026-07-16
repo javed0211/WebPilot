@@ -179,6 +179,88 @@ function isTypeScriptWebdriverIOProfile(profile: InitProfile): boolean {
   return isFullTypeScriptWebdriverIO(profile);
 }
 
+async function resolveInitRepoSource(options: {
+  yes?: boolean;
+  clone?: string;
+  fromPath?: string;
+  branch?: string;
+}): Promise<{ clone?: string; fromPath?: string; branch?: string }> {
+  if (options.clone || options.fromPath) {
+    return {
+      clone: options.clone,
+      fromPath: options.fromPath,
+      branch: options.branch,
+    };
+  }
+  // Non-interactive / -y: keep current blank-scaffold default
+  if (options.yes || !process.stdin.isTTY) {
+    return {};
+  }
+
+  const answers = (await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'source',
+      message: 'Do you want to start from an existing code repository?',
+      default: 'blank',
+      choices: [
+        { name: 'No — create a new empty WebPilot project', value: 'blank' },
+        {
+          name: 'Yes — clone a Git repository (CodegenAgent will reuse its page objects / knowledge graph)',
+          value: 'clone',
+        },
+        {
+          name: 'Yes — use an existing local folder',
+          value: 'path',
+        },
+      ],
+    },
+    {
+      type: 'input',
+      name: 'cloneUrl',
+      message: 'Git repository URL (HTTPS or SSH)',
+      when: (a: { source: string }) => a.source === 'clone',
+      validate: (value: string) => (value?.trim() ? true : 'Repository URL is required'),
+    },
+    {
+      type: 'input',
+      name: 'branch',
+      message: 'Branch (leave blank for default)',
+      when: (a: { source: string }) => a.source === 'clone',
+    },
+    {
+      type: 'input',
+      name: 'fromPath',
+      message: 'Path to existing local repository',
+      when: (a: { source: string }) => a.source === 'path',
+      validate: (value: string) => {
+        if (!value?.trim()) return 'Path is required';
+        const resolved = path.resolve(process.cwd(), value.trim());
+        if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+          return `Directory not found: ${resolved}`;
+        }
+        return true;
+      },
+    },
+  ])) as {
+    source: 'blank' | 'clone' | 'path';
+    cloneUrl?: string;
+    branch?: string;
+    fromPath?: string;
+  };
+
+  if (answers.source === 'clone') {
+    return {
+      clone: String(answers.cloneUrl).trim(),
+      branch: answers.branch?.trim() || options.branch,
+    };
+  }
+  if (answers.source === 'path') {
+    return { fromPath: String(answers.fromPath).trim() };
+  }
+  return {};
+}
+
 async function resolveInitProfile(
   directory: string,
   options: {
@@ -917,13 +999,20 @@ program
       source: 'none',
       detail: 'Scaffolding a new WebPilot project',
     };
-    if (options.clone || options.fromPath) {
+
+    // Interactive (or flag) choice: blank vs clone vs local existing repo
+    const repoSource = await resolveInitRepoSource(options);
+    const cloneUrl = repoSource.clone || options.clone;
+    const fromPath = repoSource.fromPath || options.fromPath;
+    const branch = repoSource.branch || options.branch;
+
+    if (cloneUrl || fromPath) {
       try {
         repoPrep = prepareProjectFromExistingRepo({
           directory,
-          cloneUrl: options.clone,
-          fromPath: options.fromPath,
-          branch: options.branch,
+          cloneUrl,
+          fromPath,
+          branch,
         });
         projectRoot = repoPrep.projectRoot;
         console.log(chalk.cyan(`\n${repoPrep.detail}`));
