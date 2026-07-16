@@ -31,19 +31,32 @@ function hasFailureMarkers(doc: Record<string, unknown>): boolean {
 /**
  * True only when ActHistory represents a successful discovery/execution.
  * `isDone` alone is not enough — failed runs often finish with isDone=true.
+ *
+ * Later ActHistory *replay/heal* may append runLog.failures without meaning the
+ * original discovery was bad — those must not force rediscovery when
+ * `isSuccessful === true`. Top-level `failure` / `errors` still reject.
  */
 export function isSuccessfulActHistory(
   doc: Record<string, unknown> | null | undefined
 ): boolean {
   if (!doc || typeof doc !== 'object') return false;
-  if (doc.isSuccessful !== true) return false;
+  if (doc.isSuccessful === true) {
+    if (typeof doc.failure === 'string' && doc.failure.trim()) return false;
+    if (Array.isArray(doc.errors) && doc.errors.length > 0) return false;
+    return true;
+  }
+  if (doc.isSuccessful === false) return false;
   if (hasFailureMarkers(doc)) return false;
-  return true;
+  return false;
 }
 
 /**
  * When re-running the same NL scenario with --codegen, skip expensive browser-use
- * rediscovery if a successful ActHistory already exists and the test file is unchanged.
+ * *LLM rediscovery* if a successful ActHistory already exists and the test file is unchanged.
+ *
+ * This does NOT mean "skip the browser" or "auto-pass". Engine must still replay
+ * ActHistory steps in a real browser to validate the scenario before codegen/pass.
+ * Reuse only avoids re-burning discovery tokens — not validation.
  *
  * Only `isSuccessful === true` counts. `isDone` alone is NOT success — failed runs
  * often finish with isDone=true / isSuccessful=false and must not be reused.

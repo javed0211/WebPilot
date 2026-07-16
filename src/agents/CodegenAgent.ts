@@ -2,6 +2,7 @@ import { LLMClient, LLMMessage } from '../core/LLMClient';
 import { CodegenContext } from '../core/CodegenContext';
 import { CodegenFailureMemory } from '../core/codegen/CodegenFailureMemory';
 import { PromptLoader } from '../core/PromptLoader';
+import { RepoEditCodegenAgent } from './RepoEditCodegenAgent';
 
 export interface GeneratedFile {
   path: string;
@@ -14,6 +15,11 @@ export interface CodegenResult {
   fixReport?: string;
 }
 
+/**
+ * Code generation entry point.
+ * Default: Cursor-style RepoEditCodegenAgent (read/edit existing POMs).
+ * Legacy one-shot invent: WEBPILOT_CODEGEN_LEGACY_AGENT=1
+ */
 export class CodegenAgent {
   private llm: LLMClient;
 
@@ -26,12 +32,50 @@ export class CodegenAgent {
    */
   public async generateCode(
     testName: string,
-    history: { action: string; selector?: string; value?: string; url?: string; description: string }[],
+    history: {
+      action: string;
+      selector?: string;
+      value?: string;
+      url?: string;
+      description: string;
+    }[],
     architecture: 'flat' | 'pom' | 'bdd' | 'pom-bdd',
     symbolGraphContext?: string,
     fallbackReason?: string
   ): Promise<CodegenResult> {
-    // Refresh + inject knowledge graph before every generate/repair edit.
+    if (process.env.WEBPILOT_CODEGEN_LEGACY_AGENT !== '1') {
+      const repoEdit = new RepoEditCodegenAgent(this.llm);
+      return repoEdit.generateCode(
+        testName,
+        history,
+        architecture,
+        symbolGraphContext,
+        fallbackReason
+      );
+    }
+    return this.generateCodeLegacy(
+      testName,
+      history,
+      architecture,
+      symbolGraphContext,
+      fallbackReason
+    );
+  }
+
+  /** One-shot JSON invent (legacy). Prefer RepoEditCodegenAgent. */
+  public async generateCodeLegacy(
+    testName: string,
+    history: {
+      action: string;
+      selector?: string;
+      value?: string;
+      url?: string;
+      description: string;
+    }[],
+    architecture: 'flat' | 'pom' | 'bdd' | 'pom-bdd',
+    symbolGraphContext?: string,
+    fallbackReason?: string
+  ): Promise<CodegenResult> {
     const frameworkContext = CodegenContext.buildFullPromptContext(
       symbolGraphContext,
       CodegenContext.knowledgeForEdit()

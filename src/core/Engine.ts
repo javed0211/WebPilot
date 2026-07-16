@@ -41,6 +41,14 @@ export interface EngineRunResult {
   stepsExecuted: number;
 }
 
+function safeUnlinkCodegenTemp(filePath: string): void {
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch {
+    // ignore
+  }
+}
+
 export interface EngineOptions {
   testFilePath: string;
   env: string;
@@ -210,7 +218,15 @@ export class Engine {
             'Prior ActHistory is not marked successful — forcing rediscovery instead of reuse'
           );
         } else {
-          Logger.info(`Skipping browser discovery — ${historyDecision.reason}`);
+          // Reuse skips expensive browser-use *discovery* (LLM agent), NOT the browser.
+          // ActHistory must always be validated by replaying steps in a real browser —
+          // otherwise "PASSED" is a false positive (history on disk ≠ scenario still works).
+          Logger.info(
+            `Skipping browser-use rediscovery — ${historyDecision.reason}. ` +
+              `Validating ActHistory in a real browser before ${
+                process.env.WEBPILOT_CODEGEN === '1' ? 'codegen' : 'pass'
+              }…`
+          );
           try {
             const pagesDir = path.join(process.cwd(), 'packages', 'test-framework', 'pages');
             const graph = SymbolParser.generateGraph(pagesDir);
@@ -223,8 +239,30 @@ export class Engine {
             Logger.warn(`Symbol graph pre-generation skipped: ${graphErr.message}`);
           }
 
+          const replay = await ActHistoryReplayService.replay(slug, {
+            headed: this.headed,
+            heal: isReplayHealEnabled(),
+          });
+          if (!replay.success) {
+            Logger.error(
+              replay.failure ||
+                'ActHistory browser replay failed — not treating as pass; use --force-discovery to rediscover'
+            );
+            return { success: false, stepsExecuted: replay.stepsExecuted || 0 };
+          }
+          Logger.success(
+            `ActHistory browser replay passed (${replay.stepsExecuted} steps` +
+              (replay.healedCount ? `, ${replay.healedCount} healed` : '') +
+              ')'
+          );
+
           if (process.env.WEBPILOT_CODEGEN === '1') {
             UsageTracker.setPhase('codegen');
+            // History-reuse path never went through initializeAgents — create LLM client here
+            // so CodegenAgent repair / fallback can call llm.complete().
+            if (!this.llmClient) {
+              this.llmClient = new LLMClient();
+            }
             const adapted = ActHistoryCodegenAdapter.loadFromSlug(slug);
             const codegenResult = await runPostExecutionCodegen({
               testName: slug,
@@ -234,34 +272,19 @@ export class Engine {
               architecture: this.architecture,
               fallbackReason: this.fallbackReason,
               historyDocument: historyDoc,
+              // Engine already validated ActHistory in the browser — don't replay twice.
+              skipActHistoryHeal: true,
             });
             if (!codegenResult.success) {
               Logger.error(codegenResult.summary);
-              return { success: false, stepsExecuted: adapted?.steps.length || 0 };
+              return { success: false, stepsExecuted: adapted?.steps.length || replay.stepsExecuted || 0 };
             }
             Logger.success(codegenResult.summary);
             await this.mergeCodegenIntoReport(slug, codegenResult);
             this.finalizeJobUsage(slug);
-            return { success: true, stepsExecuted: adapted?.steps.length || 0 };
+            return { success: true, stepsExecuted: adapted?.steps.length || replay.stepsExecuted || 0 };
           }
 
-          // Re-run without --codegen: replay ActHistory with auto-heal (no --heal flag needed).
-          Logger.info(
-            `Replaying ActHistory with self-heal ${isReplayHealEnabled() ? 'on' : 'off'} (no rediscovery)`
-          );
-          const replay = await ActHistoryReplayService.replay(slug, {
-            headed: this.headed,
-            heal: isReplayHealEnabled(),
-          });
-          if (!replay.success) {
-            Logger.error(replay.failure || 'ActHistory replay failed');
-            return { success: false, stepsExecuted: replay.stepsExecuted || 0 };
-          }
-          Logger.success(
-            `ActHistory replay passed (${replay.stepsExecuted} steps` +
-              (replay.healedCount ? `, ${replay.healedCount} healed` : '') +
-              ')'
-          );
           this.finalizeJobUsage(slug);
           return { success: true, stepsExecuted: replay.stepsExecuted || 0 };
         }
@@ -361,7 +384,7 @@ export class Engine {
               Logger.warn(
                 'Skipping codegen — only successful executions generate code'
               );
-              fs.unlinkSync(tempCodegenPath);
+              safeUnlinkCodegenTemp(tempCodegenPath);
               this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: steps.length };
             }
@@ -376,7 +399,7 @@ export class Engine {
             });
             if (!codegenResult.success) {
               Logger.error(codegenResult.summary);
-              fs.unlinkSync(tempCodegenPath);
+              safeUnlinkCodegenTemp(tempCodegenPath);
               this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: 0 };
             }
@@ -391,7 +414,7 @@ export class Engine {
             });
             if (!ok) {
               Logger.error('Generated code failed validation');
-              fs.unlinkSync(tempCodegenPath);
+              safeUnlinkCodegenTemp(tempCodegenPath);
               this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: 0 };
             }
@@ -412,7 +435,7 @@ export class Engine {
             Logger.info(`Artifacts: ${JSON.stringify(codegenData.artifacts)}`);
           }
 
-          fs.unlinkSync(tempCodegenPath);
+          safeUnlinkCodegenTemp(tempCodegenPath);
         }
 
         const historyPath = resolveExecutionHistoryPath(baseName);

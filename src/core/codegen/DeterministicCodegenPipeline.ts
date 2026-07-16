@@ -284,7 +284,7 @@ export class DeterministicCodegenPipeline {
           throw new Error(`Generated code failed validation for ${validation.paths.join(', ')}`);
         }
         Logger.warn(
-          `Deterministic codegen validation failed; invoking CodegenAgent repair with repo knowledge graph + prior failure memory.`
+          `Deterministic codegen validation failed; invoking RepoEditCodegenAgent (Cursor-style read/edit) with repo knowledge graph + prior failure memory.`
         );
         const agent = new CodegenAgent(llm);
         const llmSteps = input.steps.map((step) => ({
@@ -331,7 +331,7 @@ export class DeterministicCodegenPipeline {
           JSON.stringify(metadata, null, 2),
           'utf8'
         );
-        plan.notes.push('Repaired by CodegenAgent using ActHistory + repository knowledge graph');
+        plan.notes.push('Repaired by RepoEditCodegenAgent (Cursor-style) using ActHistory + repository files');
       } else {
         CodegenFailureMemory.clear(trace.scenarioSlug);
       }

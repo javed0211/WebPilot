@@ -39,16 +39,24 @@ export function buildFrameworkTsConfigJson(): string {
 }
 
 function tsConfigNeedsUpgrade(existing: {
-  compilerOptions?: { paths?: Record<string, string[]>; lib?: string[] };
+  compilerOptions?: { paths?: Record<string, string[]>; lib?: string[]; types?: string[] };
 }): boolean {
   if (!existing.compilerOptions?.paths?.['@core/*']) {
     return true;
   }
   const libs = (existing.compilerOptions.lib || []).map((item) => String(item).toLowerCase());
-  return !libs.includes('dom');
+  if (!libs.includes('dom')) {
+    return true;
+  }
+  const types = existing.compilerOptions.types;
+  // Missing types → ok (all @types/* load). Explicit types without 'node' → Buffer breaks.
+  if (Array.isArray(types) && !types.map((t) => String(t).toLowerCase()).includes('node')) {
+    return true;
+  }
+  return false;
 }
 
-/** Write root tsconfig.json when missing, missing aliases, or missing DOM lib (BasePage needs it). */
+/** Write root tsconfig.json when missing, missing aliases, DOM lib, or node types (BasePage needs them). */
 export function ensureFrameworkTsConfig(cwd = process.cwd()): boolean {
   const tsconfigPath = path.join(cwd, FRAMEWORK_TSCONFIG_REL_PATH);
   if (fs.existsSync(tsconfigPath)) {
@@ -59,7 +67,7 @@ export function ensureFrameworkTsConfig(cwd = process.cwd()): boolean {
       if (!tsConfigNeedsUpgrade(existing)) {
         return false;
       }
-      // Heal in place when aliases exist but DOM is missing — preserve other options.
+      // Heal in place when aliases exist but DOM/node types are missing — preserve other options.
       if (existing.compilerOptions?.paths?.['@core/*']) {
         const libs = new Set(
           (existing.compilerOptions.lib || ['ES2022']).map((item) => String(item))
@@ -69,10 +77,14 @@ export function ensureFrameworkTsConfig(cwd = process.cwd()): boolean {
         existing.compilerOptions.lib = Array.from(libs);
         if (!existing.compilerOptions.types) {
           existing.compilerOptions.types = ['node'];
+        } else if (
+          !existing.compilerOptions.types.map((t) => String(t).toLowerCase()).includes('node')
+        ) {
+          existing.compilerOptions.types = [...existing.compilerOptions.types, 'node'];
         }
         fs.writeFileSync(tsconfigPath, `${JSON.stringify(existing, null, 2)}\n`, 'utf8');
         console.log(
-          '\x1b[32m[WebPilot] Updated tsconfig.json lib to include DOM (required for BasePage).\x1b[0m'
+          '\x1b[32m[WebPilot] Updated tsconfig.json (DOM lib + node types required for BasePage).\x1b[0m'
         );
         return true;
       }

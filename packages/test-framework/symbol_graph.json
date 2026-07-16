@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-07-16T12:27:10.315Z",
+  "lastUpdated": "2026-07-16T21:26:20.792Z",
   "classes": [
     {
       "name": "EnwikipediaorgIndexPhpPage",
@@ -177,6 +177,266 @@
         },
         {
           "name": "assertVerifyPageUrlContainsTalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubActionsPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubActionsPage",
+      "urlPattern": "https://github.com/microsoft/playwright/actions",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/github/GithubActionsPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "clickSecurityAndQualityClickedASecurityAndQuality0IdSecurityAndQuality",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubHomePage",
+      "urlPattern": "https://github.com/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/github/GithubHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSearchOrJumpToClickedButtonSearchOrJumpToAriaLabelSearchOrJumpTo",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "fillNavigateToHttpsGithubCom",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickNavigateToHttpsGithubCom",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickMicrosoftPlaywrightClickedAMicrosoftPlaywright",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickIssues149ClickedAIssues149IdIssuesTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickPullRequests21ClickedAPullRequests21IdPullRequestsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickActionsClickedAActionsIdActionsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSecurityAndQualityClickedASecurityAndQuality0IdSecurityAndQuality",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickInsightsClickedAInsightsIdInsightsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "click",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickCodeClickedACodeIdCodeTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "navigateToHttpsGithubComMicrosoftPlaywrightPulse",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyGithubHomepageLoadsSuccessfully",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsSearch",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsMicrosoftPlaywright",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsIssues",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsPulls",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsActions",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsSecurity",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsPulse",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertVerifyPageUrlContainsMicrosoftPlaywright1",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubIssuesPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubIssuesPage",
+      "urlPattern": "https://github.com/microsoft/playwright/issues",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/github/GithubIssuesPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "clickPullRequests21ClickedAPullRequests21IdPullRequestsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickActionsClickedAActionsIdActionsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubPlaywrightPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubPlaywrightPage",
+      "urlPattern": "https://github.com/microsoft/playwright",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/github/GithubPlaywrightPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "clickIssues149ClickedAIssues149IdIssuesTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickPullRequests21ClickedAPullRequests21IdPullRequestsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickActionsClickedAActionsIdActionsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSecurityAndQualityClickedASecurityAndQuality0IdSecurityAndQuality",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickInsightsClickedAInsightsIdInsightsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "click",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickCodeClickedACodeIdCodeTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "navigateToHttpsGithubComMicrosoftPlaywrightPulse",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubPulsePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubPulsePage",
+      "urlPattern": "https://github.com/microsoft/playwright/pulse",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/github/GithubPulsePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "clickCodeClickedACodeIdCodeTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "navigateToHttpsGithubComMicrosoftPlaywrightPulse",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubSearchPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubSearchPage",
+      "urlPattern": "https://github.com/search?q=microsoft%2Fplaywright&type=repositories",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/github/GithubSearchPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "clickMicrosoftPlaywrightClickedAMicrosoftPlaywright",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "GithubSecurityPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "GithubSecurityPage",
+      "urlPattern": "https://github.com/microsoft/playwright/security",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/github/GithubSecurityPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "clickInsightsClickedAInsightsIdInsightsTab",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "click",
           "parameters": [],
           "returnType": "Promise<void>"
         }

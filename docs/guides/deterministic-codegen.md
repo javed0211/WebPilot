@@ -170,11 +170,24 @@ webpilot replay packages/test-framework/tests/checkout.spec.ts
 
 ---
 
+## Cursor-style RepoEdit codegen
+
+When deterministic codegen fails validation, WebPilot repairs with **RepoEditCodegenAgent** (default):
+
+1. Lists / reads real files under `packages/test-framework/pages/`
+2. Filters ActHistory (drops `search_page`, `extract`, `evaluate`, …)
+3. Writes surgical POM/spec updates under `pages/<site>/` (never invents `Www*…Page`)
+4. Rejects invented flat page classes in reference validation
+
+Legacy one-shot invent: `WEBPILOT_CODEGEN_LEGACY_AGENT=1`
+
+See [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
+
 ## How reuse works
 
 ### ActHistory (skip rediscovery)
 
-On repeat `--codegen` runs for the same scenario, a **successful** ActHistory may be reused so WebPilot skips the browser. Failed histories are never reused and never generate code.
+On repeat `--codegen` runs for the same scenario, a **successful** ActHistory may be reused so WebPilot skips browser-use **rediscovery**, then **replays ActHistory in a real browser** before codegen. Failed histories are never reused and never generate code.
 
 ```bash
 webpilot history list

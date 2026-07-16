@@ -3,11 +3,17 @@ import * as path from 'path';
 import { GeneratedFile } from '../agents/CodegenAgent';
 import { SymbolParser } from './SymbolParser';
 import { parseSpecImports } from './CodegenValidationBundle';
+import { isInventedFlatPageName, isInventedFlatPagePath } from './codegen/SitePageNaming';
 
 export interface ReferenceIssue {
   file: string;
   message: string;
-  code: 'missing_import' | 'missing_method' | 'non_executable_spec' | 'stub_page_object';
+  code:
+    | 'missing_import'
+    | 'missing_method'
+    | 'non_executable_spec'
+    | 'stub_page_object'
+    | 'invented_flat_page';
 }
 
 export interface ReferenceValidationResult {
@@ -93,6 +99,19 @@ export class CodegenReferenceValidator {
     const byPath = new Map(files.map((file) => [file.path.replace(/\\/g, '/'), file]));
 
     for (const file of files) {
+      const normalizedPath = file.path.replace(/\\/g, '/');
+      if (
+        normalizedPath.includes('/pages/') &&
+        (isInventedFlatPagePath(normalizedPath) ||
+          isInventedFlatPageName(path.basename(normalizedPath, '.ts')))
+      ) {
+        issues.push({
+          file: file.path,
+          code: 'invented_flat_page',
+          message: `Invented flat page "${path.basename(normalizedPath)}" is not allowed — use packages/test-framework/pages/<site>/<Brand>Page.ts`,
+        });
+      }
+
       if (!file.path.endsWith('.spec.ts')) {
         continue;
       }
@@ -103,6 +122,15 @@ export class CodegenReferenceValidator {
           code: 'non_executable_spec',
           message:
             'Generated spec contains comment-only steps with no await calls. Re-run with discovery or enriched execution history.',
+        });
+      }
+
+      if (/Www[a-z0-9]+HomePage|En[a-z0-9]+org/i.test(file.content)) {
+        issues.push({
+          file: file.path,
+          code: 'invented_flat_page',
+          message:
+            'Spec imports invented flat Www*/En*org* page class — regenerate against pages/<site>/ POMs',
         });
       }
 

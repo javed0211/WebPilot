@@ -177,6 +177,24 @@ def _relative_xpath_candidates(
     return out
 
 
+def _filter_locators_for_action(action: str, locators: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Drop skip-link / anchor locators for fill/input — they break Playwright replay."""
+    if action not in ("input", "fill"):
+        return locators
+    bad_fragments = ("#main", "skip to main", "skip to content")
+    filtered: list[dict[str, str]] = []
+    for loc in locators:
+        blob = f"{loc.get('kind','')}:{loc.get('value','')}:{loc.get('name','')}".lower()
+        if any(b in blob for b in bad_fragments):
+            continue
+        if loc.get("kind") == "role" and loc.get("value") == "link":
+            continue
+        if loc.get("kind") == "css" and "a[href" in blob and "#main" in blob:
+            continue
+        filtered.append(loc)
+    return filtered if filtered else locators
+
+
 def locator_candidates_from_element(element: Any) -> list[dict[str, str]]:
     """Build Playwright-oriented locator candidates from a browser-use interacted element.
 
@@ -361,6 +379,7 @@ def build_act_history(history_list: Any) -> list[dict[str, Any]]:
                 element = interacted[action_idx] if action_idx < len(interacted) else None
                 element_dict = _element_to_dict(element)
                 locators = locator_candidates_from_element(element) if element_dict else []
+                locators = _filter_locators_for_action(action, locators)
 
                 value = None
                 if action == "input":
@@ -424,6 +443,7 @@ def build_act_history(history_list: Any) -> list[dict[str, Any]]:
             element = action_dump.get("interacted_element")
             element_dict = _element_to_dict(element)
             locators = locator_candidates_from_element(element) if element_dict else []
+            locators = _filter_locators_for_action(action, locators)
             value = params.get("text") or params.get("url") or params.get("keys") or params.get("key")
             steps.append(
                 {

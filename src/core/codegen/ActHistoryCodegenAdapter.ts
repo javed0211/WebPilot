@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import { resolveExecutionHistoryPath } from '../ReportPaths';
 import { RawExecutionStep } from './ExecutionTrace';
+import { filterActHistoryForCodegen } from './ActHistoryCodegenFilter';
+import { sanitizeActHistoryForReplay } from '../replay/ActHistorySanitizer';
+import { Logger } from '../../utils/Logger';
 
 export interface AssertionPlanItem {
   index?: number;
@@ -137,10 +140,21 @@ export class ActHistoryCodegenAdapter {
     const assertSteps = assertionPlanToSteps(assertionPlan, firstUrl || undefined);
 
     // Acts first (browser-use truth), then NL assertion intents for codegen expects.
-    const merged = [...acts, ...assertSteps].map((step, i) => ({
+    // Drop search_page / extract / evaluate noise — those invent bad POM methods.
+    const mergedRaw = [...acts, ...assertSteps].map((step, i) => ({
       ...step,
       index: i + 1,
     }));
+    const filtered = filterActHistoryForCodegen(mergedRaw);
+    const sanitized = sanitizeActHistoryForReplay(filtered.steps as import('../replay/ActHistoryTypes').ActStep[]);
+    if (filtered.dropped > 0 || sanitized.dropped > 0 || sanitized.merged > 0) {
+      Logger.detail(
+        `ActHistory codegen filter: dropped ${filtered.dropped} noise step(s);` +
+          ` replay sanitize: ${mergedRaw.length} → ${sanitized.steps.length}` +
+          (sanitized.merged ? ` (merged ${sanitized.merged})` : '')
+      );
+    }
+    const merged = sanitized.steps as RawExecutionStep[];
 
     return {
       scenario: raw.scenario || raw.testName || slug,

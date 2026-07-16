@@ -6,6 +6,11 @@ import { ExecutionTrace } from './ExecutionTrace';
 import { CodegenProfilePlan, GenerationPlan, PlannedFile } from './GenerationPlan';
 import { CodegenProfile } from './profiles/CodegenProfile';
 import { CodegenProfileRegistry } from './profiles/CodegenProfileRegistry';
+import {
+  hostnameFromUrl,
+  inferSitePageFromUrl,
+  isInventedFlatPageName,
+} from './SitePageNaming';
 
 const PLAN_VERSION = '1.0.0';
 
@@ -23,18 +28,11 @@ function pagePathForClass(
   profileAdapter: CodegenProfile,
   profile: CodegenProfilePlan,
   className: string,
-  filePath?: string
+  filePath?: string,
+  url?: string
 ): string {
   if (filePath) return filePath.replace(/\\/g, '/');
-  return profileAdapter.pagePath(className, profile);
-}
-
-function hostnameFromUrl(url: string): string | null {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
-  } catch {
-    return null;
-  }
+  return profileAdapter.pagePath(className, profile, url);
 }
 
 function patternMatchesUrl(pattern: string, url: string): boolean {
@@ -65,7 +63,9 @@ function scorePageNode(node: KnowledgeNode, url: string, host: string | null): n
   }
 
   // Deprioritize invented flat names from prior bad codegen (Www*, Enwikipediaorg*).
-  if (/^www/i.test(node.name) || /^en[a-z0-9]+org/i.test(node.name)) score -= 20;
+  if (isInventedFlatPageName(node.name) || /^www/i.test(node.name) || /^en[a-z0-9]+org/i.test(node.name)) {
+    score -= 20;
+  }
 
   if (pattern && patternMatchesUrl(pattern, url)) score += 15;
 
@@ -77,7 +77,8 @@ function scorePageNode(node: KnowledgeNode, url: string, host: string | null): n
     if (/\/wiki\/[^/]+$/i.test(pathName) && !/Talk:/i.test(pathName) && /article/i.test(node.name)) {
       score += 5;
     }
-    const lastSeg = pathName.split('/').filter(Boolean).pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+    const lastSeg =
+      pathName.split('/').filter(Boolean).pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
     if (lastSeg && name.includes(lastSeg)) score += 2;
   } catch {
     /* ignore */
@@ -106,40 +107,30 @@ function matchPageForUrl(
   if (!scored.length) return null;
 
   const node = scored[0].node;
+  // Never "reuse" invented flat Www* as the plan target — create site-folder pages instead.
+  if (isInventedFlatPageName(node.name)) return null;
+
   const pattern = (node.meta?.urlPattern as string) || host || url;
   const summaryHint = node.meta?.summary ? ` — ${String(node.meta.summary).slice(0, 120)}` : '';
   const fullPath = path.join(
     process.cwd(),
-    node.filePath || pagePathForClass(profileAdapter, profile, node.name)
+    node.filePath || pagePathForClass(profileAdapter, profile, node.name, undefined, url)
   );
   const exists = fs.existsSync(fullPath);
-  const curated = (node.filePath || '').includes('/pages/') && (node.filePath || '').split('/').length > 4;
+  // Only hand-maintained site folders are "reuse" (skip inventing). Auto-generated
+  // pages/<site>/* from prior codegen must remain "extend" so new ActHistory methods land.
+  const curatedPath = String(node.filePath || '');
+  const curated =
+    /\/pages\/(wikipedia|playwright)\//i.test(curatedPath) ||
+    /\b@curated\b/i.test(fs.existsSync(fullPath) ? fs.readFileSync(fullPath, 'utf8').slice(0, 800) : '');
 
   return {
-    path: pagePathForClass(profileAdapter, profile, node.name, node.filePath),
+    path: pagePathForClass(profileAdapter, profile, node.name, node.filePath, url),
     operation: exists ? (curated ? 'reuse' : 'extend') : 'create',
     reason: `Matched existing page object ${node.name} (score ${scored[0].score})${summaryHint}`,
     className: node.name,
     urlPattern: pattern,
   };
-}
-
-function inferPageClassName(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.replace(/\./g, '');
-    const segments = parsed.pathname.split('/').filter(Boolean);
-    const route = segments[segments.length - 1] || 'home';
-    const routeName = route
-      .replace(/[^a-zA-Z0-9]+/g, ' ')
-      .trim()
-      .split(/\s+/)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join('');
-    return `${host.charAt(0).toUpperCase()}${host.slice(1)}${routeName || 'Home'}Page`;
-  } catch {
-    return 'GeneratedPage';
-  }
 }
 
 export class PlanBuilder {
@@ -177,17 +168,22 @@ export class PlanBuilder {
         continue;
       }
 
-      const className = inferPageClassName(url);
-      const pagePath = pagePathForClass(profileAdapter, profile, className);
+      // Prefer site-folder naming (pages/booking/BookingHomePage.ts) — never Www* flat invent.
+      const inferred = inferSitePageFromUrl(url);
+      const pagePath =
+        profile.language === 'typescript' && profile.automationTool === 'playwright'
+          ? inferred.pagePath
+          : pagePathForClass(profileAdapter, profile, inferred.className, undefined, url);
       if (!seenPages.has(pagePath)) {
         pageObjects.push({
           path: pagePath,
           operation: fs.existsSync(path.join(process.cwd(), pagePath)) ? 'extend' : 'create',
-          reason: `No existing page object matched ${url}`,
-          className,
+          reason: `No curated page matched ${url} — creating site-folder ${inferred.className}`,
+          className: inferred.className,
           urlPattern: url,
         });
         seenPages.add(pagePath);
+        notes.push(`Site-folder page plan: ${pagePath}`);
       }
     }
 

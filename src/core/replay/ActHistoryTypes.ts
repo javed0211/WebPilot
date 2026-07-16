@@ -69,6 +69,9 @@ export interface ActHistoryDocument {
   assertionPlan?: AssertionPlanItem[];
   runLog?: ActRunLog;
   urlSequence?: string[];
+  /** Top-level discovery success — trusted over later replay/heal runLog.failures. */
+  isSuccessful?: boolean;
+  isDone?: boolean;
 }
 
 export interface ActReplayStepResult {

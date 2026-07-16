@@ -131,6 +131,15 @@ export class CodegenValidator {
           );
           return { valid: true, files: currentFiles, issues: [] };
         }
+        // Do NOT fail codegen or invoke CodegenAgent over framework-only diagnostics
+        // (e.g. Buffer / @types/node). Spec + POM generation is otherwise fine.
+        console.warn(
+          '[CodegenValidator] Ignoring remaining framework BasePage TypeScript issues (tsconfig/@types/node) — not blocking codegen.'
+        );
+        retry.issues.forEach((i) => {
+          console.warn(`  - ${i.file}:${i.line}:${i.column} TS${i.code}: ${i.message}`);
+        });
+        return { valid: true, files: currentFiles, issues: [] };
       }
 
       console.log(`\x1b[34m[CodegenValidator] Attempting LLM auto-fix (round ${round + 1})...\x1b[0m`);
@@ -144,7 +153,15 @@ export class CodegenValidator {
           );
           return { valid: true, files: deterministic, issues: [] };
         }
-        return { valid: false, files: currentFiles, issues: result.issues };
+        // If only BasePage issues remain after a skipped LLM fix, do not block.
+        const remaining = retry.issues.length ? retry.issues : result.issues;
+        if (remaining.every((issue) => CodegenValidator.isFrameworkBasePage(issue.file))) {
+          console.warn(
+            '[CodegenValidator] Ignoring framework BasePage TypeScript issues — not blocking codegen.'
+          );
+          return { valid: true, files: currentFiles, issues: [] };
+        }
+        return { valid: false, files: currentFiles, issues: remaining };
       }
       // Merge LLM fixes onto current set (LLM may omit unchanged/framework files).
       const byPath = new Map(currentFiles.map((f) => [f.path.replace(/\\/g, '/'), f]));

@@ -1,5 +1,6 @@
 import type { Locator, Page } from 'playwright';
 import type { ActLocator } from './ActHistoryTypes';
+import { isBadInputLocator } from './ActHistorySanitizer';
 
 const KIND_PRIORITY: Record<string, number> = {
   role: 0,
@@ -126,12 +127,25 @@ export function disambiguateWithHints(
   return current;
 }
 
+export function filterLocatorsForAction(action: string, locators: ActLocator[]): ActLocator[] {
+  const normalized = action === 'fill' || action === 'type' ? 'input' : action;
+  const withoutSkip = locators.filter((loc) => {
+    const blob = `${loc.kind || ''}:${loc.value || ''}:${loc.name || ''}`.toLowerCase();
+    return !/#main|skip to main|skip to content/.test(blob);
+  });
+  if (normalized !== 'input') return withoutSkip;
+  const good = withoutSkip.filter((loc) => !isBadInputLocator(loc));
+  return good;
+}
+
 export async function resolveUniqueLocator(
   page: Page,
   locators: ActLocator[],
-  options?: { timeoutMs?: number; allowFirst?: boolean }
+  options?: { timeoutMs?: number; allowFirst?: boolean; action?: string }
 ): Promise<{ locator: Locator; used: ActLocator; description: string } | null> {
-  const ranked = rankLocators(locators);
+  const ranked = rankLocators(
+    options?.action ? filterLocatorsForAction(options.action, locators) : locators
+  );
   const timeout = options?.timeoutMs ?? 5_000;
 
   for (const candidate of ranked) {

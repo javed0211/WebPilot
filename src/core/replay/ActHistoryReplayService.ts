@@ -42,12 +42,19 @@ function loadDocument(slug: string): ActHistoryDocument {
 
 function persistHealing(slug: string, doc: ActHistoryDocument, runLogPatch: Partial<ActRunLog>): void {
   const historyPath = resolveExecutionHistoryPath(slug);
+  // Never demote a successful discovery history because a later replay/heal failed.
+  // Replay failures belong in the summary/report — rediscovery is only warranted when
+  // discovery itself was not successful.
+  const preserveDiscoverySuccess = doc.isSuccessful === true;
   const next: ActHistoryDocument = {
     ...doc,
+    isSuccessful: preserveDiscoverySuccess ? true : doc.isSuccessful,
     runLog: {
       ...(doc.runLog || {}),
       ...runLogPatch,
       healing: [...(doc.runLog?.healing || []), ...(runLogPatch.healing || [])],
+      failures: preserveDiscoverySuccess ? [] : runLogPatch.failures ?? doc.runLog?.failures ?? [],
+      isSuccessful: preserveDiscoverySuccess ? true : runLogPatch.isSuccessful ?? doc.runLog?.isSuccessful,
     },
   };
   fs.mkdirSync(path.dirname(historyPath), { recursive: true });

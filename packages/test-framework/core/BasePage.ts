@@ -670,14 +670,12 @@ export class BasePage {
     await this.page.emulateMedia(options);
   }
 
-  public async screenshot(options?: PageScreenshotOptions): Promise<Buffer> {
+  // Infer return type from Playwright (avoids bare `Buffer` when @types/node is missing).
+  public async screenshot(options?: PageScreenshotOptions) {
     return this.page.screenshot(options);
   }
 
-  public async screenshotLocator(
-    target: Target,
-    options?: LocatorScreenshotOptions
-  ): Promise<Buffer> {
+  public async screenshotLocator(target: Target, options?: LocatorScreenshotOptions) {
     return this.resolveLocator(target).screenshot(options);
   }
 

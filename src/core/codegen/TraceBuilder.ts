@@ -31,8 +31,10 @@ function normalizeAction(raw: string): TraceAction {
   if (['click', 'tap'].includes(action)) return 'click';
   if (['input', 'fill', 'type', 'enter'].includes(action)) return 'fill';
   if (['select', 'choose', 'dropdown'].includes(action)) return 'select';
-  if (['assert', 'verify', 'expect', 'check', 'assert_visible_page', 'browser-use-assertion', 'search_page'].includes(action))
+  if (['assert', 'verify', 'expect', 'check', 'assert_visible_page', 'browser-use-assertion'].includes(action))
     return 'assert';
+  // search_page is a browser-use tool — never treat as Playwright assert (becomes noise methods).
+  if (action === 'search_page') return 'custom';
   if (['wait', 'sleep', 'pause'].includes(action)) return 'wait';
   if (['go_back', 'back', 'navigate_back'].includes(action)) return 'go_back';
   if (['screenshot', 'capture_screenshot', 'take_screenshot'].includes(action)) return 'screenshot';

@@ -171,7 +171,7 @@ webpilot run tests/web/automationexercise_add_to_cart.txt --env qa --report
 
 If a scenario includes `codegen: true` or `report: true`, `webpilot run <file>` applies those defaults automatically.
 
-**Codegen only runs after a successful discovery.** Failed runs skip code generation. On `--codegen` re-runs, a prior **successful** ActHistory may skip the browser; failed history is never reused.
+**Codegen only runs after a successful discovery.** Failed runs skip code generation. On `--codegen` re-runs, a prior **successful** ActHistory skips LLM rediscovery, then **replays in a real browser** before codegen; failed history is never reused.
 
 ```bash
 webpilot history list

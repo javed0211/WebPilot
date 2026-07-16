@@ -6,13 +6,13 @@ How WebPilot stores browser discovery results, when it reuses them, when it gene
 
 ## Why this matters
 
-On `--codegen` re-runs, WebPilot can **skip expensive browser rediscovery** and reuse a prior ActHistory. That saves tokens and time — but only when the prior run actually **succeeded**.
+On `--codegen` re-runs, WebPilot can **skip expensive browser-use LLM rediscovery** and reuse a prior ActHistory. That saves discovery tokens — but the scenario is still **validated in a real browser** by replaying ActHistory steps before pass/codegen.
 
 Failed runs (for example `net::ERR_CONNECTION_CLOSED`) still write a history file. Those failures must **not**:
 
 - Be reused as “successful” discovery
 - Trigger codegen
-- Report the job as **PASSED** without opening a browser
+- Report the job as **PASSED** without a browser replay
 
 This guide documents the rules and the CLI to manage that state.
 
@@ -83,11 +83,29 @@ The hard gate lives in `runPostExecutionCodegen` (`src/core/codegen/PostExecutio
 
 ## ActHistory reuse on `--codegen` re-runs
 
-When you re-run the **same** `.txt` with `--codegen`, WebPilot may skip the browser:
+When you re-run the **same** `.txt` with `--codegen`, WebPilot may skip **browser-use rediscovery** (the LLM agent), then **must** replay ActHistory in a real browser:
 
 ```text
-○ Skipping browser discovery — reusing N ActHistory step(s) from …
+○ Skipping browser-use rediscovery — reusing N ActHistory step(s) from …
+○ Validating ActHistory in a real browser before codegen…
+  [ok] #1 navigate — …
+  [ok] #2 click — …
+✓ ActHistory browser replay passed (N steps)
+○ Codegen mode: auto …
 ```
+
+Reuse of history **never** means “pass without a browser.” If ActHistory browser replay fails, the job fails (use `--force-discovery` to rediscover).
+
+### Codegen from ActHistory (Cursor-style)
+
+After browser replay passes, codegen:
+
+1. **Filters** non-Playwright ActHistory noise (`search_page`, `extract`, `evaluate`, long agent waits)
+2. **Plans** pages under `packages/test-framework/pages/<site>/` (e.g. `booking/BookingHomePage.ts`) — not invented `WwwbookingcomHomePage`
+3. Emits deterministic POM/spec, then on failure repairs with **RepoEditCodegenAgent** (read existing files → surgical write), like Cursor editing the repo
+4. **Rejects** invented flat `Www*` / `En*org*` page classes
+
+Opt out of RepoEdit (legacy one-shot invent): `WEBPILOT_CODEGEN_LEGACY_AGENT=1`
 
 ### Reuse is allowed only when all of these hold
 

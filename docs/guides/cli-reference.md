@@ -51,7 +51,7 @@ webpilot run <file|directory> [options]
 
 **Sets env vars:** `WEBPILOT_KNOWLEDGE_ONLY`, `WEBPILOT_DISABLE_SITE_KNOWLEDGE` / `WEBPILOT_FORCE_DISCOVERY`, `WEBPILOT_CODEGEN`, `WEBPILOT_CODEGEN_MODE`, `WEBPILOT_BROWSER_PROVIDER`
 
-**ActHistory reuse:** with `--codegen`, a prior **successful** history for the same slug may skip the browser. Failed histories are never reused. Manage with `webpilot history` — see [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
+**ActHistory reuse:** with `--codegen`, a prior **successful** history skips browser-use *rediscovery* (LLM agent), then **replays ActHistory in a real browser** before codegen. Failed histories are never reused. Manage with `webpilot history` — see [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md).
 
 ---
 

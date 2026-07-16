@@ -115,9 +115,31 @@ export class DeterministicSpecWriter {
 
     body.push('});');
 
+    const content = [...imports, '', ...body, ''].join('\n');
+    const interactionCalls = (content.match(/await\s+\w+\.(?!goto\b)\w+\(/g) || []).length;
+    const rawPageCalls = (content.match(/await\s+page\./g) || []).length;
+    if (interactionCalls + rawPageCalls < 2) {
+      // Reuse/extend produced a near-empty shell — fall back to emitting all steps as page.* lines.
+      const fallbackBody: string[] = [
+        `test('${escapeTsString(trace.scenario)}', async ({ page }) => {`,
+      ];
+      for (const step of trace.steps) {
+        for (const line of specStepBody(step)) {
+          fallbackBody.push(`  ${line}`);
+        }
+      }
+      fallbackBody.push('});');
+      return {
+        path: plan.specPath,
+        content: [`import { test, expect } from '@playwright/test';`, '', ...fallbackBody, ''].join(
+          '\n'
+        ),
+      };
+    }
+
     return {
       path: plan.specPath,
-      content: [...imports, '', ...body, ''].join('\n'),
+      content,
     };
   }
 }

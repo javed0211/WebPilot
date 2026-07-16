@@ -4,6 +4,7 @@ import { DeterministicSpecWriter } from '../DeterministicSpecWriter';
 import { ExecutionTrace } from '../ExecutionTrace';
 import { CodegenProfilePlan, GenerationPlan } from '../GenerationPlan';
 import { CodegenProfile } from './CodegenProfile';
+import { inferSitePageFromUrl } from '../SitePageNaming';
 
 export class TypeScriptPlaywrightProfile implements CodegenProfile {
   public readonly id = 'typescript-playwright-pom';
@@ -20,9 +21,21 @@ export class TypeScriptPlaywrightProfile implements CodegenProfile {
     return `packages/test-framework/tests/${slug}.spec.ts`;
   }
 
-  public pagePath(className: string): string {
+  public pagePath(className: string, _profile?: CodegenProfilePlan, url?: string): string {
     if (className.startsWith('AutomationExercise')) {
       return `packages/test-framework/pages/automationexercise/${className}.ts`;
+    }
+    // Prefer site-folder layout when URL is known (booking.com → pages/booking/…).
+    if (url) {
+      const inferred = inferSitePageFromUrl(url);
+      if (className === inferred.className) return inferred.pagePath;
+      return `packages/test-framework/pages/${inferred.siteFolder}/${className}.ts`;
+    }
+    // Class names like BookingHomePage → pages/booking/
+    const siteFromClass = className.match(/^([A-Z][a-z0-9]+)(.+)Page$/);
+    if (siteFromClass && !/^Www/i.test(className)) {
+      const folder = siteFromClass[1].toLowerCase();
+      return `packages/test-framework/pages/${folder}/${className}.ts`;
     }
     return `packages/test-framework/pages/${className}.ts`;
   }

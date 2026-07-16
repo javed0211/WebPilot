@@ -102,6 +102,11 @@ export async function runPostExecutionCodegen(options: {
   validate?: boolean;
   /** Optional raw execution context (ActHistory document fields). */
   historyDocument?: Record<string, unknown>;
+  /**
+   * When Engine already validated ActHistory via browser replay, skip the
+   * duplicate heal-replay inside codegen (avoids opening the browser twice).
+   */
+  skipActHistoryHeal?: boolean;
 }): Promise<PostExecutionCodegenResult> {
   const historyDocument = loadHistoryDocument(options.testName, options.historyDocument);
   const blocked = skipCodegenUnlessSuccessful(historyDocument);
@@ -134,7 +139,13 @@ export async function runPostExecutionCodegen(options: {
   }
 
   // Spec failed on re-run: auto-heal via ActHistory first (no --heal flag required).
+  // Note: ActHistory heal replay proves the *history* path works; regenerating Playwright
+  // code afterward is a separate concern (codegen quality), not proof that history is wrong.
+  // Skipped when Engine already ran browser ActHistory replay (skipActHistoryHeal).
+  let actHistoryHealPassed = Boolean(options.skipActHistoryHeal);
+  let actHistoryHealSteps = 0;
   if (
+    !options.skipActHistoryHeal &&
     !existing.reuse &&
     existing.specPath &&
     /failed Playwright/i.test(existing.reason) &&
@@ -148,10 +159,12 @@ export async function runPostExecutionCodegen(options: {
         heal: true,
       });
       if (healedReplay.success) {
+        actHistoryHealPassed = true;
+        actHistoryHealSteps = healedReplay.stepsExecuted;
         Logger.success(
           `ActHistory heal replay passed (${healedReplay.stepsExecuted} steps` +
             (healedReplay.healedCount ? `, ${healedReplay.healedCount} healed` : '') +
-            '). Regenerating code with healing cache applied…'
+            '). Regenerating Playwright code from ActHistory (history is OK — codegen is the weak link)…'
         );
       } else {
         Logger.warn(
@@ -209,7 +222,8 @@ export async function runPostExecutionCodegen(options: {
   };
 
   const runLlm = async (): Promise<PostExecutionCodegenResult> => {
-    const codegen = new CodegenAgent(options.llmClient);
+    const llm = options.llmClient ?? new LLMClient();
+    const codegen = new CodegenAgent(llm);
     const llmSteps = steps.map((step) => ({
       action: step.action,
       selector: step.selector ?? undefined,
@@ -224,7 +238,7 @@ export async function runPostExecutionCodegen(options: {
       graphContext,
       options.fallbackReason
     );
-    const { ok, paths } = await CodegenWriter.writeAndValidate(generated.files, options.llmClient, {
+    const { ok, paths } = await CodegenWriter.writeAndValidate(generated.files, llm, {
       testSlug: options.testName,
       urls: [...new Set(steps.map((step) => step.url).filter(Boolean) as string[])],
     });
@@ -235,26 +249,47 @@ export async function runPostExecutionCodegen(options: {
     };
   };
 
+  const withHealContext = (result: PostExecutionCodegenResult): PostExecutionCodegenResult => {
+    if (!actHistoryHealPassed || result.success) return result;
+    return {
+      ...result,
+      summary:
+        `ActHistory heal replay passed (${actHistoryHealSteps} steps) but Playwright codegen regenerate failed. ` +
+        `History is correct — use: webpilot run <test>  (without --codegen) to replay history, ` +
+        `or fix generated specs. Underlying: ${result.summary}`,
+    };
+  };
+
   if (mode === 'llm') {
     Logger.info('Codegen mode: llm (ActHistory + knowledge graph)');
-    return runLlm();
+    return withHealContext(await runLlm());
   }
 
   try {
     Logger.info(`Codegen mode: ${mode} (ActHistory → deterministic${mode === 'auto' ? ' → agent repair' : ''})`);
     // auto/deterministic: draft from ActHistory; auto enables CodegenAgent repair on validation failure
-    return await runDeterministic(mode === 'auto');
+    return withHealContext(await runDeterministic(mode === 'auto'));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     if (mode === 'auto') {
       Logger.warn(`Codegen pipeline failed (${message}); falling back to CodegenAgent.`);
-      return runLlm();
+      try {
+        return withHealContext(await runLlm());
+      } catch (fallbackErr: unknown) {
+        const fallbackMessage =
+          fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        return withHealContext({
+          success: false,
+          summary: `CodegenAgent fallback failed: ${fallbackMessage} (after: ${message})`,
+          files: [],
+        });
+      }
     }
     Logger.error(`Deterministic codegen failed: ${message}`);
-    return {
+    return withHealContext({
       success: false,
       summary: `Deterministic codegen failed: ${message}`,
       files: [],
-    };
+    });
   }
 }

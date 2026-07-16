@@ -124,7 +124,7 @@ After live execution succeeds:
 
 ### Reusing ActHistory on re-runs
 
-On a later `webpilot run <same.txt> --codegen`, WebPilot may skip the browser and reuse a **successful** ActHistory (0 rediscovery tokens). Failed histories are never reused.
+On a later `webpilot run <same.txt> --codegen`, WebPilot may skip browser-use **rediscovery** and reuse a **successful** ActHistory (0 rediscovery tokens), then **replay those steps in a real browser** before codegen. Failed histories are never reused.
 
 ```bash
 webpilot history list                 # inspect
