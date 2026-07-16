@@ -11,8 +11,10 @@ import { CodegenMetadata } from './GenerationPlan';
 import { ReportCodegenInfo } from '../execution_report/types';
 import { RawExecutionStep } from './ExecutionTrace';
 import { tryReuseExistingGeneratedSpec } from './ExistingCodegenReuse';
+import { isSuccessfulActHistory } from './HistoryReuse';
 import { isReplayHealEnabled } from '../replay/ReplayHealPolicy';
 import { ActHistoryReplayService } from '../replay/ActHistoryReplayService';
+import { resolveExecutionHistoryPath } from '../ReportPaths';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -54,6 +56,41 @@ function toPipelineSteps(steps: RawExecutionStep[]): PipelineInput['steps'] {
   }));
 }
 
+function loadHistoryDocument(
+  testName: string,
+  provided?: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (provided) return provided;
+  const historyPath = resolveExecutionHistoryPath(testName);
+  if (!fs.existsSync(historyPath)) return undefined;
+  try {
+    return JSON.parse(fs.readFileSync(historyPath, 'utf8')) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Codegen is only allowed after a successful discovery/execution.
+ * Failed ActHistory must not produce POMs/specs (avoids false-positive "PASSED").
+ */
+function skipCodegenUnlessSuccessful(
+  historyDocument: Record<string, unknown> | undefined
+): PostExecutionCodegenResult | null {
+  // No ActHistory document → caller already gated success (e.g. local Playwright path).
+  if (!historyDocument) return null;
+  if (isSuccessfulActHistory(historyDocument)) return null;
+  Logger.warn(
+    'Skipping codegen — only successful executions generate code (discovery/execution failed)'
+  );
+  return {
+    success: false,
+    summary:
+      'Codegen skipped — execution was not successful. Fix the failing run (or use --force-discovery) before generating code.',
+    files: [],
+  };
+}
+
 export async function runPostExecutionCodegen(options: {
   testName: string;
   testFilePath: string;
@@ -66,6 +103,10 @@ export async function runPostExecutionCodegen(options: {
   /** Optional raw execution context (ActHistory document fields). */
   historyDocument?: Record<string, unknown>;
 }): Promise<PostExecutionCodegenResult> {
+  const historyDocument = loadHistoryDocument(options.testName, options.historyDocument);
+  const blocked = skipCodegenUnlessSuccessful(historyDocument);
+  if (blocked) return blocked;
+
   const mode = resolveCodegenMode();
   const existing = tryReuseExistingGeneratedSpec(options.testName);
   if (existing.reuse && existing.specPath) {
@@ -128,11 +169,8 @@ export async function runPostExecutionCodegen(options: {
 
   let steps = toPipelineSteps(options.executionHistory);
   let historySource = 'runtime-history';
-  if (options.historyDocument) {
-    const adapted = ActHistoryCodegenAdapter.fromDocument(
-      options.historyDocument,
-      options.testName
-    );
+  if (historyDocument) {
+    const adapted = ActHistoryCodegenAdapter.fromDocument(historyDocument, options.testName);
     if (adapted.steps.length) {
       steps = adapted.steps;
       historySource = adapted.historySource || historySource;

@@ -58,7 +58,8 @@
     "test:act-history-replay": "npm run build && node scripts/test-act-history-replay.cjs",
     "test:act-history-codegen": "npm run build && node scripts/test-act-history-codegen.cjs",
     "test:knowledge-only-replay": "npm run build && node scripts/test-knowledge-only-replay.cjs",
-    "test:understand-anything-import": "npm run build && node scripts/test-understand-anything-import.cjs"
+    "test:understand-anything-import": "npm run build && node scripts/test-understand-anything-import.cjs",
+    "test:history-reuse": "npm run build && node scripts/test-history-reuse.cjs"
   },
   "keywords": [
     "web-automation",

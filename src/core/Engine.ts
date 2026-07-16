@@ -31,7 +31,7 @@ import {
 } from './ReportPaths';
 import { findCliInstallRoot } from '../cli/ProjectContext';
 import { KnowledgeOnlyReplay } from './replay/KnowledgeOnlyReplay';
-import { decideHistoryReuse } from './codegen/HistoryReuse';
+import { decideHistoryReuse, isSuccessfulActHistory } from './codegen/HistoryReuse';
 import { ActHistoryCodegenAdapter } from './codegen/ActHistoryCodegenAdapter';
 import { isReplayHealEnabled } from './replay/ReplayHealPolicy';
 import { ActHistoryReplayService } from './replay/ActHistoryReplayService';
@@ -194,61 +194,77 @@ export class Engine {
       // Reuse prior ActHistory on --codegen re-runs to avoid rediscovery token burn.
       const historyDecision = decideHistoryReuse(this.testFilePath, slug);
       if (historyDecision.reuse && historyDecision.historyPath) {
-        Logger.info(`Skipping browser discovery — ${historyDecision.reason}`);
+        let historyDoc: Record<string, unknown> = {};
         try {
-          const pagesDir = path.join(process.cwd(), 'packages', 'test-framework', 'pages');
-          const graph = SymbolParser.generateGraph(pagesDir);
-          SymbolParser.saveGraph(
-            graph,
-            path.join(process.cwd(), 'packages', 'test-framework', 'symbol_graph.json')
+          historyDoc = JSON.parse(fs.readFileSync(historyDecision.historyPath, 'utf8')) as Record<
+            string,
+            unknown
+          >;
+        } catch {
+          historyDoc = {};
+        }
+
+        // Defense in depth: never codegen/replay from a failed discovery artifact.
+        if (!isSuccessfulActHistory(historyDoc)) {
+          Logger.warn(
+            'Prior ActHistory is not marked successful — forcing rediscovery instead of reuse'
           );
-          await RepoKnowledgeGraph.refreshAsync();
-        } catch (graphErr: any) {
-          Logger.warn(`Symbol graph pre-generation skipped: ${graphErr.message}`);
-        }
-
-        if (process.env.WEBPILOT_CODEGEN === '1') {
-          UsageTracker.setPhase('codegen');
-          const adapted = ActHistoryCodegenAdapter.loadFromSlug(slug);
-          const historyDoc = JSON.parse(fs.readFileSync(historyDecision.historyPath, 'utf8'));
-          const codegenResult = await runPostExecutionCodegen({
-            testName: slug,
-            testFilePath: this.testFilePath,
-            executionHistory: (adapted?.steps || []) as RawExecutionStep[],
-            llmClient: this.llmClient,
-            architecture: this.architecture,
-            fallbackReason: this.fallbackReason,
-            historyDocument: historyDoc,
-          });
-          if (!codegenResult.success) {
-            Logger.error(codegenResult.summary);
-            return { success: false, stepsExecuted: adapted?.steps.length || 0 };
+        } else {
+          Logger.info(`Skipping browser discovery — ${historyDecision.reason}`);
+          try {
+            const pagesDir = path.join(process.cwd(), 'packages', 'test-framework', 'pages');
+            const graph = SymbolParser.generateGraph(pagesDir);
+            SymbolParser.saveGraph(
+              graph,
+              path.join(process.cwd(), 'packages', 'test-framework', 'symbol_graph.json')
+            );
+            await RepoKnowledgeGraph.refreshAsync();
+          } catch (graphErr: any) {
+            Logger.warn(`Symbol graph pre-generation skipped: ${graphErr.message}`);
           }
-          Logger.success(codegenResult.summary);
-          await this.mergeCodegenIntoReport(slug, codegenResult);
-          this.finalizeJobUsage(slug);
-          return { success: true, stepsExecuted: adapted?.steps.length || 0 };
-        }
 
-        // Re-run without --codegen: replay ActHistory with auto-heal (no --heal flag needed).
-        Logger.info(
-          `Replaying ActHistory with self-heal ${isReplayHealEnabled() ? 'on' : 'off'} (no rediscovery)`
-        );
-        const replay = await ActHistoryReplayService.replay(slug, {
-          headed: this.headed,
-          heal: isReplayHealEnabled(),
-        });
-        if (!replay.success) {
-          Logger.error(replay.failure || 'ActHistory replay failed');
-          return { success: false, stepsExecuted: replay.stepsExecuted || 0 };
+          if (process.env.WEBPILOT_CODEGEN === '1') {
+            UsageTracker.setPhase('codegen');
+            const adapted = ActHistoryCodegenAdapter.loadFromSlug(slug);
+            const codegenResult = await runPostExecutionCodegen({
+              testName: slug,
+              testFilePath: this.testFilePath,
+              executionHistory: (adapted?.steps || []) as RawExecutionStep[],
+              llmClient: this.llmClient,
+              architecture: this.architecture,
+              fallbackReason: this.fallbackReason,
+              historyDocument: historyDoc,
+            });
+            if (!codegenResult.success) {
+              Logger.error(codegenResult.summary);
+              return { success: false, stepsExecuted: adapted?.steps.length || 0 };
+            }
+            Logger.success(codegenResult.summary);
+            await this.mergeCodegenIntoReport(slug, codegenResult);
+            this.finalizeJobUsage(slug);
+            return { success: true, stepsExecuted: adapted?.steps.length || 0 };
+          }
+
+          // Re-run without --codegen: replay ActHistory with auto-heal (no --heal flag needed).
+          Logger.info(
+            `Replaying ActHistory with self-heal ${isReplayHealEnabled() ? 'on' : 'off'} (no rediscovery)`
+          );
+          const replay = await ActHistoryReplayService.replay(slug, {
+            headed: this.headed,
+            heal: isReplayHealEnabled(),
+          });
+          if (!replay.success) {
+            Logger.error(replay.failure || 'ActHistory replay failed');
+            return { success: false, stepsExecuted: replay.stepsExecuted || 0 };
+          }
+          Logger.success(
+            `ActHistory replay passed (${replay.stepsExecuted} steps` +
+              (replay.healedCount ? `, ${replay.healedCount} healed` : '') +
+              ')'
+          );
+          this.finalizeJobUsage(slug);
+          return { success: true, stepsExecuted: replay.stepsExecuted || 0 };
         }
-        Logger.success(
-          `ActHistory replay passed (${replay.stepsExecuted} steps` +
-            (replay.healedCount ? `, ${replay.healedCount} healed` : '') +
-            ')'
-        );
-        this.finalizeJobUsage(slug);
-        return { success: true, stepsExecuted: replay.stepsExecuted || 0 };
       }
 
       Logger.info(`Delegating to browser-use runner (${browserProvider.name})`);
@@ -331,6 +347,14 @@ export class Engine {
               const raw = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
               historyDocument = raw;
               steps = (raw.actHistory || raw.executionHistory || raw.steps || []) as RawExecutionStep[];
+            }
+            if (historyDocument && !isSuccessfulActHistory(historyDocument)) {
+              Logger.warn(
+                'Skipping codegen — only successful executions generate code'
+              );
+              fs.unlinkSync(tempCodegenPath);
+              this.finalizeJobUsage(baseName);
+              return { success: false, stepsExecuted: steps.length };
             }
             const codegenResult = await runPostExecutionCodegen({
               testName: baseName,

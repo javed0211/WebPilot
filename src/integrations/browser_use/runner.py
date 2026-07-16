@@ -1702,6 +1702,11 @@ async def main():
                 "WebPilot agent failed (LLM connection or step errors). "
                 "Check .env Azure/OpenAI credentials."
             )
+            if os.environ.get('WEBPILOT_CODEGEN') == '1':
+                print(
+                    "\n[Codegen] Skipped — only successful executions generate code. "
+                    "Re-run after the scenario passes."
+                )
             fail_tokens = (
                 llm_usage_totals['promptTokens'] + llm_usage_totals['completionTokens']
             )
