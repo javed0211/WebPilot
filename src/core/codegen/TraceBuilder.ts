@@ -13,6 +13,7 @@ import { HealingAgent } from '../../agents/HealingAgent';
 import { ConfigManager } from '../ConfigManager';
 import * as path from 'path';
 import { AssertionRanker } from '../assertions/AssertionRanker';
+import { extractStepSubject } from './ParameterizedMethodBinder';
 
 const TRACE_VERSION = '1.0.0';
 
@@ -79,23 +80,39 @@ function locatorExpressionFromJson(raw: string): TraceSelector | undefined {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return undefined;
 
+    // Prefer DOM-verified inventory locators over heuristic SelectorRanker picks.
+    const ordered = [
+      ...parsed.filter((l: { verified?: boolean }) => l && l.verified),
+      ...parsed.filter((l: { verified?: boolean }) => l && !l.verified),
+    ];
+
     const candidates: SelectorCandidate[] = [];
-    for (const locator of parsed) {
+    for (const locator of ordered) {
       if (!locator || typeof locator !== 'object') continue;
       const kind = String(locator.kind || 'unknown');
       const value = String(locator.value || '');
       const name = typeof locator.name === 'string' ? locator.name : undefined;
+      const exact = locator.exact !== false && Boolean(name);
       let expression = '';
 
       if (kind === 'role') {
         expression = name
-          ? /[/.]/.test(name)
-            ? `getByRole('${value.replace(/'/g, "\\'")}', { name: '${name.replace(/'/g, "\\'")}', exact: true })`
-            : `getByRole('${value.replace(/'/g, "\\'")}', { name: '${name.replace(/'/g, "\\'")}' })`
+          ? `getByRole('${value.replace(/'/g, "\\'")}', { name: '${name.replace(/'/g, "\\'")}'${exact ? ', exact: true' : ''} })`
           : `getByRole('${value.replace(/'/g, "\\'")}')`;
-        candidates.push(
-          SelectorRanker.candidate('role', name ? `${value}[name='${name}']` : value, expression)
+        // Scope: page.locator(nav).getByRole(...)
+        if (locator.scope?.kind === 'css' && locator.scope?.value) {
+          expression = `locator('${String(locator.scope.value).replace(/'/g, "\\'")}')` + `.${expression}`;
+        } else if (locator.scope?.kind === 'role' && locator.scope?.value) {
+          expression =
+            `getByRole('${String(locator.scope.value).replace(/'/g, "\\'")}')` + `.${expression}`;
+        }
+        const cand = SelectorRanker.candidate(
+          'role',
+          name ? `${value}[name='${name}']` : value,
+          expression
         );
+        if (locator.verified) cand.confidence = 0.99;
+        candidates.push(cand);
         continue;
       }
       if (kind === 'label') {
@@ -105,11 +122,20 @@ function locatorExpressionFromJson(raw: string): TraceSelector | undefined {
       } else if (kind === 'testid') {
         expression = `getByTestId('${value.replace(/'/g, "\\'")}')`;
       } else if (kind === 'text') {
-        expression = `getByText('${value.replace(/'/g, "\\'")}')`;
+        expression = `getByText('${value.replace(/'/g, "\\'")}'${exact ? ', { exact: true }' : ''})`;
       } else if (kind === 'css' || kind === 'xpath') {
         expression = `locator('${value.replace(/'/g, "\\'")}')`;
       }
-      candidates.push(SelectorRanker.candidate(kind as SelectorKind, value, expression || undefined));
+      const cand = SelectorRanker.candidate(kind as SelectorKind, value, expression || undefined);
+      if (locator.verified) cand.confidence = 0.99;
+      candidates.push(cand);
+    }
+
+    // If any verified, pick first verified (already ordered); else SelectorRanker.
+    const verifiedCand = candidates.find((c) => c.confidence >= 0.99);
+    if (verifiedCand) {
+      const rest = candidates.filter((c) => c !== verifiedCand);
+      return toTraceSelector(verifiedCand, rest.slice(0, 3));
     }
 
     const ranked = SelectorRanker.rank(candidates);
@@ -298,7 +324,12 @@ export class TraceBuilder {
     for (const [index, step] of input.steps.entries()) {
       const action = normalizeAction(step.action);
       const urlBefore = step.urlBefore || currentUrl;
-      if (step.url) currentUrl = step.url;
+      // Only navigational / interaction URLs advance the active page cursor.
+      // Assert steps often carry a home urlHint that would otherwise reset context
+      // for every subsequent verify (mapping article asserts onto the homepage).
+      if (step.url && action !== 'assert' && action !== 'screenshot') {
+        currentUrl = step.url;
+      }
       if (action === 'navigate' && step.url) currentUrl = step.url;
 
       const semanticTarget = semanticTargetFromStep(step);
@@ -314,16 +345,30 @@ export class TraceBuilder {
         selectorRaw = JSON.stringify(step.locators);
       }
 
+      let value =
+        action === 'press'
+          ? keyFromIntent(intent, step.value || undefined) || 'Enter'
+          : step.value || undefined;
+      // Assert/screenshot steps from NL often have the subject only in free text.
+      // Backfill value so parameterized POM reuse can bind method(arg).
+      if ((action === 'assert' || action === 'screenshot') && !value) {
+        const subject = extractStepSubject({
+          index: step.index ?? index + 1,
+          intent,
+          action,
+          description: step.description,
+          semanticTarget,
+        });
+        if (subject) value = subject;
+      }
+
       normalized.push({
         index: step.index ?? index + 1,
         intent,
         action,
         selector: parseSelector(selectorRaw, stepUrl || currentUrl, intent),
         url: stepUrl,
-        value:
-          action === 'press'
-            ? keyFromIntent(intent, step.value || undefined) || 'Enter'
-            : step.value || undefined,
+        value,
         description: step.description,
         pageCandidate: currentUrl,
         urlBefore,

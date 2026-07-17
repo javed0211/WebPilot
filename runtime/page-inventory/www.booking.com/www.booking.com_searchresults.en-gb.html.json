@@ -1,0 +1,2988 @@
+{
+  "schemaVersion": 2,
+  "pageKey": "www.booking.com_searchresults.en-gb.html",
+  "url": "https://www.booking.com/searchresults.en-gb.html?ss=London%2C+Greater+London%2C+United+Kingdom&efdco=1&label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H6NIGwAIB0gIkYmUyZjI3NGEtMjBhZC00NmQ2LWJiYjgtZDRkYjQ3OWUzMWI02AIB4AIB&aid=304142&lang=en-gb&sb=1&src_elem=sb&src=index&dest_id=-2601889&dest_type=city&ac_position=0&ac_click_type=b&ac_langcode=xu&ac_suggestion_list_length=6&search_selected=true&search_pageview_id=f69649bfdd6001de&ac_meta=GhBmNjk2NDliZmRkNjAwMWRlIAAoATICeHU6BkxvbmRvbg%3D%3D&group_adults=2&no_rooms=1&group_children=0",
+  "title": "booking.com/searchresults.en-gb.html?ss=London%2C+Greater+London%2C+United+Kingdom&efdco=1&label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H6NIGwAIB0gIkYmUyZjI3NGEtMjBhZC00NmQ2LWJiYjgtZDRkYjQ3OWUzMWI02AIB4AIB&aid=304142&lang=en-gb&sb=1&src_elem=sb&src=index&dest_id=-2601889&dest_type=city&ac_position=0&ac_click_type=b&ac_langcode=xu&ac_suggestion_list_length=6&search_selected=true&search_pageview_id=f69649bfdd6001de&ac_meta=GhBmNjk2NDliZmRkNjAwMWRlIAAoATICeHU6BkxvbmRvbg%3D%3D&group_adults=2&no_rooms=1&group_children=0",
+  "capturedAt": "2026-07-17T10:30:36.381816+00:00",
+  "fingerprint": "e1035cb0fe90c4b1",
+  "elementCount": 120,
+  "elements": [
+    {
+      "backendNodeId": 9313,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "bodyconstraint-inner"
+        },
+        {
+          "tag": "div",
+          "id": "bodyconstraint"
+        },
+        {
+          "tag": "body",
+          "id": "b2searchresultsPage"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17044,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[2]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17036,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[2]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17045,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[2]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17042,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[2]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17041,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[2]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17038,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[2]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17039,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[2]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17057,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17049,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17058,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17055,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17053,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17054,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17051,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17052,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[3]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17070,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17062,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17071,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17068,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17066,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17067,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17064,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17065,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[4]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17083,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17075,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17084,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17081,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17079,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17080,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17077,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17078,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[5]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17096,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17088,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17097,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17094,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17092,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17093,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17090,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17091,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[6]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17109,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17101,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17110,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17107,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17105,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17106,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17103,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17104,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[7]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17122,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17114,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17123,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17120,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17118,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17119,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17116,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17117,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[8]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17135,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17127,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17136,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17133,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17131,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17132,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17129,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17130,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[9]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17148,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17140,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17149,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17146,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17144,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17145,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17142,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17143,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[10]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17161,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17153,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17162,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17159,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17157,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17158,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17155,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17156,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[11]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17174,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17166,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17175,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17172,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17170,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17171,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17168,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17169,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[12]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17187,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17179,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17188,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17185,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17183,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17184,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17181,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17182,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[13]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17200,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17192,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17201,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17198,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17196,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17197,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17194,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17195,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[14]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17213,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17205,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17214,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17211,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17209,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17210,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17207,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17208,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[15]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17226,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17218,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17227,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17224,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17222,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b566a1d4c2"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[3]/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17223,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-container",
+        "class": "d0d0d1a234"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[3]/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        },
+        {
+          "tag": "div",
+          "role": "region",
+          "testid": "filters-sidebar"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17220,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "filters-group-label-content",
+        "class": "f5a6d1abf5"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[3]/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17221,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fff1944c52 a6f06a0e7d"
+      },
+      "xpath": "html/body/div[4]/div/div/div/div[2]/div[3]/div[1]/div[3]/div[5]/fieldset/div/div[16]/label/span[3]/div/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "filters-group-label-container"
+        },
+        {
+          "tag": "div",
+          "id": "filter_group_ht_id_:r1e:",
+          "testid": "filters-group-container"
+        },
+        {
+          "tag": "div",
+          "testid": "filters-group"
+        }
+      ]
+    }
+  ],
+  "verifiedLocators": [],
+  "domNodesSeen": 804,
+  "axNodesSeen": 804,
+  "interactiveCandidatesSeen": 804,
+  "interactiveCandidatesStored": 120,
+  "verifiedControlsStored": 0,
+  "snapshotQuality": "capped",
+  "capHit": true,
+  "captureCap": 120,
+  "captureSource": "selector_map",
+  "updatedAt": "2026-07-17T10:30:47.038299+00:00"
+}

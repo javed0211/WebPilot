@@ -1,0 +1,2696 @@
+{
+  "schemaVersion": 2,
+  "pageKey": null,
+  "url": "https://www.booking.com/index.en-gb.html?aid=304142&label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H6NIGwAIB0gIkYmUyZjI3NGEtMjBhZC00NmQ2LWJiYjgtZDRkYjQ3OWUzMWI02AIB4AIB&chal_t=1784284157531&force_referer=",
+  "title": "booking.com/index.en-gb.html?aid=304142&label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H6NIGwAIB0gIkYmUyZjI3NGEtMjBhZC00NmQ2LWJiYjgtZDRkYjQ3OWUzMWI02AIB4AIB&chal_t=1784284157531&force_referer=",
+  "capturedAt": null,
+  "fingerprint": null,
+  "elementCount": 115,
+  "elements": [
+    {
+      "backendNodeId": 1409,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "c3bdfd4ac2 a0ab5da06c f979d6ff34"
+      },
+      "xpath": "html/body/div[1]/div/div[1]",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 316,
+      "tag": "a",
+      "axName": "Skip to main content",
+      "attributes": {
+        "href": "#main",
+        "class": "de576f5064 bef8628e61 e0d8514d4d"
+      },
+      "xpath": "html/body/div[1]/div/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 317,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        },
+        {
+          "tag": "div",
+          "id": "HeaderRegion",
+          "testid": "layout-block"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 318,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 120,
+      "tag": "a",
+      "axName": "Booking.com",
+      "attributes": {
+        "href": "https://www.booking.com/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H6N",
+        "aria-label": "Booking.com",
+        "data-testid": "header-booking-logo",
+        "class": "de576f5064"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[1]/div/span/a",
+      "ancestors": [
+        {
+          "tag": "span",
+          "testid": "header-logo"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 121,
+      "tag": "button",
+      "axName": "Prices in Pound Sterling",
+      "attributes": {
+        "type": "button",
+        "aria-label": "Prices in Pound Sterling",
+        "data-testid": "header-currency-picker-trigger",
+        "class": "de576f5064 b46cd7aad7 e26a59bb37 dda427e6b5 acb3638563 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/span[1]/button",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1433,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "a297f43545"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/span[2]",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 123,
+      "tag": "button",
+      "axName": "Language: English (UK)",
+      "attributes": {
+        "type": "button",
+        "aria-label": "Language: English (UK)",
+        "data-testid": "header-language-picker-trigger",
+        "class": "de576f5064 b46cd7aad7 e26a59bb37 dda427e6b5 acb3638563 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/span[2]/button",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1435,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "a297f43545"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/span[3]",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 126,
+      "tag": "a",
+      "axName": "Customer support",
+      "attributes": {
+        "href": "https://secure.booking.com/help.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H",
+        "aria-label": "Customer support",
+        "data-testid": "header-help-center",
+        "class": "de576f5064 b46cd7aad7 e26a59bb37 c295306d66 dda427e6b5 acb3638563 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/span[3]/a",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 128,
+      "tag": "a",
+      "axName": "List your property",
+      "attributes": {
+        "href": "https://join.booking.com/?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H6NIGwAIB0gIkYmUyZ",
+        "data-testid": "header-custom-action-button",
+        "class": "de576f5064 b46cd7aad7 e26a59bb37 dda427e6b5 acb3638563 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/a[1]",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 130,
+      "tag": "a",
+      "axName": "Register an account",
+      "attributes": {
+        "href": "https://account.booking.com/auth/oauth2?client_id=vO1Kblk7xX9tUn2cpZLS&redirect_uri=https%3A%2F%2Fsecure.booking.com%2Fl",
+        "aria-label": "Register an account",
+        "data-testid": "header-sign-up-button",
+        "class": "de576f5064 b46cd7aad7 d0a01e3d83 c7a901b0e7 bbf83acb81 js-header-login-link"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/a[2]",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 133,
+      "tag": "a",
+      "axName": "Sign in",
+      "attributes": {
+        "href": "https://account.booking.com/auth/oauth2?client_id=vO1Kblk7xX9tUn2cpZLS&redirect_uri=https%3A%2F%2Fsecure.booking.com%2Fl",
+        "aria-label": "Sign in",
+        "data-testid": "header-sign-in-button",
+        "class": "de576f5064 b46cd7aad7 d0a01e3d83 c7a901b0e7 bbf83acb81 js-header-login-link"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[1]/div[2]/div/a",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 137,
+      "tag": "ul",
+      "axName": null,
+      "attributes": {
+        "role": "menubar",
+        "class": "c4a6e8e871"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[2]/div/ul",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "header-xpb"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        },
+        {
+          "tag": "div",
+          "id": "__SHELL_COMPONENTS_HEADER"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 139,
+      "tag": "a",
+      "axName": "Stays",
+      "attributes": {
+        "id": "accommodations",
+        "href": "https://www.booking.com/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av2H6N",
+        "role": "menuitem",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[2]/div/ul/li[1]/a",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "header-xpb"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 143,
+      "tag": "a",
+      "axName": "Flights",
+      "attributes": {
+        "id": "flights",
+        "href": "https://booking.com/pxgo?lang=en-gb&token=UmFuZG9tSVYkc2RlIyh9YY_oTPIGnIwxsTOANoogQKGNEFJ5I89K1x0MTe3nNboR0rkoCHEgPvHn-t",
+        "role": "menuitem",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[2]/div/ul/li[2]/a",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "header-xpb"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 94,
+      "tag": "a",
+      "axName": "Car rental",
+      "attributes": {
+        "id": "cars",
+        "href": "https://www.booking.com/cars/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4A",
+        "role": "menuitem",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[2]/div/ul/li[3]/a",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "header-xpb"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 148,
+      "tag": "a",
+      "axName": "Attractions",
+      "attributes": {
+        "id": "attractions",
+        "href": "https://www.booking.com/attractions/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAg",
+        "role": "menuitem",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[2]/div/ul/li[4]/a",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "header-xpb"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 151,
+      "tag": "a",
+      "axName": "Airport taxis",
+      "attributes": {
+        "id": "airport_taxis",
+        "href": "https://www.booking.com/taxi/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4A",
+        "role": "menuitem",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/header/div/nav[2]/div/ul/li[5]/a",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "header-xpb"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "div",
+          "testid": "web-shell-header-mfe"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 320,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        },
+        {
+          "tag": "div",
+          "id": "Launchpad",
+          "testid": "layout-block"
+        },
+        {
+          "tag": "main",
+          "id": "main"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 322,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1499,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "SearchBoxDesktop",
+        "class": "c3bdfd4ac2 shell__cp-wrapper"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 157,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "searchbox-layout-wide",
+        "class": "b7ef425131 e9f1adff2b b935cde1f7 b59e36af6b eb5e893a81 a67ff04b04 bf0ecf6e1d"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div",
+      "ancestors": [
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        },
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1504,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "d4bb95d969 ef68726782"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[1]/div/div/div[1]/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "destination-container"
+        },
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1505,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fc70cba028 c2a70a5db2 bc7d708ceb"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[1]/div/div/div[1]/div[1]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "destination-container"
+        },
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 96,
+      "tag": "input",
+      "axName": "Enter destination",
+      "attributes": {
+        "id": "searchbox-horizontal-destination-input",
+        "name": "ss",
+        "role": "combobox",
+        "placeholder": "Family-friendly apartments in Paris that allow pets",
+        "aria-label": "Enter destination",
+        "class": "b915b8dc0b"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[1]/div/div/div[1]/div[2]/div/div/div/input",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "destination-container"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 7415,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "ebe40c2755 af43c12ef6"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[1]/div/div/div[1]/div[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "destination-container"
+        },
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 7413,
+      "tag": "button",
+      "axName": "Clear",
+      "attributes": {
+        "type": "button",
+        "class": "de576f5064"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[1]/div/div/div[1]/div[3]/button",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "destination-container"
+        },
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 7412,
+      "tag": "span",
+      "axName": "Clear",
+      "attributes": {
+        "role": "img",
+        "aria-label": "Clear",
+        "class": "fc70cba028 ca6ff50764"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[1]/div/div/div[1]/div[3]/button/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "destination-container"
+        },
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 161,
+      "tag": "button",
+      "axName": "Select dates Check-in date — Check-out date",
+      "attributes": {
+        "type": "button",
+        "data-testid": "searchbox-dates-container",
+        "class": "de576f5064 dc15842869 f1f96fdf10 d10abb4e59"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[2]/div/button",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1529,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "ed31a6140a"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 325,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fc70cba028 a78b02a72b c2a70a5db2 bc7d708ceb"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div/span[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1530,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div/span[1]/svg",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1532,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "a258a976e9"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 326,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "searchbox-horizontal-occupancy-label",
+        "class": "fff1944c52 b29475c223"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div/div/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 162,
+      "tag": "button",
+      "axName": "Number of travellers and rooms. Currently selected: 2 adults · 0 children · 1 room",
+      "attributes": {
+        "type": "button",
+        "aria-label": "Number of travellers and rooms. Currently selected: 2 adults · 0 children · 1 room",
+        "data-testid": "occupancy-config",
+        "class": "de576f5064 dc15842869 f1f96fdf10 b3d1de1c28"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div/div/div/button",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 328,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "data-testid": "searchbox-form-button-icon",
+        "class": "fc70cba028 c79204a82f ca6ff50764"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div/span[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1537,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[3]/div/span[2]/svg",
+      "ancestors": [
+        {
+          "tag": "span",
+          "testid": "searchbox-form-button-icon"
+        },
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 163,
+      "tag": "button",
+      "axName": "Search",
+      "attributes": {
+        "type": "submit",
+        "class": "de576f5064 b46cd7aad7 ced67027e5 dda427e6b5 f3e59d528f ca8e0b9533 cfd71fb584 a9d"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[4]/button",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1540,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "ec1ff2f0cb e31845302d"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[4]/button/span[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1541,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fc70cba028 e2a1cd6bfe c8605fc002"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/div/div[4]/button/span[1]/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "searchbox-layout-wide"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1543,
+      "tag": "fieldset",
+      "axName": null,
+      "attributes": {
+        "data-testid": "searchbox-footer",
+        "class": "c5d3f6a2f8"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset",
+      "ancestors": [
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        },
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 7912,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[1]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 7908,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[1]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 7913,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[1]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 7910,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[1]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 167,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[2]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1547,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[2]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1549,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[2]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1550,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[2]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 169,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "c850687b9b"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[3]/label/span[2]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1555,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[3]/label/span[2]/span/svg",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1557,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "aa225776f2 ca9d921c46"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[3]/label/span[3]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1558,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "b99b6ef58f f546354b44"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[1]/div/div/div/div/div/div/div/div/div[2]/div/div/div/form/fieldset/div[3]/label/span[3]/div",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "testid": "searchbox-footer"
+        },
+        {
+          "tag": "form",
+          "role": "region"
+        },
+        {
+          "tag": "div",
+          "id": "SearchBoxDesktop"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 332,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[2]/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        },
+        {
+          "tag": "div",
+          "id": "UserMustSeenHeroPromotionalPickUpWhereYouLeftOffSecondaryPromotionalQueenMabTertiaryPromotionalBusinessRequirements",
+          "testid": "layout-block"
+        },
+        {
+          "tag": "main",
+          "id": "main"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 333,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[2]/div/div/div/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 334,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "usp-expanded-design",
+        "class": "c3bdfd4ac2 aeab2b121e"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[2]/div/div/div/div/div/div/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "usp-container"
+        },
+        {
+          "tag": "div",
+          "id": "UniqueSellingPoints"
+        },
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 335,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "usp-expanded-design",
+        "class": "c3bdfd4ac2 aeab2b121e"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[2]/div/div/div/div/div/div/div/div[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "usp-container"
+        },
+        {
+          "tag": "div",
+          "id": "UniqueSellingPoints"
+        },
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 336,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "usp-expanded-design",
+        "class": "c3bdfd4ac2 aeab2b121e"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[2]/div/div/div/div/div/div/div/div[4]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "usp-container"
+        },
+        {
+          "tag": "div",
+          "id": "UniqueSellingPoints"
+        },
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 337,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "data-testid": "usp-expanded-design",
+        "class": "c3bdfd4ac2 aeab2b121e"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[2]/div/div/div/div/div/div/div/div[5]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "usp-container"
+        },
+        {
+          "tag": "div",
+          "id": "UniqueSellingPoints"
+        },
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 341,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[4]/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        },
+        {
+          "tag": "div",
+          "id": "UserMustSeenHeroPromotionalPickUpWhereYouLeftOffSecondaryPromotionalQueenMabTertiaryPromotionalBusinessRequirements",
+          "testid": "layout-block"
+        },
+        {
+          "tag": "main",
+          "id": "main"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 342,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[4]/div/div/div/div[1]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 343,
+      "tag": "a",
+      "axName": "Save with a Getaway Deal - Save on your next trip with at least 15% off select stays",
+      "attributes": {
+        "href": "https://www.booking.com/dealspage.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4Av",
+        "aria-label": "Save with a Getaway Deal - Save on your next trip with at least 15% off select stays",
+        "data-testid": "promotional-banner-content-cta",
+        "class": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533 b61986dc5f"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[4]/div/div/div/div[1]/div/div/div/div[2]/div/div/div/div/div[1]/div/div[3]/div/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "promotional-banner-container"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 345,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[4]/div/div/div/div[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 347,
+      "tag": "iframe",
+      "axName": "Advertisement",
+      "attributes": {
+        "id": "google_ads_iframe_/3102/bcom-www-emea/accommodations/index/index-primary_0",
+        "aria-label": "Advertisement"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[4]/div/div/div/div[3]/div/div/div[2]/div/div/div/iframe",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "google_ads_iframe_/3102/bcom-www-emea/accommodations/index/index-primary_0__container__"
+        },
+        {
+          "tag": "div",
+          "id": "15ceb176-0361-4832-b86e-19d6b497e3a1"
+        },
+        {
+          "tag": "div",
+          "id": "BasNDisplayBannerIndexPrimary"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 44,
+      "tag": "a",
+      "axName": "Ad Discover Chicago The city that’s never done and never outdone. Book Now",
+      "attributes": {
+        "id": "landing-page-anchor",
+        "href": "https://pagead2.googlesyndication.com/pcs/click?xai=AKAOjstaSrh6sGUh3ERVWX1Ac1O92S5hgV1ZH-wfuwc_zDLIQAlB0TTmegkGpkeRUFft",
+        "class": "Actionable_root__l9Crf clickableBanner_bannerWrapper__r8pDV"
+      },
+      "xpath": "html/body/div[2]/div/section/div/div/div/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "__next"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 45,
+      "tag": "picture",
+      "axName": null,
+      "attributes": {
+        "class": "Image_root__ZavX5"
+      },
+      "xpath": "html/body/div[2]/div/section/div/div/div/a/picture",
+      "ancestors": [
+        {
+          "tag": "a",
+          "id": "landing-page-anchor"
+        },
+        {
+          "tag": "div",
+          "id": "__next"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 348,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        },
+        {
+          "tag": "div",
+          "id": "UserMustSeenHeroPromotionalPickUpWhereYouLeftOffSecondaryPromotionalQueenMabTertiaryPromotionalBusinessRequirements",
+          "testid": "layout-block"
+        },
+        {
+          "tag": "main",
+          "id": "main"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 349,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[1]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 351,
+      "tag": "a",
+      "axName": "Hotels",
+      "attributes": {
+        "href": "https://www.booking.com/hotel/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG4",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[1]/div/div/div/div/div/div[2]/div[1]/div[1]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":r8:"
+        },
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "MerchCarouselPropertyTypesWww"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 353,
+      "tag": "a",
+      "axName": "Apartments",
+      "attributes": {
+        "href": "https://www.booking.com/apartments/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgG",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[1]/div/div/div/div/div/div[2]/div[1]/div[2]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":r8:"
+        },
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "MerchCarouselPropertyTypesWww"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 355,
+      "tag": "a",
+      "axName": "Resorts",
+      "attributes": {
+        "href": "https://www.booking.com/resorts/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[1]/div/div/div/div/div/div[2]/div[1]/div[3]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":r8:"
+        },
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "MerchCarouselPropertyTypesWww"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 357,
+      "tag": "a",
+      "axName": "Villas",
+      "attributes": {
+        "href": "https://www.booking.com/villas/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[1]/div/div/div/div/div/div[2]/div[1]/div[4]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":r8:"
+        },
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "MerchCarouselPropertyTypesWww"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 359,
+      "tag": "a",
+      "axName": "Cabins",
+      "attributes": {
+        "href": "https://www.booking.com/chalet/index.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAgG",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[1]/div/div/div/div/div/div[2]/div[1]/div[5]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":r8:"
+        },
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "MerchCarouselPropertyTypesWww"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 400,
+      "tag": "button",
+      "axName": "Next: Browse by property type",
+      "attributes": {
+        "type": "button",
+        "aria-label": "Next: Browse by property type",
+        "class": "de576f5064 b46cd7aad7 e19e62abbe c295306d66 c7a901b0e7 fe50231b86 b6ea2e8677 a6b"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[1]/div/div/div/div/div/div[2]/div[2]/button[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "MerchCarouselPropertyTypesWww"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 401,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 402,
+      "tag": "ul",
+      "axName": null,
+      "attributes": {
+        "class": "c4a6e8e871"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 403,
+      "tag": "button",
+      "axName": "Shopping & Outlets",
+      "attributes": {
+        "id": "cl438-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/li[1]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 404,
+      "tag": "button",
+      "axName": "Art & Music",
+      "attributes": {
+        "id": "cl009-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/li[2]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 405,
+      "tag": "button",
+      "axName": "Nightlife & Fun",
+      "attributes": {
+        "id": "cl293-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/li[3]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 406,
+      "tag": "button",
+      "axName": "Natural Landscapes",
+      "attributes": {
+        "id": "cl149-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/li[4]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 407,
+      "tag": "button",
+      "axName": "Sports & Recreation",
+      "attributes": {
+        "id": "cl318-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/li[5]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 408,
+      "tag": "button",
+      "axName": "Historical Expeditions",
+      "attributes": {
+        "id": "cl249-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/li[6]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 409,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "role": "none",
+        "class": "ddb4fbcb64 b908223875 b6684fdecb"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1860,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "fc70cba028 b1bcc387ce ca6ff50764 c8605fc002"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/div/div[1]/span/span",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 410,
+      "tag": "button",
+      "axName": "Food & Bourbon",
+      "attributes": {
+        "id": "cl407-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/div/div[2]/li[1]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 411,
+      "tag": "button",
+      "axName": "Festivals & Events",
+      "attributes": {
+        "id": "cl146-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/div/div[2]/li[2]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 412,
+      "tag": "button",
+      "axName": "Heritage & Historic Sites",
+      "attributes": {
+        "id": "cl051-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/div/div[2]/li[3]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 413,
+      "tag": "button",
+      "axName": "Coastal Getaways",
+      "attributes": {
+        "id": "cl203-tab-trigger",
+        "type": "button",
+        "data-testid": "webcore-filter-carousel-tab-trigger",
+        "class": "de576f5064 f63e3c83f3 e7f2b1a356"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[2]/div/nav/div/ul/div/div[2]/li[4]/button",
+      "ancestors": [
+        {
+          "tag": "nav",
+          "testid": "webcore-filter-carousel-tabs"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 415,
+      "tag": "a",
+      "axName": "London 1.5 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[1]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 418,
+      "tag": "a",
+      "axName": "Brighton & Hove 48 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[2]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 421,
+      "tag": "a",
+      "axName": "Birmingham 102 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[3]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 424,
+      "tag": "a",
+      "axName": "Bristol 108 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[4]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 427,
+      "tag": "a",
+      "axName": "Cardiff 133 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[5]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 430,
+      "tag": "a",
+      "axName": "Manchester 163 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[6]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 433,
+      "tag": "a",
+      "axName": "Leeds 169 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[7]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 436,
+      "tag": "a",
+      "axName": "Liverpool 179 mi away",
+      "attributes": {
+        "href": "https://www.booking.com/searchresults.en-gb.html?label=gen173nr-10CAEoggI46AdIM1gEaFCIAQGYATO4AQfIAQzYAQPoAQH4AQGIAgGoAg",
+        "data-testid": "web-core-stacked-card",
+        "class": "de576f5064 ca9e0d76f0"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[1]/div[8]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "region",
+          "id": ":rb:"
+        },
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 446,
+      "tag": "button",
+      "axName": "Next: Quick and easy trip planner",
+      "attributes": {
+        "type": "button",
+        "aria-label": "Next: Quick and easy trip planner",
+        "class": "de576f5064 b46cd7aad7 e19e62abbe c295306d66 c7a901b0e7 fe50231b86 b6ea2e8677 a6b"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[2]/div/div/div/div/div/div[3]/div/div[2]/button[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": ":ra:",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "TripTypesCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 447,
+      "tag": "div",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[3]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "tracking-wrapper"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 459,
+      "tag": "div",
+      "axName": "Explore United Kingdom",
+      "attributes": {
+        "id": ":r9:",
+        "role": "region",
+        "aria-label": "Explore United Kingdom",
+        "class": "cef02e091d d64ab99142 b4b3a7c462"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[4]/div/div/div/div/div/div[2]/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "testid": "merch-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "MerchCarouselDomesticDestinationsWww"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 493,
+      "tag": "div",
+      "axName": "Stay at our top unique properties",
+      "attributes": {
+        "id": ":rd:",
+        "role": "region",
+        "aria-label": "Stay at our top unique properties",
+        "class": "cef02e091d d64ab99142 b4b3a7c462"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[5]/div/div/div/div/div/div[2]/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "UniqueStaysPropertiesGenAI"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 557,
+      "tag": "div",
+      "axName": "Deals for the weekend",
+      "attributes": {
+        "id": ":r1o:",
+        "role": "region",
+        "aria-label": "Deals for the weekend",
+        "class": "cef02e091d d64ab99142 b4b3a7c462"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[6]/div/div/div/div/div[2]/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "DealsCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 610,
+      "tag": "div",
+      "axName": "Homes guests love",
+      "attributes": {
+        "id": ":rc:",
+        "role": "region",
+        "aria-label": "Homes guests love",
+        "class": "cef02e091d d64ab99142 b4b3a7c462"
+      },
+      "xpath": "html/body/div[1]/div/div[2]/div/main/div[2]/div/div/div/div/div[5]/div/div/div/div[7]/div/div/div/div/div/div[2]/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "testid": "webcore-carousel"
+        },
+        {
+          "tag": "div",
+          "id": "HomesGuestsLoveCarousel"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8305,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[1]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8308,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[2]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8311,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[3]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8314,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[4]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8317,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[5]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8320,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[6]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8323,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[7]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8326,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[8]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8329,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[9]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8332,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[10]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 8335,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[11]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1013,
+      "tag": "button",
+      "axName": null,
+      "attributes": {
+        "id": "webpilot-details-btn",
+        "type": "button",
+        "class": "wp-btn"
+      },
+      "xpath": "html/body/div[4]/div[2]/div/div[2]/button",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    }
+  ],
+  "verifiedLocators": [
+    {
+      "kind": "role",
+      "value": "button",
+      "name": "Search",
+      "filterText": "Search",
+      "exact": true,
+      "scope": {
+        "kind": "css",
+        "value": "main"
+      },
+      "verified": true,
+      "verifiedBy": "snapshot",
+      "matchCount": 1,
+      "axName": "Search",
+      "recordedAt": "2026-07-17T10:30:47.044586+00:00"
+    },
+    {
+      "kind": "testid",
+      "value": "searchbox-dates-container",
+      "verified": true,
+      "verifiedBy": "snapshot",
+      "matchCount": 1,
+      "axName": "Select dates Check-in date — Check-out date",
+      "recordedAt": "2026-07-17T10:30:47.043077+00:00"
+    },
+    {
+      "kind": "css",
+      "value": "input[id=\"searchbox-horizontal-destination-input\"]",
+      "verified": true,
+      "verifiedBy": "snapshot",
+      "matchCount": 1,
+      "axName": "Enter destination",
+      "recordedAt": "2026-07-17T10:30:47.039991+00:00"
+    }
+  ],
+  "domNodesSeen": 115,
+  "axNodesSeen": 115,
+  "interactiveCandidatesSeen": 115,
+  "interactiveCandidatesStored": 115,
+  "verifiedControlsStored": 3,
+  "snapshotQuality": "complete",
+  "capHit": false,
+  "captureCap": 120,
+  "captureSource": "selector_map",
+  "updatedAt": "2026-07-17T10:30:47.044583+00:00"
+}

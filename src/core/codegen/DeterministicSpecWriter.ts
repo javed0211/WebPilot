@@ -71,7 +71,11 @@ export class DeterministicSpecWriter {
           mappedPomStepIndexes.push(step.index);
           continue;
         }
-        if (
+        const boundArgs = artifact.stepMethodArgs?.[step.index];
+        if (boundArgs?.length) {
+          const rendered = boundArgs.map((arg) => `'${escapeTsString(arg)}'`).join(', ');
+          body.push(`  await ${varName}.${methodName}(${rendered});`);
+        } else if (
           (methodName === 'fillSearch' || methodName === 'search') &&
           step.value
         ) {

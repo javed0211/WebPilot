@@ -15,6 +15,19 @@ export interface ActLocator {
   tag?: string;
   /** When multiple matches exist, narrow with hasText / exact text filter. */
   filterText?: string;
+  /**
+   * Playwright getByRole/getByText exact name match.
+   * Required for short AX names that substring-match unrelated nodes.
+   */
+  exact?: boolean;
+  /**
+   * Ancestor/container that scopes the leaf locator (nav, main, dialog, …).
+   */
+  scope?: ActLocator;
+  /** True when uniqueness was proven against a page inventory snapshot (matchCount===1). */
+  verified?: boolean;
+  /** Number of matches observed during DOM verification (1 when verified). */
+  matchCount?: number;
 }
 
 export interface ActStep {

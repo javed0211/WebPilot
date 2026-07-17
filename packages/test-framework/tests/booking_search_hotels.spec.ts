@@ -6,17 +6,16 @@ test('booking_search_hotels', async ({ page }) => {
   const bookingHomePage = new BookingHomePage(page);
   await bookingHomePage.goto();
   await bookingHomePage.waitForPage();
-  await bookingHomePage.clickAccept();
+  await bookingHomePage.clickAcceptButton();
   await bookingHomePage.capturePageScreenshot();
-  await bookingHomePage.clickDismissSignIn();
-  await bookingHomePage.fillDestination();
-  await bookingHomePage.waitForPage1();
-  await bookingHomePage.clickLondonOption();
-  await bookingHomePage.selectCheckInDate();
-  await bookingHomePage.selectCheckOutDate();
-  await bookingHomePage.clickSearch();
-  await bookingHomePage.assertBooking();
+  await bookingHomePage.clickDismissSignInInformationButton();
+  await bookingHomePage.fillEnterDestinationCombobox();
+  await bookingHomePage.clickLondonGreaterLondonUnitedKingdomOption();
+  await bookingHomePage.clickSelectDatesCheckInDateCheckOut();
+  await bookingHomePage.clickSearchButton();
   const bookingSearchResultsPage = new BookingSearchResultsPage(page);
-  await bookingSearchResultsPage.assertSearchResults();
-  await bookingSearchResultsPage.assertLondonResults();
+  // custom: Scrolled down 2.0 pages
+  await bookingHomePage.assertBookingComLink();
+  await bookingSearchResultsPage.assertSearchResultsPage();
+  await bookingSearchResultsPage.assertDestinationIsLondonAndAccommodationResults();
 });

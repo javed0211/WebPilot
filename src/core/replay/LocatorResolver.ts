@@ -12,6 +12,15 @@ const KIND_PRIORITY: Record<string, number> = {
   xpath: 6,
 };
 
+type LocatorRoot = Page | Locator;
+
+/** GitHub/repo underlinenav tabs (`a[id="actions-tab"]`) beat ambiguous role names. */
+export function isStableTabCss(locator: ActLocator): boolean {
+  if (String(locator.kind || '').toLowerCase() !== 'css') return false;
+  const value = locator.value || '';
+  return /\[id=["']?[\w-]*-tab["']?\]|#([\w-]*-tab)\b/i.test(value);
+}
+
 export function parseLocatorsFromSelectorJson(selector?: string | null): ActLocator[] {
   if (!selector || !selector.trim().startsWith('[')) return [];
   try {
@@ -24,16 +33,24 @@ export function parseLocatorsFromSelectorJson(selector?: string | null): ActLoca
 }
 
 export function rankLocators(locators: ActLocator[]): ActLocator[] {
-  return [...locators].sort(
-    (a, b) => (KIND_PRIORITY[a.kind] ?? 99) - (KIND_PRIORITY[b.kind] ?? 99)
-  );
+  return [...locators].sort((a, b) => {
+    // DOM-proven inventory locators always win over heuristic reorder.
+    const verifiedDelta = Number(Boolean(b.verified)) - Number(Boolean(a.verified));
+    if (verifiedDelta !== 0) return verifiedDelta;
+    const scopeDelta = Number(Boolean(b.scope)) - Number(Boolean(a.scope));
+    if (scopeDelta !== 0) return scopeDelta;
+    const tabDelta = Number(isStableTabCss(b)) - Number(isStableTabCss(a));
+    if (tabDelta !== 0) return tabDelta;
+    return (KIND_PRIORITY[a.kind] ?? 99) - (KIND_PRIORITY[b.kind] ?? 99);
+  });
 }
 
 export function describeLocator(locator: ActLocator): string {
   let base = '';
   if (locator.kind === 'role') {
+    const exact = locator.exact !== false && locator.name ? ', exact: true' : '';
     base = locator.name
-      ? `getByRole('${locator.value}', { name: '${locator.name}' })`
+      ? `getByRole('${locator.value}', { name: '${locator.name}'${exact} })`
       : `getByRole('${locator.value}')`;
   } else if (locator.kind === 'label') {
     base = `getByLabel('${locator.value}')`;
@@ -42,20 +59,23 @@ export function describeLocator(locator: ActLocator): string {
   } else if (locator.kind === 'testid') {
     base = `getByTestId('${locator.value}')`;
   } else if (locator.kind === 'text') {
-    base = `getByText('${locator.value}')`;
+    const exact = locator.exact ? ', { exact: true }' : '';
+    base = `getByText('${locator.value}'${exact})`;
   } else if (locator.kind === 'xpath') {
     base = `locator('xpath=${locator.value}')`;
   } else {
     base = `locator('${locator.value}')`;
   }
   if (locator.filterText && locator.kind !== 'role' && locator.kind !== 'text') {
-    return `${base}.filter({ hasText: '${locator.filterText}' })`;
+    base = `${base}.filter({ hasText: '${locator.filterText}' })`;
+  }
+  if (locator.scope) {
+    return `${describeLocator(locator.scope)}.${base}`;
   }
   return base;
 }
 
-/** Bind an ActLocator candidate to a Playwright Locator (semantic when applicable). */
-export function bindLocator(page: Page, locator: ActLocator): Locator | null {
+function bindOnRoot(root: LocatorRoot, locator: ActLocator): Locator | null {
   const kind = String(locator.kind || '').toLowerCase();
   const value = locator.value ?? '';
   const name = locator.name;
@@ -63,28 +83,44 @@ export function bindLocator(page: Page, locator: ActLocator): Locator | null {
   try {
     let bound: Locator | null = null;
     if (kind === 'role' && value) {
+      const useExact = locator.exact !== false;
       bound = name
-        ? page.getByRole(value as Parameters<Page['getByRole']>[0], {
+        ? root.getByRole(value as Parameters<Page['getByRole']>[0], {
             name,
-            exact: /[/.]/.test(name),
+            exact: useExact,
           })
-        : page.getByRole(value as Parameters<Page['getByRole']>[0]);
+        : root.getByRole(value as Parameters<Page['getByRole']>[0]);
     } else if (kind === 'label' && value) {
-      bound = page.getByLabel(value);
+      bound = root.getByLabel(value);
     } else if (kind === 'placeholder' && value) {
-      bound = page.getByPlaceholder(value);
+      bound = root.getByPlaceholder(value);
     } else if (kind === 'testid' && value) {
-      bound = page.getByTestId(value);
+      bound = root.getByTestId(value);
     } else if (kind === 'text' && value) {
-      bound = page.getByText(value, { exact: false });
+      bound = root.getByText(value, { exact: Boolean(locator.exact) });
     } else if (kind === 'xpath' && value) {
       const xp = value.startsWith('xpath=') ? value : `xpath=${value}`;
-      bound = page.locator(xp);
+      bound = root.locator(xp);
     } else if ((kind === 'css' || kind === 'unknown' || !kind) && value) {
-      bound = page.locator(value);
+      bound = root.locator(value);
     }
     if (!bound) return null;
     return applyLocatorFilter(bound, locator);
+  } catch {
+    return null;
+  }
+}
+
+/** Bind an ActLocator candidate to a Playwright Locator (semantic when applicable). */
+export function bindLocator(page: Page, locator: ActLocator): Locator | null {
+  try {
+    let root: LocatorRoot = page;
+    if (locator.scope) {
+      const scoped = bindOnRoot(page, locator.scope);
+      if (scoped) root = scoped;
+    }
+    const leaf: ActLocator = locator.scope ? { ...locator, scope: undefined } : locator;
+    return bindOnRoot(root, leaf);
   } catch {
     return null;
   }
@@ -174,8 +210,13 @@ export async function resolveUniqueLocator(
       }
 
       await target.waitFor({ state: 'visible', timeout });
+      // Re-check uniqueness after wait — late-loading list items can appear mid-resolve.
+      const afterWait = await target.count();
+      if (afterWait > 1 && !options?.allowFirst) {
+        continue;
+      }
       return {
-        locator: target,
+        locator: afterWait > 1 ? target.first() : target,
         used: candidate,
         description: describeLocator(candidate),
       };

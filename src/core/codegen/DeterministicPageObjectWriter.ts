@@ -1,11 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { SymbolParser } from '../SymbolParser';
+import { MethodInfo, SymbolParser } from '../SymbolParser';
 import { ExecutionTrace, TraceStep } from './ExecutionTrace';
 import { GenerationPlan, PlannedFile } from './GenerationPlan';
 import { stepsForPage as mappedStepsForPage } from './PageMapping';
 import {
-  escapeTsString,
+  bindingDedupeKey,
+  bindParameterizedMethod,
+} from './ParameterizedMethodBinder';
+import {
   methodNameFromStep,
   pageMethodBody,
   relativeImportPath,
@@ -17,6 +20,8 @@ export interface PageObjectArtifact {
   content: string;
   operation: 'create' | 'extend' | 'reuse';
   stepMethods: Record<number, string>;
+  /** Arguments for parameterized reuse (e.g. assertSectionVisible('See also')). */
+  stepMethodArgs?: Record<number, string[]>;
 }
 
 export const POM_STEP_COVERED = '__covered_by_pom__';
@@ -165,16 +170,20 @@ function stepsForPage(page: PlannedFile, trace: ExecutionTrace, allPages: Planne
   return mappedStepsForPage(page, trace, allPages);
 }
 
-function existingMethodNames(filePath: string, className: string): Set<string> {
+function existingMethods(filePath: string, className: string): MethodInfo[] {
   const fullPath = path.join(process.cwd(), filePath);
-  if (!fs.existsSync(fullPath)) return new Set();
+  if (!fs.existsSync(fullPath)) return [];
   try {
     const classes = SymbolParser.parseFile(fullPath);
     const match = classes.find((info) => info.name === className);
-    return new Set(match?.methods.map((method) => method.name) || []);
+    return match?.methods || [];
   } catch {
-    return new Set();
+    return [];
   }
+}
+
+function existingMethodNames(filePath: string, className: string): Set<string> {
+  return new Set(existingMethods(filePath, className).map((method) => method.name));
 }
 
 function basePageImport(pagePath: string, url?: string): { importPath: string; baseClass: string } {
@@ -282,11 +291,13 @@ export class DeterministicPageObjectWriter {
       if (pageSteps.length === 0) continue;
 
       const usedNames = new Set<string>();
-      const existing = existingMethodNames(page.path, page.className);
+      const methodInfos = existingMethods(page.path, page.className);
+      const existing = new Set(methodInfos.map((method) => method.name));
       const methods: Array<{ name: string; body: string }> = [];
       const stepMethods: Record<number, string> = {};
+      const stepMethodArgs: Record<number, string[]> = {};
       let usedCombinedSearch = false;
-      const usedAsserts = new Set<string>();
+      const usedBindings = new Set<string>();
       let lastFill: TraceStep | undefined;
       let calendarDateIndex = 0;
 
@@ -302,6 +313,22 @@ export class DeterministicPageObjectWriter {
           stepMethods[step.index] = calendarOffsetDays === 7 ? 'selectCheckInDate' : 'selectCheckOutDate';
           continue;
         }
+
+        // Prefer signature-aware parameterized reuse (assertSectionVisible('See also')).
+        const parameterized = bindParameterizedMethod(step, methodInfos);
+        if (parameterized) {
+          const key = bindingDedupeKey(parameterized);
+          if (usedBindings.has(key)) {
+            stepMethods[step.index] = POM_STEP_COVERED;
+            continue;
+          }
+          usedBindings.add(key);
+          stepMethods[step.index] = parameterized.method;
+          if (parameterized.args.length) stepMethodArgs[step.index] = parameterized.args;
+          if (step.action === 'fill') lastFill = step;
+          continue;
+        }
+
         const reused = mapStepToExistingMethod(step, existing);
         if (reused) {
           if (reused === 'search') usedCombinedSearch = true;
@@ -309,12 +336,16 @@ export class DeterministicPageObjectWriter {
             stepMethods[step.index] = POM_STEP_COVERED;
             continue;
           }
-          if (reused.startsWith('assert') && usedAsserts.has(reused)) {
+          const zeroArgKey = `${reused}()`;
+          if (reused.startsWith('assert') && usedBindings.has(zeroArgKey)) {
             stepMethods[step.index] = POM_STEP_COVERED;
             continue;
           }
-          if (reused.startsWith('assert')) usedAsserts.add(reused);
+          if (reused.startsWith('assert')) usedBindings.add(zeroArgKey);
           stepMethods[step.index] = reused;
+          if (step.action === 'fill' && step.value) {
+            stepMethodArgs[step.index] = [step.value];
+          }
           if (step.action === 'fill') lastFill = step;
           continue;
         }
@@ -343,6 +374,7 @@ export class DeterministicPageObjectWriter {
           content: '',
           operation: 'reuse',
           stepMethods,
+          stepMethodArgs,
         });
         continue;
       }
@@ -362,6 +394,7 @@ export class DeterministicPageObjectWriter {
         content,
         operation: page.operation === 'extend' && !shouldReplaceStubPage ? 'extend' : 'create',
         stepMethods,
+        stepMethodArgs,
       });
     }
 

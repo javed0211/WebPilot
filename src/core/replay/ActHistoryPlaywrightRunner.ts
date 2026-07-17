@@ -702,7 +702,23 @@ export class ActHistoryPlaywrightRunner {
               if (!locators.length) {
                 throw new Error(`${action} has no locator candidates`);
               }
-              throw new Error(`no unique visible locator for ${action}`);
+              const tried = locators
+                .slice(0, 6)
+                .map((l) => describeLocator(l))
+                .join(' | ');
+              throw new Error(
+                `no unique visible locator for ${action}` +
+                  (tried ? ` (tried: ${tried})` : '') +
+                  (!options.heal ? ' [heal disabled]' : '')
+              );
+            }
+
+            // Live Playwright success → page inventory (trust gate, not heal path).
+            try {
+              const { upsertLiveVerifiedLocator } = require('./PageInventory') as typeof import('./PageInventory');
+              upsertLiveVerifiedLocator(page.url(), resolved.used, resolved.used.name || null);
+            } catch {
+              /* inventory is best-effort */
             }
 
             if (action === 'click') {

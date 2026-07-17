@@ -8,7 +8,6 @@ Use engine.
 | `runner.py` | Runtime entry point invoked by `core/Engine.ts` |
 | `PythonRuntime.ts` | Python environment discovery and setup |
 | `llm_config.py` | Provider credentials and Browser Use LLM creation |
-| `llm_capabilities.py` | Model payload capability lookup |
 | `branding.py` | WebPilot browser overlay and BrowserSession options |
 | `testmu.py` | TestMu/LambdaTest remote CDP connection |
 | `execution_history.py` | Browser Use history normalization for reports/codegen |

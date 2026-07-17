@@ -41,21 +41,17 @@ export function urlsMatchPage(pattern: string, url: string): boolean {
 /**
  * Map a trace step to exactly one planned page object.
  *
- * URL candidates are tried in priority order — the URL where the action
- * happened first (url/pageCandidate/urlBefore), landing page (urlAfter) last.
- * This prevents a click that navigates home→results from being assigned to
- * both pages.
+ * Among all URL candidates, prefer the most specific matching page pattern
+ * so a click recorded with urlBefore=home and url=article lands on the article
+ * POM rather than the first homepage match.
  */
 export function pageForStep(
   step: TraceStep,
   pages: PlannedFile[],
   trace?: ExecutionTrace
 ): PlannedFile | undefined {
-  // Browser-use records step.url after an action. For interactions that may
-  // navigate, urlBefore is therefore the best indication of which POM owns the
-  // element. Assertions/screenshots describe the resulting active page.
   const candidates = ['click', 'fill', 'select', 'press'].includes(step.action)
-    ? [step.urlBefore, step.url, step.pageCandidate, step.urlAfter].filter(Boolean) as string[]
+    ? ([step.url, step.pageCandidate, step.urlBefore, step.urlAfter].filter(Boolean) as string[])
     : stepUrlCandidates(step);
   if (trace) {
     const position = trace.steps.indexOf(step);
@@ -65,7 +61,9 @@ export function pageForStep(
     for (let cursor = position - 1; cursor >= 0; cursor--) {
       const before = trace.steps[cursor];
       const transitioned = Boolean(
-        before.urlBefore && before.urlAfter && normalizeUrlKey(before.urlBefore) !== normalizeUrlKey(before.urlAfter)
+        before.urlBefore &&
+          before.urlAfter &&
+          normalizeUrlKey(before.urlBefore) !== normalizeUrlKey(before.urlAfter)
       );
       if (transitioned) {
         if (before.urlAfter) candidates.push(before.urlAfter);
@@ -76,8 +74,6 @@ export function pageForStep(
     }
     for (let cursor = position + 1; position >= 0 && cursor < trace.steps.length; cursor++) {
       const after = trace.steps[cursor];
-      // A following navigation begins a new segment; only its pre-navigation
-      // context can describe the current step.
       if (after.action === 'navigate') {
         if (after.urlBefore) candidates.push(after.urlBefore);
         break;
@@ -85,16 +81,38 @@ export function pageForStep(
       if (after.urlBefore) candidates.push(after.urlBefore);
       else if (after.pageCandidate) candidates.push(after.pageCandidate);
       const transitioned = Boolean(
-        after.urlBefore && after.urlAfter && normalizeUrlKey(after.urlBefore) !== normalizeUrlKey(after.urlAfter)
+        after.urlBefore &&
+          after.urlAfter &&
+          normalizeUrlKey(after.urlBefore) !== normalizeUrlKey(after.urlAfter)
       );
       if (transitioned) break;
     }
   }
-  for (const url of candidates) {
-    const match = pages.find((page) => page.urlPattern && urlsMatchPage(page.urlPattern, url));
-    if (match) return match;
+
+  let best: { page: PlannedFile; score: number } | null = null;
+  for (const url of [...new Set(candidates)]) {
+    for (const page of pages) {
+      if (!page.urlPattern || !urlsMatchPage(page.urlPattern, url)) continue;
+      let score = pagePatternSpecificity(page.urlPattern, url);
+      // An explicit step.url that matches this page is authoritative — don't let
+      // neighboring article URLs steal homepage/url_equals asserts.
+      if (step.url && urlsMatchPage(page.urlPattern, step.url) && url === step.url) {
+        score += 1000;
+      }
+      if (!best || score > best.score) best = { page, score };
+    }
   }
-  return undefined;
+  return best?.page;
+}
+
+function pagePatternSpecificity(pattern: string, url: string): number {
+  try {
+    const path = new URL(url).pathname.replace(/\/$/, '') || '/';
+    const pathScore = path === '/' ? 1 : path.length;
+    return pathScore + Math.min(pattern.length, 80) / 1000;
+  } catch {
+    return pattern.length;
+  }
 }
 
 /** All steps assigned to this page (each step maps to at most one page). */

@@ -25,7 +25,7 @@ function testParseAndRank() {
   assert.strictEqual(locs.length, 3);
   const ranked = rankLocators(locs);
   assert.strictEqual(ranked[0].kind, 'role');
-  assert.strictEqual(describeLocator(ranked[0]), "getByRole('link', { name: 'View history' })");
+  assert.strictEqual(describeLocator(ranked[0]), "getByRole('link', { name: 'View history', exact: true })");
 }
 
 function testLoadStepsPrefersActHistory() {

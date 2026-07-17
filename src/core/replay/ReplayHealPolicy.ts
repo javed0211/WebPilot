@@ -4,6 +4,9 @@ import { ConfigManager } from '../ConfigManager';
  * Self-heal on ActHistory locator failure is ON by default.
  * Disable with: --no-heal  or  WEBPILOT_REPLAY_HEAL=0
  * Force on with: --heal   or  WEBPILOT_REPLAY_HEAL=1
+ *
+ * Strict --no-heal means: no HealingAgent, no healing-cache write,
+ * no inventory heal upsert. Fail fast with locator diagnostics.
  */
 export function isReplayHealEnabled(): boolean {
   const env = process.env.WEBPILOT_REPLAY_HEAL?.trim().toLowerCase();

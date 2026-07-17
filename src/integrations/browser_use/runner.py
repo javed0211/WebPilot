@@ -736,11 +736,24 @@ async def run_native_browser_use_scenario(
 
     task = build_native_scenario_task(sanitized_steps, discovery_rules)
     captured_actions: list[dict] = []
+    page_snapshots: dict[str, dict] = {}
     native_agent = None
 
     async def on_native_step(state, output, _agent_step):
         if output is not None:
             captured_actions.extend(actions_from_output(state, output))
+        # Capture selector_map inventory while live DOM is still available
+        try:
+            from .page_inventory import snapshot_from_browser_state, upsert_inventory
+
+            snap = snapshot_from_browser_state(state)
+            if snap and snap.get("pageKey"):
+                page_snapshots[snap["pageKey"]] = snap
+                if snap.get("url"):
+                    page_snapshots[str(snap["url"])] = snap
+                upsert_inventory(snap)
+        except Exception:
+            pass
         if native_agent is None:
             return
         try:
@@ -829,10 +842,59 @@ async def run_native_browser_use_scenario(
     agent_ok = bool(getattr(history, 'is_successful', lambda: False)())
     # ActHistory from browser-use is the sole executionHistory source of truth.
     # Do NOT overwrite with NL-aligned zipper (legacy build_nl_aligned_codegen_history).
-    context = build_full_execution_context(history, steps, test_name)
+    context = build_full_execution_context(
+        history, steps, test_name, page_snapshots=page_snapshots or None
+    )
+
+    # Milestone A: live Playwright certify locators against open CDP pages.
+    try:
+        from .live_locator_verifier import cdp_url_from_browser, live_verify_act_steps
+        from .act_history import act_history_to_execution_rows
+        from .page_inventory import upsert_inventory
+        import json as _json
+
+        act_steps = list(context.get("actHistory") or [])
+        upgraded = await live_verify_act_steps(
+            act_steps, cdp_url=cdp_url_from_browser(browser)
+        )
+        if upgraded:
+            for step in act_steps:
+                locs = step.get("locators") or []
+                if locs:
+                    step["selector"] = _json.dumps(locs, ensure_ascii=False)
+            context["actHistory"] = act_steps
+            context["executionHistory"] = act_history_to_execution_rows(act_steps)
+            context["liveLocatorVerifiedSteps"] = upgraded
+            print(f"[WebPilot] Live Playwright verified locators on {upgraded} ActHistory step(s)")
+            for step in act_steps:
+                locs = step.get("locators") or []
+                live = next((l for l in locs if l.get("verifiedBy") == "playwright"), None)
+                if live and step.get("url"):
+                    upsert_inventory(
+                        {
+                            "url": step.get("url"),
+                            "pageKey": None,
+                            "title": step.get("pageTitle"),
+                            "elements": [],
+                            "elementCount": 0,
+                            "capturedAt": None,
+                            "fingerprint": None,
+                            "schemaVersion": 2,
+                            "verifiedLocators": [],
+                        },
+                        verified_locator=live,
+                        ax_name=(step.get("element") or {}).get("ax_name"),
+                    )
+    except Exception as live_err:
+        print(f"[WebPilot] Warning: live Playwright locator verify skipped: {live_err}")
+
     context['engineMode'] = 'native'
     context['learnedSteps'] = 0
     context['reusedSteps'] = 0
+    if page_snapshots:
+        context['pageInventoryKeys'] = sorted(
+            {k for k in page_snapshots.keys() if not str(k).startswith('http')}
+        )
     # Callback captures remain available for debug; they are not the act history.
     if captured_actions:
         context['nativeCapturedActions'] = captured_actions

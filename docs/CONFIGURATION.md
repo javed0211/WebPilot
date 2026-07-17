@@ -96,8 +96,7 @@ Run `npm run doctor` to verify browser-use can resolve your LLM config before ex
 
 Different model families expect different chat-completion fields. Example: **gpt-5.x** on Azure requires `max_completion_tokens`, not `max_tokens`.
 
-WebPilot resolves payload shape in `src/core/llmCapabilities.ts` and
-`src/integrations/browser_use/llm_capabilities.py` using:
+WebPilot resolves payload shape in `src/core/llmCapabilities.ts` using:
 
 1. **Per-deployment overrides** in `overrides`
 2. **Family patterns** in `families` (e.g. `gpt-5`, `o1`)

@@ -161,6 +161,39 @@ function main() {
     'Uses nearest page URL context when assertion URL fields are empty'
   );
 
+  const { bindParameterizedMethod, extractStepSubject } = require(path.join(
+    root,
+    'dist/src/core/codegen/ParameterizedMethodBinder.js'
+  ));
+  const sectionStep = {
+    index: 1,
+    action: 'assert',
+    intent: 'assert See also section',
+    description: 'Verify See also section',
+    value: 'See also section',
+  };
+  const sectionBind = bindParameterizedMethod(sectionStep, [
+    { name: 'assertSectionVisible', parameters: [{ name: 'section', type: 'string' }], returnType: 'Promise<void>' },
+    { name: 'assertTextVisible', parameters: [{ name: 'text', type: 'string' }], returnType: 'Promise<void>' },
+  ]);
+  assert(
+    sectionBind &&
+      sectionBind.method === 'assertSectionVisible' &&
+      sectionBind.args[0] === 'See also',
+    'Parameterized binder maps section asserts to assertSectionVisible(arg)',
+    sectionBind ? `${sectionBind.method}(${sectionBind.args.join(',')})` : 'null'
+  );
+  assert(
+    extractStepSubject({
+      index: 1,
+      action: 'assert',
+      intent: 'assert',
+      description: 'Verify Categories is displayed',
+      value: 'Categories',
+    }) === 'Categories',
+    'Extracts assert subject from NL verify text'
+  );
+
   const emptyDiagnostics = {
     mappedPomStepIndexes: [],
     unmappedStepIndexes: [1, 2],

@@ -130,6 +130,9 @@ function persistReplayArtifacts(slug: string, result: ActReplayResult): void {
  * Replay saved ActHistory via Playwright (no browser-use, no discovery).
  * LLM is used when heal is enabled (default on) and a locator fails after fallbacks.
  * Disable with --no-heal or WEBPILOT_REPLAY_HEAL=0.
+ *
+ * Strict --no-heal: no HealingAgent, no healing-cache write, no inventory heal upsert.
+ * Successful locators still upsert live-verified inventory (replay trust gate).
  */
 export class ActHistoryReplayService {
   public static async replay(
@@ -139,9 +142,10 @@ export class ActHistoryReplayService {
     const doc = loadDocument(slug);
     const runner = new ActHistoryPlaywrightRunner();
     const cm = ConfigManager.getInstance();
+    const healEnabled = Boolean(options.heal);
 
     let healHook: ActReplayHealHook | null = null;
-    if (options.heal) {
+    if (healEnabled) {
       const llm = new LLMClient();
       const healer = new HealingAgent(
         llm,
@@ -151,6 +155,25 @@ export class ActHistoryReplayService {
         const state = await ActHistoryPlaywrightRunner.pageStateForHeal(page);
         const result = await healer.heal(brokenDescription, state as any, step.action);
         if (!result.healedSelector || result.confidence < 0.6) return null;
+        // Staleness path: recapture live page inventory and upsert healed locator
+        try {
+          const {
+            snapshotFromHealPageState,
+            upsertInventory,
+            verifiedLocatorFromHealedSelector,
+          } = require('./PageInventory') as typeof import('./PageInventory');
+          const snap = snapshotFromHealPageState(state);
+          const verified = verifiedLocatorFromHealedSelector(result.healedSelector);
+          upsertInventory(snap, {
+            verifiedLocator: verified || undefined,
+            axName: verified?.name || null,
+          });
+        } catch (err) {
+          console.warn(
+            '  Warning: page inventory upsert after heal failed:',
+            err instanceof Error ? err.message : err
+          );
+        }
         return result;
       };
     }
@@ -172,7 +195,8 @@ export class ActHistoryReplayService {
       },
     });
 
-    if (healing.length) {
+    // Strict --no-heal: never persist healing records or cache side-effects.
+    if (healEnabled && healing.length) {
       persistHealing(slug, doc, {
         healing,
         failures: result.success ? [] : [result.failure || 'replay failed'],

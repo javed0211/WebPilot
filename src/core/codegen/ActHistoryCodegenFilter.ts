@@ -55,7 +55,8 @@ const KEEP_ACTIONS = new Set([
 function isNoiseDescription(description: string): boolean {
   const d = description.toLowerCase();
   // Agent tool leftovers that pollute codegen method names.
-  if (/searched page for/i.test(d) && /match(es)? found/i.test(d)) return true;
+  // Drop all search_page residue — NL assertionPlan already carries the verifies.
+  if (/searched page for/i.test(d)) return true;
   if (/^\s*custom\s*\|/i.test(d) && /match(es)? found/i.test(d)) return true;
   if (/extract\s*\|/i.test(d)) return true;
   if (/find_elements/i.test(d)) return true;

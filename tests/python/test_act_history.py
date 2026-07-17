@@ -51,6 +51,72 @@ def test_locator_candidates_prefer_role_for_link():
     assert any('href=' in v for v in xpath_vals)
 
 
+def test_locator_candidates_prefer_stable_tab_id_over_ambiguous_role():
+    """GitHub-style underlinenav: primary must be id=*-tab, not short role name."""
+    element = {
+        "node_name": "A",
+        "ax_name": "Actions",
+        "attributes": {
+            "id": "actions-tab",
+            "href": "/microsoft/playwright/actions",
+            "class": "UnderlineNav-item no-wrap js-responsive-underlinenav-item",
+        },
+        "x_path": "html/body/div[1]/nav/ul/li[4]/a",
+    }
+    locs = locator_candidates_from_element(element)
+    assert locs
+    assert locs[0]["kind"] == "css"
+    assert 'id="actions-tab"' in locs[0]["value"]
+    # Scoped exact role is present as a uniqueness fallback (nav >> Actions).
+    scoped = [
+        loc
+        for loc in locs
+        if loc.get("kind") == "role"
+        and loc.get("name") == "Actions"
+        and loc.get("exact") is True
+        and loc.get("scope")
+    ]
+    assert scoped
+    assert scoped[0]["scope"]["value"] in ("nav", "navigation")
+
+
+def test_locator_candidates_prefer_tab_id_over_counter_suffixed_role():
+    element = {
+        "node_name": "A",
+        "ax_name": "Issues 148",
+        "attributes": {
+            "id": "issues-tab",
+            "href": "/microsoft/playwright/issues",
+            "class": "UnderlineNav-item",
+        },
+        "x_path": "html/body/nav/a",
+    }
+    locs = locator_candidates_from_element(element)
+    assert locs[0]["kind"] == "css"
+    assert 'id="issues-tab"' in locs[0]["value"]
+
+
+def test_locator_candidates_scope_role_when_no_unique_id():
+    """Without id, ancestor scope + exact AX name becomes the uniqueness strategy."""
+    element = {
+        "node_name": "A",
+        "ax_name": "Pulse",
+        "attributes": {
+            "href": "/microsoft/playwright/pulse",
+            "class": "js-selected-navigation-item menu-item",
+        },
+        "x_path": "html/body/div/main/div/nav/a[1]",
+    }
+    locs = locator_candidates_from_element(element)
+    assert locs
+    primary = locs[0]
+    assert primary.get("scope"), f"expected scoped primary, got {primary}"
+    assert primary.get("exact") is True or primary["kind"] == "css"
+    if primary["kind"] == "role":
+        assert primary["name"] == "Pulse"
+        assert primary["scope"]["value"] in ("nav", "navigation")
+
+
 def test_locator_candidates_drop_absolute_xpath_use_relative():
     element = {
         "node_name": "A",

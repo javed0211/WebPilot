@@ -763,12 +763,18 @@ def build_runtime_insights(history_list: Any, nl_steps: list[str]) -> dict:
     return {"nlStepCount": len(nl_steps), "insights": insights}
 
 
-def build_full_execution_context(history_list: Any, nl_steps: list[str], test_name: str) -> dict:
+def build_full_execution_context(
+    history_list: Any,
+    nl_steps: list[str],
+    test_name: str,
+    page_snapshots: dict[str, dict] | None = None,
+) -> dict:
     """
     Complete browser-use export — primary input for codegen / Playwright replay.
 
     Source of truth is ActHistory transformed from AgentHistoryList.
     NL steps are reference + assertionPlan only — they do not overwrite acts.
+    page_snapshots: optional selector_map inventories keyed by pageKey for DOM verify.
     """
     from .act_history import (
         ACT_HISTORY_SCHEMA_VERSION,
@@ -777,8 +783,39 @@ def build_full_execution_context(history_list: Any, nl_steps: list[str], test_na
         build_assertion_plan,
         build_run_log,
     )
+    from .page_inventory import upsert_inventory
 
-    act_steps = build_act_history(history_list)
+    act_steps = build_act_history(history_list, page_snapshots=page_snapshots)
+    # Persist page inventories + verified locators from ActHistory
+    if page_snapshots:
+        for _key, snap in page_snapshots.items():
+            try:
+                upsert_inventory(snap)
+            except Exception:
+                pass
+    for step in act_steps:
+        locs = step.get("locators") or []
+        verified = next((l for l in locs if l.get("verified")), None)
+        if verified and step.get("url"):
+            try:
+                upsert_inventory(
+                    {
+                        "url": step.get("url"),
+                        "pageKey": None,
+                        "title": step.get("pageTitle"),
+                        "elements": [],
+                        "elementCount": 0,
+                        "capturedAt": None,
+                        "fingerprint": None,
+                        "schemaVersion": 1,
+                        "verifiedLocators": [],
+                    },
+                    verified_locator=verified,
+                    ax_name=(step.get("element") or {}).get("ax_name"),
+                )
+            except Exception:
+                pass
+
     # executionHistory = ActHistory rows (legacy TraceBuilder-compatible shape).
     execution_history = act_history_to_execution_rows(act_steps)
     # Legacy extract kept for debug only (element_index dumps, memories noise).

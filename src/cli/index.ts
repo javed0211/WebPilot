@@ -2301,7 +2301,7 @@ program
   .option('--force-discovery', 'Force browser-use rediscovery (ignore prior ActHistory reuse)')
   .option('--codegen', 'Generate and validate Playwright code after execution', false)
   .option('--force-codegen', 'Force codegen regenerate even when an existing spec already passes')
-  .option('--no-heal', 'Disable automatic locator self-heal on ActHistory replay / re-run failure')
+  .option('--no-heal', 'Disable automatic locator self-heal (strict: no heal, no cache upsert)')
   .option('--site-model-only', 'Deprecated alias for --knowledge-only')
   .option('--no-site-model', 'Deprecated alias for --force-discovery')
   .description('Run natural language scripts in fully autonomous execution mode')
@@ -2327,7 +2327,8 @@ program
       process.env.WEBPILOT_FORCE_CODEGEN = '1';
       process.env.WEBPILOT_CODEGEN = '1';
     }
-    if (options.noHeal) {
+    // Commander maps --no-heal → options.heal === false (not options.noHeal).
+    if (options.heal === false) {
       process.env.WEBPILOT_REPLAY_HEAL = '0';
     }
     const browserProvider = BrowserProviderRegistry.resolve(options.provider);
@@ -2536,7 +2537,7 @@ program
   .option('--headed', 'Run the browser in headed mode', false)
   .option('--grep <pattern>', 'Only run tests matching this expression (spec replay only)')
   .option('--heal', 'Force-enable self-heal on ActHistory locator failure (already on by default)')
-  .option('--no-heal', 'Disable self-heal on ActHistory locator failure')
+  .option('--no-heal', 'Disable self-heal on ActHistory locator failure (strict: no heal, no cache upsert)')
   .description(
     'Replay without browser-use discovery: generated Playwright specs, or ActHistory via --from'
   )
@@ -2546,19 +2547,21 @@ program
     headed?: boolean;
     grep?: string;
     heal?: boolean;
-    noHeal?: boolean;
   }) => {
     if (options.from) {
       const { ActHistoryReplayService } = require('../core/replay/ActHistoryReplayService');
       const { isReplayHealEnabled } = require('../core/replay/ReplayHealPolicy');
+      // Commander: --no-heal sets heal=false; --heal sets heal=true; omit → undefined.
       let heal = isReplayHealEnabled();
-      if (options.noHeal) heal = false;
-      if (options.heal) heal = true;
+      if (options.heal === false) heal = false;
+      else if (options.heal === true) heal = true;
       process.env.WEBPILOT_REPLAY_HEAL = heal ? '1' : '0';
 
       console.log(chalk.magenta('\n=== WebPilot ActHistory Playwright Replay ==='));
       console.log(`  Slug: ${chalk.cyan(options.from)}`);
-      console.log(`  Heal on failure: ${heal ? chalk.green('on') : chalk.dim('off')}`);
+      console.log(
+        `  Heal on failure: ${heal ? chalk.green('on') : chalk.yellow('off (strict)')}`
+      );
       try {
         const result = await ActHistoryReplayService.replay(options.from, {
           headed: Boolean(options.headed),
@@ -2575,6 +2578,13 @@ program
           process.exit(0);
         }
         console.error(chalk.red(`\nReplay failed: ${result.failure}`));
+        if (!heal) {
+          console.error(
+            chalk.dim(
+              '  (--no-heal: locator failure is final — no HealingAgent, no healing-cache write, no inventory heal upsert)'
+            )
+          );
+        }
         process.exit(1);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);

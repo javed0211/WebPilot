@@ -13,11 +13,11 @@ export function locatorExpression(selector: TraceSelector | undefined, receiver 
     if (expr.startsWith('page.')) expr = expr.replace(/^page\./, `${receiver}.`);
     else if (expr.startsWith('this.page.')) expr = expr.replace(/^this\.page\./, `${receiver}.`);
     else expr = `${receiver}.${expr}`;
-    // Harden path-like role names so prefix collisions (microsoft/playwright*) don't fail strict mode.
+    // Prefer exact accessible-name matches to avoid substring collisions (Actions vs "…actions…").
     expr = expr.replace(
       /getByRole\((['"])([^'"]+)\1,\s*\{\s*name:\s*(['"])([^'"]*?)\3\s*\}\)/g,
       (full, q1: string, role: string, q2: string, name: string) => {
-        if (/exact\s*:/.test(full) || !/[/.]/.test(name)) return full;
+        if (/exact\s*:/.test(full)) return full;
         return `getByRole(${q1}${role}${q1}, { name: ${q2}${name}${q2}, exact: true })`;
       }
     );
@@ -31,8 +31,7 @@ export function locatorExpression(selector: TraceSelector | undefined, receiver 
       const role = match[1];
       const name = match[2];
       if (!name) return `${receiver}.getByRole('${escapeTsString(role)}')`;
-      const exact = /[/.]/.test(name) ? ', exact: true' : '';
-      return `${receiver}.getByRole('${escapeTsString(role)}', { name: '${escapeTsString(name)}'${exact} })`;
+      return `${receiver}.getByRole('${escapeTsString(role)}', { name: '${escapeTsString(name)}', exact: true })`;
     }
     case 'label':
       return `${receiver}.getByLabel('${escapeTsString(selector.value)}')`;

@@ -36,6 +36,7 @@ from .credentials import is_credential_step, resolve_sensitive_text
 from .trust_scoring import invalidate_if_step_changed, record_promotion_trust
 from .system_recipes import try_app_switcher_recipe
 from .paths import CONFIG_ROOT, PROJECT_ROOT
+from .act_history import rank_locator_candidates
 
 KNOWLEDGE_ROOT = PROJECT_ROOT / "runtime" / "site-knowledge"
 KNOWLEDGE_PATH = KNOWLEDGE_ROOT / "knowledge.json"
@@ -609,25 +610,7 @@ def _locator_candidates(node: Any) -> list[dict[str, str]]:
     if text and len(text) <= 120:
         candidates.append({"kind": "text", "value": text, "tag": tag})
 
-    seen: set[tuple[str, str, str]] = set()
-    unique: list[dict[str, str]] = []
-    for candidate in sorted(
-        candidates,
-        key=lambda item: (
-            _LOCATOR_KIND_PRIORITY.get(item.get("kind", "css"), 99),
-            len(item.get("name", item.get("value", ""))),
-        ),
-    ):
-        key = (
-            candidate.get("kind", ""),
-            candidate.get("value", candidate.get("name", "")),
-            candidate.get("name", ""),
-        )
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(candidate)
-    return unique[:6]
+    return rank_locator_candidates(candidates)[:6]
 
 
 def _step_mentions_modal(step: str) -> bool:

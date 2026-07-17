@@ -153,13 +153,16 @@ function assertionPlanToSteps(
             : []),
         ]
       : [];
+    const isHomeAssert = /\bhomepage\b|\bhome page\b|search wikipedia/i.test(nl);
     steps.push({
       index: steps.length + 1,
       action: 'assert',
       description: nl,
       value: text,
       selector: locators.length ? JSON.stringify(locators) : null,
-      url: null,
+      // Stamp the page where the verify belongs so POM mapping does not collapse
+      // every trailing assertionPlan item onto the entry URL.
+      url: isHomeAssert ? urlHint || null : finalUrl || urlHint || null,
     });
   }
   return steps;
