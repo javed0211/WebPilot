@@ -50,5 +50,7 @@ behavior in `src/integrations/browser_use`.
 ## Security dependency pins
 
 - `pyproject.toml`: `aiohttp==3.14.1`, `click==8.3.3`, `pypdf==6.13.3`.
-- Repo root `requirements-overrides.txt` upgrades `pillow` to `12.3.0` after
-  install because `browser-harness==0.1.5` still pins `pillow==12.2.0`.
+- Repo root `requirements-overrides.txt` upgrades `pillow` to `12.3.0` and
+  `mcp` to `1.28.1` after install. `browser-harness==0.1.5` still hard-pins
+  `pillow==12.2.0` (kept in vendored pyproject so `pip install -r requirements.txt`
+  resolves); mcp bump fixes CVE-2026-52870 / 52869 / 59950.

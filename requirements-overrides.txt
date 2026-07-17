@@ -1,4 +1,9 @@
 # Post-install security upgrades for transitive packages that still pin older
 # vulnerable versions (applied after `pip install -r requirements.txt`).
-# browser-harness==0.1.5 pins pillow==12.2.0; 12.3.0 fixes multiple PYSECs.
+#
+# browser-harness==0.1.5 hard-pins pillow==12.2.0, so the editable browser-use
+# install must keep pillow==12.2.0 in pyproject.toml or pip cannot resolve.
+# Force 12.3.0 here (after install) for PYSEC fixes.
 pillow==12.3.0
+# mcp 1.26.0 has CVE-2026-52870 / 52869 / 59950; require patched release.
+mcp==1.28.1
