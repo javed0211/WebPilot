@@ -145,7 +145,7 @@ browserProviders:
   active: "browser-use" # local-playwright | browser-use | testmu | remote-cdp | selenium-grid | browserstack | lambdatest
   local-playwright:
     browserName: "chromium"
-    headless: true
+    headless: false
   browser-use:
     browserName: "chrome"
     headless: false

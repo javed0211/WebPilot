@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigManager } from '../ConfigManager';
+import { BrowserProviderRegistry } from '../browserProviders/BrowserProviderRegistry';
 import { LLMClient } from '../LLMClient';
 import {
   REPORTS_VIDEOS_DIR,
@@ -20,6 +21,7 @@ import type {
 } from './ActHistoryTypes';
 
 export interface ReplayFromHistoryOptions {
+  /** @deprecated Ignored — headless comes from webpilot.yaml only. */
   headed?: boolean;
   heal?: boolean;
   stepTimeoutMs?: number;
@@ -178,8 +180,9 @@ export class ActHistoryReplayService {
       };
     }
 
+    const headed = BrowserProviderRegistry.resolveHeaded();
     const { result, healing } = await runner.run(slug, doc, {
-      headed: options.headed,
+      headed,
       stepTimeoutMs: options.stepTimeoutMs,
       heal: healHook,
       video: resolveVideoMode(cm),

@@ -96,8 +96,9 @@ export class Engine {
   constructor(options: EngineOptions) {
     this.testFilePath = options.testFilePath;
     this.envName = options.env;
-    this.headed = options.headed ?? false;
+    // Interactive is always headed; otherwise headless comes from webpilot.yaml only.
     this.interactive = options.interactive ?? false;
+    this.headed = this.interactive ? true : BrowserProviderRegistry.resolveHeaded();
     this.architecture = options.architecture ?? 'pom';
     this.fallbackReason = options.fallbackReason;
     this.forceBrowserUse = options.forceBrowserUse ?? false;

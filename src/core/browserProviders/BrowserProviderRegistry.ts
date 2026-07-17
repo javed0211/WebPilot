@@ -162,4 +162,17 @@ export class BrowserProviderRegistry {
       raw,
     });
   }
+
+  /**
+   * Headless mode from resources/config/webpilot.yaml only
+   * (browserProviders.<active>.headless → browser.headless → true).
+   */
+  public static resolveHeadless(providerOverride?: string): boolean {
+    return BrowserProviderRegistry.resolve(providerOverride).config.headless;
+  }
+
+  /** Inverse of resolveHeadless — visible browser when yaml says headless: false. */
+  public static resolveHeaded(providerOverride?: string): boolean {
+    return !BrowserProviderRegistry.resolveHeadless(providerOverride);
+  }
 }

@@ -1529,11 +1529,8 @@ def load_browser_artifact_config():
         defaults['record_video'] = False
     elif env_video in ('on', '1', 'true', 'yes'):
         defaults['record_video'] = True
-    env_headless = os.environ.get('WEBPILOT_HEADLESS', '').strip().lower()
-    if env_headless in ('1', 'true', 'yes', 'on'):
-        defaults['headless'] = True
-    elif env_headless in ('0', 'false', 'no', 'off'):
-        defaults['headless'] = False
+    # Headless comes from webpilot.yaml only (browserProviders.<active>.headless → browser.headless).
+    # Do not honor WEBPILOT_HEADLESS — that env was previously able to override yaml.
     os.makedirs(defaults['video_dir'], exist_ok=True)
     os.makedirs(defaults['traces_dir'], exist_ok=True)
     return defaults

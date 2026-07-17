@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 import { resolveExecutionHistoryPath } from '../ReportPaths';
+import { BrowserProviderRegistry } from '../browserProviders/BrowserProviderRegistry';
 import { ActHistoryReplayService } from './ActHistoryReplayService';
 import type { ActReplayResult } from './ActHistoryTypes';
 
@@ -81,14 +82,15 @@ export class KnowledgeOnlyReplay {
 
     if (plan.strategy === 'spec' && plan.specPath) {
       const playwrightCli = require.resolve('@playwright/test/cli');
+      const headed = BrowserProviderRegistry.resolveHeaded();
       const args = [
         playwrightCli,
         'test',
         plan.specPath,
         '--config=packages/test-framework/playwright.config.ts',
         '--project=chromium',
+        headed ? '--headed' : '--headless',
       ];
-      if (options?.headed) args.push('--headed');
       const spawned = spawnSync(process.execPath, args, {
         cwd: process.cwd(),
         env: process.env,
@@ -105,7 +107,6 @@ export class KnowledgeOnlyReplay {
     }
 
     const result = await ActHistoryReplayService.replay(slug, {
-      headed: options?.headed,
       heal: options?.heal,
     });
     return {

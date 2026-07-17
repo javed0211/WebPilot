@@ -1863,6 +1863,31 @@ export class AssertionUtils {
       const playConfigDest = path.join(projectRoot, 'packages', 'test-framework', 'playwright.config.ts');
       const defaultPlaywrightConfig = `import { defineConfig, devices } from '@playwright/test';
 import { config } from './config/ConfigManager';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as yaml from 'js-yaml';
+
+/** Headless from resources/config/webpilot.yaml (provider → browser.headless). */
+function resolveHeadlessFromYaml(): boolean {
+  try {
+    const configPath = path.join(process.cwd(), 'resources', 'config', 'webpilot.yaml');
+    if (!fs.existsSync(configPath)) return true;
+    const raw = yaml.load(fs.readFileSync(configPath, 'utf8')) as Record<string, any> | null;
+    if (!raw) return true;
+    const browser = raw.browser || {};
+    const providers = raw.browserProviders || {};
+    const active =
+      process.env.WEBPILOT_BROWSER_PROVIDER ||
+      providers.active ||
+      (browser?.testmu?.enabled ? 'testmu' : raw.framework?.useBrowserUse ? 'browser-use' : 'local-playwright');
+    const providerBlock = providers[active] || {};
+    if (providerBlock.headless != null) return Boolean(providerBlock.headless);
+    if (browser.headless != null) return Boolean(browser.headless);
+  } catch {
+    /* fall through */
+  }
+  return true;
+}
 
 export default defineConfig({
   testDir: './tests',
@@ -1882,7 +1907,7 @@ export default defineConfig({
   ],
   use: {
     baseURL: config.baseUrl,
-    headless: true,
+    headless: resolveHeadlessFromYaml(),
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
     video: 'retain-on-failure',
@@ -2306,7 +2331,11 @@ program
   .command('run')
   .argument('<paths...>', 'Paths to natural language test scripts or directories')
   .option('-e, --env <env>', 'Environment to switch to (dev, qa, prod, azure)')
-  .option('--headed', 'Launch browser in visible headed mode', false)
+  .option(
+    '--headed',
+    'Deprecated: ignored — set browser.headless in resources/config/webpilot.yaml',
+    false
+  )
   .option('--architecture <arch>', 'Target generated architecture: flat, pom, bdd, pom-bdd', 'pom')
   .option('--parallel <workers>', 'Run parallel workers', '1')
   .option('--provider <name>', 'Browser provider: local-playwright, browser-use, testmu')
@@ -2411,13 +2440,23 @@ program
     const jobStart = Date.now();
     UsageTracker.reset();
     
+    if (options.headed) {
+      Logger.warn(
+        '--headed is ignored; set browser.headless (or browserProviders.<active>.headless) in resources/config/webpilot.yaml'
+      );
+    }
+    const headed = BrowserProviderRegistry.resolveHeaded(options.provider);
+    
     CliDisplay.printBanner({
       test: files.length > 1 ? `${files.length} tests` : files[0],
       env: runEnv,
-      mode: options.headed ? 'headed' : 'headless',
+      mode: headed ? 'headed' : 'headless',
       architecture: options.architecture
     });
     Logger.info(`Browser provider: ${browserProvider.name}`);
+    Logger.detail(
+      `Browser mode from webpilot.yaml: ${headed ? 'headed' : 'headless'} (browser.headless / provider override)`
+    );
     
     Logger.info(`Starting execution of ${files.length} tests with concurrency ${concurrency}...`);
     const metadataSummary = [...metadataByFile.entries()]
@@ -2452,7 +2491,6 @@ program
           const engine = new Engine({
             testFilePath: nlFile,
             env: runEnv,
-            headed: options.headed,
             interactive: false,
             architecture: options.architecture as any,
             forceBrowserUse: browserProvider.name !== 'local-playwright'
@@ -2548,7 +2586,11 @@ program
   )
   .option('--from <slug>', 'Replay saved ActHistory for this scenario slug via Playwright')
   .option('--project <name>', 'Playwright project to run (spec replay only)', 'chromium')
-  .option('--headed', 'Run the browser in headed mode', false)
+  .option(
+    '--headed',
+    'Deprecated: ignored — set browser.headless in resources/config/webpilot.yaml',
+    false
+  )
   .option('--grep <pattern>', 'Only run tests matching this expression (spec replay only)')
   .option('--heal', 'Force-enable self-heal on ActHistory locator failure (already on by default)')
   .option('--no-heal', 'Disable self-heal on ActHistory locator failure (strict: no heal, no cache upsert)')
@@ -2565,20 +2607,32 @@ program
     if (options.from) {
       const { ActHistoryReplayService } = require('../core/replay/ActHistoryReplayService');
       const { isReplayHealEnabled } = require('../core/replay/ReplayHealPolicy');
+      const { BrowserProviderRegistry } = require('../core/browserProviders/BrowserProviderRegistry');
       // Commander: --no-heal sets heal=false; --heal sets heal=true; omit → undefined.
       let heal = isReplayHealEnabled();
       if (options.heal === false) heal = false;
       else if (options.heal === true) heal = true;
       process.env.WEBPILOT_REPLAY_HEAL = heal ? '1' : '0';
 
+      if (options.headed) {
+        console.log(
+          chalk.yellow(
+            '  Note: --headed is ignored; set browser.headless in resources/config/webpilot.yaml'
+          )
+        );
+      }
+      const headed = BrowserProviderRegistry.resolveHeaded();
+
       console.log(chalk.magenta('\n=== WebPilot ActHistory Playwright Replay ==='));
       console.log(`  Slug: ${chalk.cyan(options.from)}`);
+      console.log(
+        `  Mode: ${headed ? chalk.green('headed') : chalk.dim('headless')} (from webpilot.yaml)`
+      );
       console.log(
         `  Heal on failure: ${heal ? chalk.green('on') : chalk.yellow('off (strict)')}`
       );
       try {
         const result = await ActHistoryReplayService.replay(options.from, {
-          headed: Boolean(options.headed),
           heal,
         });
         if (result.success) {
@@ -2608,6 +2662,14 @@ program
       return;
     }
 
+    if (options.headed) {
+      console.log(
+        chalk.yellow(
+          'Note: --headed is ignored; set browser.headless in resources/config/webpilot.yaml'
+        )
+      );
+    }
+    const headed = BrowserProviderRegistry.resolveHeaded();
     const { spawnSync } = require('child_process');
     const playwrightCli = require.resolve('@playwright/test/cli');
     const args = [
@@ -2616,8 +2678,8 @@ program
       ...paths,
       '--config=packages/test-framework/playwright.config.ts',
       `--project=${options.project}`,
+      headed ? '--headed' : '--headless',
     ];
-    if (options.headed) args.push('--headed');
     if (options.grep) args.push('--grep', options.grep);
 
     const result = spawnSync(process.execPath, args, {
@@ -2657,13 +2719,12 @@ program
     let stepsExecuted: number | undefined;
 
     try {
-      const engine = new Engine({
-        testFilePath: file,
-        env: options.env,
-        headed: true,
-        interactive: true,
-        architecture: options.architecture as any
-      });
+          const engine = new Engine({
+            testFilePath: file,
+            env: options.env,
+            interactive: true,
+            architecture: options.architecture as any
+          });
       const result = await engine.execute();
       success = result.success;
       stepsExecuted = result.stepsExecuted;

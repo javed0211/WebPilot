@@ -49,7 +49,7 @@ export function loadBrowserConfig(providerOverride?: ReportBrowser['provider']):
   return {
     target: cm.get('browser.target', 'chrome'),
     channel: cm.get('browser.target', 'chrome'),
-    headless: Boolean(cm.get('browser.headless', true)),
+    headless: BrowserProviderRegistry.resolveHeadless(),
     viewport: vp,
     video: String(cm.get('browser.video', 'on')),
     trace: String(cm.get('browser.trace', 'on')),

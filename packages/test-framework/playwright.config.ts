@@ -1,5 +1,30 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config } from './config/ConfigManager';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as yaml from 'js-yaml';
+
+/** Headless from resources/config/webpilot.yaml (provider → browser.headless). */
+function resolveHeadlessFromYaml(): boolean {
+  try {
+    const configPath = path.join(process.cwd(), 'resources', 'config', 'webpilot.yaml');
+    if (!fs.existsSync(configPath)) return true;
+    const raw = yaml.load(fs.readFileSync(configPath, 'utf8')) as Record<string, any> | null;
+    if (!raw) return true;
+    const browser = raw.browser || {};
+    const providers = raw.browserProviders || {};
+    const active =
+      process.env.WEBPILOT_BROWSER_PROVIDER ||
+      providers.active ||
+      (browser?.testmu?.enabled ? 'testmu' : raw.framework?.useBrowserUse ? 'browser-use' : 'local-playwright');
+    const providerBlock = providers[active] || {};
+    if (providerBlock.headless != null) return Boolean(providerBlock.headless);
+    if (browser.headless != null) return Boolean(browser.headless);
+  } catch {
+    /* fall through */
+  }
+  return true;
+}
 
 export default defineConfig({
   testDir: './tests',
@@ -20,7 +45,7 @@ export default defineConfig({
   ],
   use: {
     baseURL: config.baseUrl,
-    headless: true,
+    headless: resolveHeadlessFromYaml(),
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
     video: 'retain-on-failure',
