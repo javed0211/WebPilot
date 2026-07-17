@@ -56,11 +56,12 @@ class OldConfig:
 
 	@property
 	def ANONYMIZED_TELEMETRY(self) -> bool:
-		return os.getenv('ANONYMIZED_TELEMETRY', 'true').lower()[:1] in 'ty1'
+		# WebPilot vendor default: telemetry off unless explicitly re-enabled.
+		return os.getenv('ANONYMIZED_TELEMETRY', 'false').lower()[:1] in 'ty1'
 
 	@property
 	def BROWSER_USE_CLOUD_SYNC(self) -> bool:
-		return os.getenv('BROWSER_USE_CLOUD_SYNC', str(self.ANONYMIZED_TELEMETRY)).lower()[:1] in 'ty1'
+		return os.getenv('BROWSER_USE_CLOUD_SYNC', 'false').lower()[:1] in 'ty1'
 
 	@property
 	def BROWSER_USE_CLOUD_API_URL(self) -> str:
@@ -181,7 +182,8 @@ class OldConfig:
 
 	@property
 	def BROWSER_USE_VERSION_CHECK(self) -> bool:
-		return os.getenv('BROWSER_USE_VERSION_CHECK', 'true').lower()[:1] in 'ty1'
+		# WebPilot vendor default: skip upstream version nags.
+		return os.getenv('BROWSER_USE_VERSION_CHECK', 'false').lower()[:1] in 'ty1'
 
 	@property
 	def WIN_FONT_DIR(self) -> str:
@@ -198,8 +200,8 @@ class FlatEnvConfig(BaseSettings):
 	CDP_LOGGING_LEVEL: str = Field(default='WARNING')
 	BROWSER_USE_DEBUG_LOG_FILE: str | None = Field(default=None)
 	BROWSER_USE_INFO_LOG_FILE: str | None = Field(default=None)
-	ANONYMIZED_TELEMETRY: bool = Field(default=True)
-	BROWSER_USE_CLOUD_SYNC: bool | None = Field(default=None)
+	ANONYMIZED_TELEMETRY: bool = Field(default=False)
+	BROWSER_USE_CLOUD_SYNC: bool | None = Field(default=False)
 	BROWSER_USE_CLOUD_API_URL: str = Field(default='https://api.browser-use.com')
 	BROWSER_USE_CLOUD_UI_URL: str = Field(default='')
 	BROWSER_USE_MODEL_PRICING_URL: str = Field(default='')
@@ -225,7 +227,7 @@ class FlatEnvConfig(BaseSettings):
 	IN_DOCKER: bool | None = Field(default=None)
 	IS_IN_EVALS: bool = Field(default=False)
 	WIN_FONT_DIR: str = Field(default='C:\\Windows\\Fonts')
-	BROWSER_USE_VERSION_CHECK: bool = Field(default=True)
+	BROWSER_USE_VERSION_CHECK: bool = Field(default=False)
 
 	# MCP-specific env vars
 	BROWSER_USE_CONFIG_PATH: str | None = Field(default=None)

@@ -24,7 +24,10 @@ behavior in `src/integrations/browser_use`.
 - Upstream file: `browser_use/logging_config.py`
 - Reason: user-facing logs showed `browser-use` / `Browser Use`.
 - Change: `WebPilotLogFormatter` rebrands logger names and common phrases.
-- Runner also sets `ANONYMIZED_TELEMETRY=false`, disables cloud sync / version nags.
+- Runner forces `ANONYMIZED_TELEMETRY=false`, `BROWSER_USE_CLOUD_SYNC=false`,
+  and `BROWSER_USE_VERSION_CHECK=false` (assignment, not setdefault).
+- Vendored `config.py` defaults telemetry/cloud sync/version check to off.
+- `ProductTelemetry` never initializes PostHog under WebPilot.
 
 ## Video recorder robustness (Windows)
 

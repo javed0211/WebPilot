@@ -76,7 +76,8 @@ class ProductTelemetry:
 	_curr_user_id = None
 
 	def __init__(self) -> None:
-		telemetry_disabled = not CONFIG.ANONYMIZED_TELEMETRY
+		# WebPilot: never enable PostHog even if env is mis-set after import.
+		telemetry_disabled = True
 		self.debug_logging = CONFIG.BROWSER_USE_LOGGING_LEVEL == 'debug'
 
 		if telemetry_disabled:

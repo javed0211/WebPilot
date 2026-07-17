@@ -360,6 +360,11 @@ export class Engine {
               WEBPILOT_NODE: process.execPath,
               WEBPILOT_REPORT_CLI: reportCli,
               WEBPILOT_LLM_MODEL: resolvePricingModelName(),
+              // Force-disable upstream browser-use PostHog telemetry / cloud sync.
+              ANONYMIZED_TELEMETRY: 'false',
+              BROWSER_USE_VERSION_CHECK: 'false',
+              BROWSER_USE_CLOUD_SYNC: 'false',
+              BROWSER_USE_CLOUD: 'false',
               PYTHONPATH: [
                 path.join(installRoot, 'packages', 'browser-use'),
                 path.join(installRoot, 'src'),

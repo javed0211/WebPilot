@@ -50,7 +50,7 @@ Opt-in path: `engineMode: scoped` → one Agent per NL step (legacy).
 - Pass credentials with `sensitive_data`; prefer storage state for authenticated
   sessions. Do not append plaintext passwords to the agent task.
 - Use `AgentHistoryList` and cost tracking for reporting.
-- Disable upstream anonymous telemetry with `ANONYMIZED_TELEMETRY=false`.
+- Disable upstream anonymous telemetry (forced off: PostHog never initializes).
 
 ## Development workflow
 

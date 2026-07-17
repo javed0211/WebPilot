@@ -226,6 +226,10 @@ Do not commit real API keys, access tokens, session cookies, traces with private
 
 For vulnerability reporting, see [SECURITY.md](SECURITY.md).
 
+## Credits
+
+Created and maintained by [javed0211](https://github.com/javed0211). Contributions welcome.
+
 ## License
 
 WebPilot is open source under the [ISC License](LICENSE).

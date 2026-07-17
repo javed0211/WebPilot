@@ -1,10 +1,12 @@
 import sys
 import os
 
-# WebPilot product defaults: disable upstream browser-use telemetry/version nags before import.
-os.environ.setdefault('ANONYMIZED_TELEMETRY', 'false')
-os.environ.setdefault('BROWSER_USE_VERSION_CHECK', 'false')
-os.environ.setdefault('BROWSER_USE_CLOUD_SYNC', 'false')
+# WebPilot product policy: always disable upstream browser-use telemetry / cloud sync /
+# version nags (force, do not honor a pre-set ANONYMIZED_TELEMETRY=true from the shell).
+os.environ['ANONYMIZED_TELEMETRY'] = 'false'
+os.environ['BROWSER_USE_VERSION_CHECK'] = 'false'
+os.environ['BROWSER_USE_CLOUD_SYNC'] = 'false'
+os.environ['BROWSER_USE_CLOUD'] = 'false'
 # Quiet agent step dumps by default (override with WEBPILOT_VERBOSE=1 or BROWSER_USE_LOGGING_LEVEL=info).
 if os.environ.get('WEBPILOT_VERBOSE', '').strip().lower() in ('1', 'true', 'yes', 'on'):
     os.environ.setdefault('BROWSER_USE_LOGGING_LEVEL', 'info')

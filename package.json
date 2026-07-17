@@ -88,7 +88,10 @@
     "type": "git",
     "url": "git+https://github.com/javed0211/WebPilot.git"
   },
-  "author": "WebPilot contributors",
+  "author": {
+    "name": "javed0211",
+    "url": "https://github.com/javed0211"
+  },
   "license": "ISC",
   "engines": {
     "node": ">=20"
