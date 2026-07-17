@@ -31,12 +31,64 @@ export interface PostExecutionCodegenResult {
 /** Same keys written by `webpilot init` (`project.language` / tool / pattern). */
 export function readProjectCodegenProfile(): CodegenProfilePlan {
   const config = ConfigManager.getInstance();
+  const generatedCodePath = String(config.get('framework.generatedCodePath', '') || '')
+    .replace(/\\/g, '/')
+    .replace(/\/$/, '');
+  const configuredLanguage = config.get('project.language') as string | undefined;
+  let language = configuredLanguage;
+  // Init sets generatedCodePath to ./tests/generated for Python. If language was
+  // omitted/overwritten, infer python so we do not silently emit TypeScript specs.
+  if (!language && /(?:^|\/)tests\/generated$/.test(generatedCodePath)) {
+    language = 'python';
+  }
+  language = language || 'typescript';
+  const automationTool = config.get('project.automationTool', 'playwright');
+  const frameworkPattern = config.get('project.frameworkPattern', 'pom');
+  const testFramework =
+    config.get('project.testFramework') ||
+    (language === 'python' ? 'pytest' : 'playwright-test');
   return {
-    language: config.get('project.language', 'typescript'),
-    automationTool: config.get('project.automationTool', 'playwright'),
-    frameworkPattern: config.get('project.frameworkPattern', 'pom'),
-    testFramework: config.get('project.testFramework', 'playwright-test'),
+    language,
+    automationTool,
+    frameworkPattern,
+    testFramework,
   };
+}
+
+function hasExplicitProjectLanguage(): boolean {
+  const language = ConfigManager.getInstance().get('project.language');
+  return typeof language === 'string' && language.trim().length > 0;
+}
+
+/** Fail closed when Python codegen did not produce a runnable pytest module. */
+export function assertPythonCodegenOutputs(files: GeneratedFile[]): void {
+  const normalized = files.map((file) => ({
+    ...file,
+    path: file.path.replace(/\\/g, '/'),
+  }));
+  const testFiles = normalized.filter((file) => /\/test_[^/]+\.py$/.test(file.path));
+  if (!testFiles.length) {
+    throw new Error(
+      'Python codegen produced no tests/generated/test_*.py files. ' +
+        'Check project.language is "python" in resources/config/webpilot.yaml (webpilot init --language python).'
+    );
+  }
+  for (const file of testFiles) {
+    const fullPath = path.join(process.cwd(), file.path);
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`Python codegen did not write ${file.path} to disk`);
+    }
+    const content = fs.readFileSync(fullPath, 'utf8');
+    if (!/def\s+test_/.test(content)) {
+      throw new Error(`Python test file ${file.path} has no def test_* function`);
+    }
+    // Broken short imports (from pages.X) look like "no tests" under pytest collection.
+    if (/^from pages\./m.test(content)) {
+      throw new Error(
+        `Python test ${file.path} uses broken "from pages.*" imports; expected tests.generated.pages.*`
+      );
+    }
+  }
 }
 
 /** LLM CodegenAgent / RepoEdit repair only supports TypeScript Playwright today. */
@@ -130,6 +182,25 @@ export async function runPostExecutionCodegen(options: {
   const mode = resolveCodegenMode();
   const projectProfile = readProjectCodegenProfile();
   const tsAgentOk = supportsTypeScriptAgentCodegen(projectProfile);
+  const generatedCodePath = String(
+    ConfigManager.getInstance().get('framework.generatedCodePath', '') || ''
+  ).replace(/\\/g, '/');
+  if (
+    projectProfile.language === 'typescript' &&
+    /(?:^|\/)tests\/generated\/?$/.test(generatedCodePath.replace(/\/$/, ''))
+  ) {
+    Logger.warn(
+      `framework.generatedCodePath is "${generatedCodePath}" but project.language is typescript — ` +
+        `codegen will write .spec.ts under packages/test-framework, not Python under tests/generated. ` +
+        `Set project.language: python (or re-run: webpilot init --language python).`
+    );
+  }
+  if (projectProfile.language === 'python' && !hasExplicitProjectLanguage()) {
+    Logger.warn(
+      'project.language was inferred as python from framework.generatedCodePath — ' +
+        'add an explicit project.language: python block to webpilot.yaml'
+    );
+  }
   Logger.detail(
     `Codegen profile: ${projectProfile.language}/${projectProfile.automationTool}/${projectProfile.frameworkPattern}`
   );
@@ -233,7 +304,22 @@ export async function runPostExecutionCodegen(options: {
       // Never repair/fallback during `webpilot run --codegen` — fail closed.
       agentRepair: false,
     });
+    if (projectProfile.language === 'python') {
+      assertPythonCodegenOutputs(result.files);
+    }
     const reportCodegen = DeterministicCodegenPipeline.toReportCodegen(result.metadata, result.plan);
+    const outputHint =
+      projectProfile.language === 'python'
+        ? result.files
+            .map((file) => file.path.replace(/\\/g, '/'))
+            .filter((p) => p.endsWith('.py'))
+            .slice(0, 5)
+            .join(', ')
+        : result.metadata.specPath;
+    Logger.success(
+      `Codegen wrote ${result.files.length} ${projectProfile.language} file(s)` +
+        (outputHint ? `: ${outputHint}` : '')
+    );
     return {
       success: true,
       summary: buildSummary(result.metadata, result.files.length),

@@ -165,6 +165,39 @@ export class Engine {
     );
   }
 
+  /** Playwright .webm for HTML reports — never ffmpeg/BA screencast. */
+  private shouldAttachPlaywrightReportVideo(discoveryOk: boolean): boolean {
+    const env = String(process.env.WEBPILOT_VIDEO || '').trim().toLowerCase();
+    if (env === 'off' || env === '0' || env === 'false' || env === 'no') return false;
+    if (env === 'on' || env === '1' || env === 'true' || env === 'yes') return true;
+    if (env === 'retain-on-failure') return !discoveryOk;
+
+    const raw = String(
+      ConfigManager.getInstance().get('browser.video', 'retain-on-failure') || 'retain-on-failure'
+    ).toLowerCase();
+    if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'no') return !discoveryOk;
+    if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'yes') return true;
+    return !discoveryOk; // retain-on-failure
+  }
+
+  private async attachPlaywrightReportVideo(slug: string, discoveryOk: boolean): Promise<void> {
+    if (!this.shouldAttachPlaywrightReportVideo(discoveryOk)) return;
+    const historyPath = resolveExecutionHistoryPath(slug);
+    if (!fs.existsSync(historyPath)) return;
+    try {
+      Logger.info('Recording Playwright evidence video for report (ffmpeg not used)…');
+      const result = await ActHistoryReplayService.replay(slug, { heal: false });
+      if (result.videoPath) {
+        Logger.detail(`Report video attached: ${result.videoPath}`);
+      } else {
+        Logger.detail('Playwright replay finished without a usable video file');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Logger.warn(`Playwright report video skipped: ${msg}`);
+    }
+  }
+
   /**
    * Main execution trigger
    */
@@ -389,7 +422,17 @@ export class Engine {
         // 2. Post-process codegen output (deterministic or LLM-generated files)
         const tempCodegenPath = path.join(process.cwd(), 'packages', 'test-framework', 'temp_codegen.json');
         const baseName = path.basename(this.testFilePath, path.extname(this.testFilePath));
-        if (fs.existsSync(tempCodegenPath)) {
+        const codegenRequested = process.env.WEBPILOT_CODEGEN === '1';
+        if (!fs.existsSync(tempCodegenPath)) {
+          if (codegenRequested) {
+            Logger.error(
+              'Codegen was requested (--codegen) but packages/test-framework/temp_codegen.json is missing. ' +
+                'Discovery may have skipped codegen (failed run) or the Python handoff failed.'
+            );
+            this.finalizeJobUsage(baseName);
+            return { success: false, stepsExecuted: 0 };
+          }
+        } else {
           Logger.info('Post-processing generated POMs and specs');
           UsageTracker.setPhase('codegen');
           const codegenData = JSON.parse(fs.readFileSync(tempCodegenPath, 'utf8'));
@@ -410,6 +453,7 @@ export class Engine {
                 'Skipping codegen — only successful executions generate code'
               );
               safeUnlinkCodegenTemp(tempCodegenPath);
+              await this.attachPlaywrightReportVideo(baseName, false);
               this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: steps.length };
             }
@@ -425,6 +469,7 @@ export class Engine {
             if (!codegenResult.success) {
               Logger.error(codegenResult.summary);
               safeUnlinkCodegenTemp(tempCodegenPath);
+              await this.attachPlaywrightReportVideo(baseName, false);
               this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: 0 };
             }
@@ -440,6 +485,7 @@ export class Engine {
             if (!ok) {
               Logger.error('Generated code failed validation');
               safeUnlinkCodegenTemp(tempCodegenPath);
+              await this.attachPlaywrightReportVideo(baseName, false);
               this.finalizeJobUsage(baseName);
               return { success: false, stepsExecuted: 0 };
             }
@@ -464,15 +510,20 @@ export class Engine {
         }
 
         const historyPath = resolveExecutionHistoryPath(baseName);
-        const stepsExecuted = fs.existsSync(historyPath)
-          ? (() => {
-              const hist = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
-              return (hist.actHistory || hist.executionHistory)?.length ?? 0;
-            })()
-          : 0;
-
+        let discoveryOk = false;
+        let stepsExecuted = 0;
+        if (fs.existsSync(historyPath)) {
+          try {
+            const hist = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+            stepsExecuted = (hist.actHistory || hist.executionHistory)?.length ?? 0;
+            discoveryOk = isSuccessfulActHistory(hist);
+          } catch {
+            discoveryOk = false;
+          }
+        }
+        await this.attachPlaywrightReportVideo(baseName, discoveryOk);
         this.finalizeJobUsage(baseName);
-        return { success: true, stepsExecuted };
+        return { success: discoveryOk, stepsExecuted };
       } catch (err: any) {
         Logger.error(`browser-use execution failed: ${err.message}`);
         const failedSlug = path.basename(this.testFilePath, path.extname(this.testFilePath));
@@ -481,6 +532,7 @@ export class Engine {
         if (UsageTracker.getSnapshot().totalTokens === 0) {
           UsageTracker.loadExecutionFromFile(failedUsagePath);
         }
+        await this.attachPlaywrightReportVideo(failedSlug, false);
         this.finalizeJobUsage(failedSlug);
         return { success: false, stepsExecuted: 0 };
       }

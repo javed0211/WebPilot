@@ -342,12 +342,17 @@ def build_browser_kwargs(
         kwargs['viewport'] = viewport
     else:
         kwargs['no_viewport'] = True
+    # Never set record_video_dir on browser-use. That path uses CDP screencast +
+    # imageio/ffmpeg, which is blocked or brittle on many enterprise Windows hosts.
+    # Video for reports comes from Playwright only:
+    #   - ActHistory replay (`webpilot replay` / post-discovery evidence)
+    #   - generated specs (playwright.config.ts)
+    # BA session timeline: traces_dir (Playwright-compatible zip).
     if browser_cfg.get('record_video'):
-        kwargs['record_video_dir'] = browser_cfg['video_dir']
-        kwargs['record_video_size'] = {
-            'width': viewport.get('width', 1280),
-            'height': viewport.get('height', 720),
-        }
+        print(
+            '[WebPilot] browser.video is on — BA discovery uses Playwright traces; '
+            'Playwright records .webm for ActHistory replay / generated specs (not ffmpeg).'
+        )
     if browser_cfg.get('record_trace'):
         kwargs['traces_dir'] = browser_cfg['traces_dir']
     return kwargs

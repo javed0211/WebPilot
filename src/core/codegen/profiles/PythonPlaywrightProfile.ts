@@ -77,6 +77,10 @@ function stepLines(step: TraceStep, receiver = 'page'): string[] {
       return assertionLines.length > 0 ? assertionLines : locator ? [...metadata, `expect(${locator}).to_be_visible()`] : [`# assert: ${step.intent}`];
     case 'wait':
       return [`${receiver}.wait_for_load_state("networkidle")`];
+    case 'go_back':
+      return [`${receiver}.go_back()`, ...assertionLines];
+    case 'screenshot':
+      return [`${receiver}.screenshot(path="runtime/artifacts/${snakeCase(step.intent || 'step')}.png")`, ...assertionLines];
     default:
       return [`# ${step.action}: ${step.intent}`];
   }
@@ -158,9 +162,9 @@ export class PythonPlaywrightProfile implements CodegenProfile {
     if (usePom) {
       for (const page of plan.pageObjects) {
         if (!page.className) continue;
+        // Keep package-qualified imports so pytest (pythonpath=["."]) can resolve modules.
         const modulePath = page.path
-          .replace(/^tests\/generated\//, '')
-          .replace(/^tests\//, '')
+          .replace(/\\/g, '/')
           .replace(/\.py$/, '')
           .replace(/\//g, '.');
         imports.push(`from ${modulePath} import ${page.className}`);
@@ -168,6 +172,7 @@ export class PythonPlaywrightProfile implements CodegenProfile {
     }
 
     const lines: string[] = [...imports, '', '', `def test_${snakeCase(trace.scenarioSlug)}(page: Page):`];
+    const body: string[] = [];
     const instantiated = new Set<string>();
     for (const step of trace.steps) {
       const mapped = pageMethodByStep.get(step.index);
@@ -175,17 +180,18 @@ export class PythonPlaywrightProfile implements CodegenProfile {
         if (!instantiated.has(mapped.variable)) {
           const page = pageForStep(step, plan);
           if (page?.className) {
-            lines.push(`    ${mapped.variable} = ${page.className}(page)`);
+            body.push(`    ${mapped.variable} = ${page.className}(page)`);
             instantiated.add(mapped.variable);
           }
         }
-        lines.push(`    ${mapped.variable}.${mapped.method}()`);
+        body.push(`    ${mapped.variable}.${mapped.method}()`);
         continue;
       }
       for (const line of stepLines(step, 'page')) {
-        lines.push(`    ${line}`);
+        body.push(`    ${line}`);
       }
     }
+    lines.push(...ensureExecutablePythonBody(body));
     lines.push('');
     files.push({ path: plan.specPath, content: lines.join('\n') });
     return files;

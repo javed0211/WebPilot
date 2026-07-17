@@ -1496,7 +1496,7 @@ def load_browser_artifact_config():
                     print(f"[WebPilot] Viewport scale {scale}x → {defaults['viewport']['width']}×{defaults['viewport']['height']}")
             except ValueError:
                 print(f"Warning: Ignoring invalid WEBPILOT_VIEWPORT_SCALE={scale_raw!r}")
-        defaults['record_video'] = browser.get('video', 'off') not in ('off', False, None)
+        defaults['record_video'] = False  # BA never uses ffmpeg; Playwright owns video
         ss_mode = str(browser.get('screenshots', 'only-on-failure') or 'only-on-failure').strip().lower()
         if ss_mode in ('off', 'on', 'only-on-failure'):
             defaults['screenshots_mode'] = ss_mode
@@ -1517,18 +1517,15 @@ def load_browser_artifact_config():
             pass
     except Exception as e:
         print("Warning: Could not parse config/webpilot.yaml for artifacts:", e)
-    if defaults.get('record_video') and not _FFMPEG_AVAILABLE:
-        defaults['record_video'] = False
-        print(
-            "[WebPilot] browser.video requested but ffmpeg is unavailable — "
-            "disabling video for this run (pip install \"browser-use[video]\" / fix IMAGEIO_FFMPEG_EXE, "
-            "or set browser.video: off)."
-        )
+    # browser.video configures Playwright ActHistory / generated-spec recording only.
+    # Force BA screencast off so blocked ffmpeg.exe cannot break discovery teardown.
+    defaults['record_video'] = False
     env_video = os.environ.get('WEBPILOT_VIDEO', '').strip().lower()
-    if env_video in ('off', '0', 'false', 'no'):
-        defaults['record_video'] = False
-    elif env_video in ('on', '1', 'true', 'yes'):
-        defaults['record_video'] = True
+    if env_video in ('on', '1', 'true', 'yes'):
+        print(
+            '[WebPilot] WEBPILOT_VIDEO=on — Playwright will record ActHistory/report video; '
+            'BA discovery does not use ffmpeg.'
+        )
     # Headless comes from webpilot.yaml only (browserProviders.<active>.headless → browser.headless).
     # Do not honor WEBPILOT_HEADLESS — that env was previously able to override yaml.
     os.makedirs(defaults['video_dir'], exist_ok=True)
@@ -2041,7 +2038,7 @@ async def main():
             print(f"Warning: browser cleanup did not finish cleanly: {close_error}")
         artifact_paths = finalize_artifacts(
             base_file_name,
-            browser_cfg['video_dir'] if browser_cfg['record_video'] else None,
+            None,  # Playwright owns video — never collect BA ffmpeg/mp4 stubs
             browser_cfg['traces_dir'] if browser_cfg['record_trace'] else None,
         )
         artifact_paths = artifact_paths or {}

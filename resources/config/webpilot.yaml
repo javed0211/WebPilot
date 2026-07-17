@@ -34,6 +34,16 @@ framework:
   apiCodegenEnabled: true # generate packages/test-framework/apis + packages/test-framework/tests/api after successful API runs
   useApiPlaywright: true # execute API tests via Playwright request (not axios)
 
+# Codegen stack (set by `webpilot init --language …`). Without this block, language defaults to typescript.
+# Python Playwright → tests/generated/test_*.py. TypeScript Playwright → packages/test-framework/tests/*.spec.ts.
+project:
+  name: "webpilot"
+  target: "web"
+  language: "typescript"
+  automationTool: "playwright"
+  testFramework: "playwright-test"
+  frameworkPattern: "pom"
+
 # 1b. Requirements coverage sync (Feature 09)
 # WebPilot can sync stories/requirements directly from official ADO/Jira MCP
 # servers, normalize them, then generate coverage without requiring users to
@@ -107,9 +117,9 @@ intelligentRunner:
 browser:
   target: "chrome" # chrome (Google Chrome), chromium, msedge — browser-use channel
   headless: false
-  video: "on" # off | on | retain-on-failure
-  # BA discovery records MP4 via CDP screencast + imageio/ffmpeg (browser-use[video]).
-  # Playwright also records video for generated specs and ActHistory replay.
+  video: "retain-on-failure" # off | on | retain-on-failure — Playwright .webm only
+  # BA discovery never uses ffmpeg. Playwright records ActHistory evidence video for the HTML report
+  # (always when on; on failure when retain-on-failure). Generated specs use playwright.config.ts.
   screenshots: "only-on-failure" # off, on, only-on-failure — report media for failed steps only
   # Agent console noise: default BROWSER_USE_LOGGING_LEVEL=result (quiet). Set WEBPILOT_VERBOSE=1 for full step dumps.
   trace: "on" # off, on, retain-on-failure — saves Playwright trace zips under reports/traces

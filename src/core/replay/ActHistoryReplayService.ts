@@ -72,8 +72,8 @@ function resolveVideoMode(cm: ConfigManager): 'off' | 'on' | 'retain-on-failure'
   const raw = String(cm.get('browser.video', 'off') || 'off').toLowerCase();
   if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'yes') return 'on';
   if (raw === 'retain-on-failure') return 'retain-on-failure';
-  // yaml `off` disables BA ffmpeg screencast only; Playwright ActHistory still
-  // records on failure (matches playwright.config.ts retain-on-failure).
+  // yaml `off` → still record Playwright ActHistory video on failure (report evidence).
+  // BA discovery never uses ffmpeg; this mode only affects Playwright recording.
   return 'retain-on-failure';
 }
 

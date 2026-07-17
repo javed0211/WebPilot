@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "@qubiqlabs/webpilot"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "playwright>=1.49.0",
+  "pytest>=8.0.0",
+  "pytest-playwright>=0.5.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/generated"]
+pythonpath = ["."]
+addopts = "-q"

@@ -413,9 +413,7 @@ function writeProjectProfileConfig(projectRoot: string, profile: InitProfile): v
     yaml = yaml.replace(/generatedCodePath:\s*"[^"]+"/, `generatedCodePath: "${generatedCodePath}"`);
   }
 
-  yaml += `
-
-# Project generation profile selected by webpilot init.
+  const projectBlock = `# Project generation profile selected by webpilot init.
 # Codegen reads project.language / automationTool. Default path is deterministic-only (no agent fallback).
 project:
   name: "${profile.projectName}"
@@ -425,6 +423,14 @@ project:
   testFramework: "${profile.testRunner}"
   frameworkPattern: "${profile.frameworkPattern}"
 `;
+
+  // Replace any existing top-level project: block (avoid duplicate keys on re-init).
+  yaml = yaml.replace(
+    /\n?#?\s*Project generation profile[\s\S]*?\nproject:\n(?:[ \t]+[^\n]*\n)*/g,
+    '\n'
+  );
+  yaml = yaml.replace(/\nproject:\n(?:[ \t]+[^\n]*\n)*/g, '\n');
+  yaml = `${yaml.trimEnd()}\n\n${projectBlock}`;
   fs.writeFileSync(configPath, yaml, 'utf8');
 }
 
