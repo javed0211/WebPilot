@@ -330,7 +330,7 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
   }
 }
 
-function normalizeProjectRelativePath(filePath: string): string {
+export function normalizeProjectRelativePath(filePath: string): string {
   let normalized = filePath.replace(/\\/g, '/').replace(/^\.\//, '');
   const cwd = process.cwd().replace(/\\/g, '/').replace(/\/$/, '');
   if (normalized.startsWith(`${cwd}/`)) {
@@ -339,21 +339,24 @@ function normalizeProjectRelativePath(filePath: string): string {
   return normalized;
 }
 
-/** Import path for generated specs — always one level up from tests/ to pages/. */
+/** Import path from a generated spec to a page object (depth-aware for nested tests/). */
 export function specImportPath(fromFile: string, targetFile: string): string {
   const from = normalizeProjectRelativePath(fromFile);
   const target = normalizeProjectRelativePath(targetFile).replace(/\.tsx?$/, '');
 
+  const frameworkPagesPrefix = 'packages/test-framework/pages/';
+  if (target.startsWith(frameworkPagesPrefix)) {
+    // Nested specs (tests/<site>/…) need ../../pages/… — never hardcode a single ../.
+    if (from.includes('/tests/')) {
+      return relativeImportPath(from, `${target}.ts`);
+    }
+    return `@pages/${target.slice(frameworkPagesPrefix.length)}`;
+  }
+
   const pagesMarker = '/pages/';
   const pagesIdx = target.lastIndexOf(pagesMarker);
   if (pagesIdx >= 0 && from.includes('/tests/')) {
-    return `..${target.slice(pagesIdx)}`;
-  }
-
-  const frameworkPagesPrefix = 'packages/test-framework/pages/';
-  if (target.startsWith(frameworkPagesPrefix)) {
-    const suffix = target.slice(frameworkPagesPrefix.length);
-    return `@pages/${suffix}`;
+    return relativeImportPath(from, `${target}.ts`);
   }
 
   return relativeImportPath(from, `${target}.ts`);

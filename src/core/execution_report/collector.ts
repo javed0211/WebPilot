@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import { estimateCostUsd } from '../../utils/ModelPricing';
 import { ConfigManager } from '../ConfigManager';
 import {
   hrefFromReportsHtml,
@@ -156,11 +157,24 @@ function buildPricing(slug: string, summary: Record<string, unknown>): ReportPri
   const llmMeta = loadLlmMeta();
   const promptTokens = Number(summary.promptTokens ?? usage.promptTokens ?? 0);
   const completionTokens = Number(summary.completionTokens ?? usage.completionTokens ?? 0);
+  let estimatedCostUsd = Number(summary.estimatedCostUsd ?? 0);
+  // `??` does not fall through when summary has an explicit 0 — common for Azure/LiteLLM misses.
+  if (estimatedCostUsd <= 0) {
+    estimatedCostUsd = Number(usage.estimatedCostUsd ?? 0);
+  }
+  if (estimatedCostUsd <= 0 && promptTokens + completionTokens > 0) {
+    const model =
+      (summary.model as string) ||
+      llmMeta.model ||
+      process.env.WEBPILOT_LLM_MODEL ||
+      'gpt-4.1';
+    estimatedCostUsd = estimateCostUsd(model, promptTokens, completionTokens);
+  }
   return {
     promptTokens,
     completionTokens,
     totalTokens: Number(summary.tokens ?? promptTokens + completionTokens),
-    estimatedCostUsd: Number(summary.estimatedCostUsd ?? usage.estimatedCostUsd ?? 0),
+    estimatedCostUsd,
     llmCalls: Number(summary.llmCalls ?? usage.llmCalls ?? 0),
     model: (summary.model as string) || llmMeta.model,
     provider: (summary.provider as string) || llmMeta.provider,

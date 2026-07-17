@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ConfigManager } from '../ConfigManager';
 import { RepoKnowledgeGraph, KnowledgeNode } from '../knowledge/RepoKnowledgeGraph';
 import { ExecutionTrace, stepUrlCandidates } from './ExecutionTrace';
 import { CodegenProfilePlan, GenerationPlan, PlannedFile } from './GenerationPlan';
 import { CodegenProfile } from './profiles/CodegenProfile';
 import { CodegenProfileRegistry } from './profiles/CodegenProfileRegistry';
+import { readProjectCodegenProfile } from './PostExecutionCodegen';
 import {
   hostnameFromUrl,
   inferSitePageFromUrl,
@@ -15,13 +15,7 @@ import {
 const PLAN_VERSION = '1.0.0';
 
 function readProfile(): CodegenProfilePlan {
-  const config = ConfigManager.getInstance();
-  return {
-    language: config.get('project.language', 'typescript'),
-    automationTool: config.get('project.automationTool', 'playwright'),
-    frameworkPattern: config.get('project.frameworkPattern', 'pom'),
-    testFramework: config.get('project.testFramework', 'playwright-test'),
-  };
+  return readProjectCodegenProfile();
 }
 
 function pagePathForClass(

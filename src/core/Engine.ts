@@ -36,6 +36,24 @@ import { ActHistoryCodegenAdapter } from './codegen/ActHistoryCodegenAdapter';
 import { isReplayHealEnabled } from './replay/ReplayHealPolicy';
 import { ActHistoryReplayService } from './replay/ActHistoryReplayService';
 
+/** Model id used for USD estimates when LiteLLM cannot price Azure deployment names. */
+function resolvePricingModelName(): string {
+  if (process.env.WEBPILOT_LLM_MODEL) return process.env.WEBPILOT_LLM_MODEL;
+  try {
+    const llmPath = path.join(PROJECT_ROOT, 'resources', 'config', 'llm.json');
+    if (fs.existsSync(llmPath)) {
+      const llm = JSON.parse(fs.readFileSync(llmPath, 'utf8')) as Record<string, Record<string, string>>;
+      const provider = ConfigManager.getInstance().get('framework.activeProvider', 'azure');
+      const block = llm[provider] || {};
+      const named = block.pricingModel || block.model || block.deploymentId;
+      if (named) return named;
+    }
+  } catch {
+    /* ignore */
+  }
+  return process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1';
+}
+
 export interface EngineRunResult {
   success: boolean;
   stepsExecuted: number;
@@ -259,7 +277,7 @@ export class Engine {
           if (process.env.WEBPILOT_CODEGEN === '1') {
             UsageTracker.setPhase('codegen');
             // History-reuse path never went through initializeAgents — create LLM client here
-            // so CodegenAgent repair / fallback can call llm.complete().
+            // for any explicit llm-mode codegen (deterministic path does not need repair fallback).
             if (!this.llmClient) {
               this.llmClient = new LLMClient();
             }
@@ -341,6 +359,7 @@ export class Engine {
               WEBPILOT_INSTALL_ROOT: installRoot,
               WEBPILOT_NODE: process.execPath,
               WEBPILOT_REPORT_CLI: reportCli,
+              WEBPILOT_LLM_MODEL: resolvePricingModelName(),
               PYTHONPATH: [
                 path.join(installRoot, 'packages', 'browser-use'),
                 path.join(installRoot, 'src'),

@@ -1,0 +1,3184 @@
+{
+  "schemaVersion": 2,
+  "pageKey": "en.wikipedia.org_w_index.php",
+  "url": "https://en.wikipedia.org/w/index.php?title=Software_testing&action=history",
+  "title": "en.wikipedia.org/w/index.php?title=Software_testing&action=history",
+  "capturedAt": "2026-07-17T14:07:46.495704+00:00",
+  "fingerprint": "f2da0982bca80428",
+  "elementCount": 120,
+  "elements": [
+    {
+      "backendNodeId": 17616,
+      "tag": "nav",
+      "axName": "Site",
+      "attributes": {
+        "aria-label": "Site",
+        "class": "vector-main-menu-landmark"
+      },
+      "xpath": "html/body/div[2]/header/div[1]/nav",
+      "ancestors": [
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17618,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "vector-main-menu-dropdown",
+        "class": "vector-dropdown vector-main-menu-dropdown vector-button-flush-left vector-button"
+      },
+      "xpath": "html/body/div[2]/header/div[1]/nav/div",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17489,
+      "tag": "label",
+      "axName": null,
+      "attributes": {
+        "id": "vector-main-menu-dropdown-label",
+        "class": "vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button"
+      },
+      "xpath": "html/body/div[2]/header/div[1]/nav/div/label",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "vector-main-menu-dropdown"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17433,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "vector-icon mw-ui-icon-menu mw-ui-icon-wikimedia-menu cdx-button__icon"
+      },
+      "xpath": "html/body/div[2]/header/div[1]/nav/div/label/span[1]",
+      "ancestors": [
+        {
+          "tag": "label",
+          "id": "vector-main-menu-dropdown-label"
+        },
+        {
+          "tag": "div",
+          "id": "vector-main-menu-dropdown"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17720,
+      "tag": "a",
+      "axName": "Wikipedia The Free Encyclopedia",
+      "attributes": {
+        "href": "/wiki/Main_Page",
+        "class": "mw-logo"
+      },
+      "xpath": "html/body/div[2]/header/div[1]/a",
+      "ancestors": [
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17493,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "p-search",
+        "role": "search",
+        "class": "vector-search-box-vue vector-search-box-collapses vector-search-box-show-thumbna"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17740,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "vector-typeahead-search-container"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "role": "search",
+          "id": "p-search"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17403,
+      "tag": "input",
+      "axName": "Search Wikipedia",
+      "attributes": {
+        "id": "searchInput",
+        "name": "search",
+        "type": "search",
+        "placeholder": "Search Wikipedia",
+        "aria-label": "Search Wikipedia",
+        "class": "cdx-text-input__input mw-searchInput"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/div/div/div/form/div/div/input",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "simpleSearch"
+        },
+        {
+          "tag": "form",
+          "id": "searchform"
+        },
+        {
+          "tag": "div",
+          "role": "search",
+          "id": "p-search"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17434,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-text-input__icon cdx-text-input__start-icon"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/div/div/div/form/div/div/span",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "simpleSearch"
+        },
+        {
+          "tag": "form",
+          "id": "searchform"
+        },
+        {
+          "tag": "div",
+          "role": "search",
+          "id": "p-search"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17755,
+      "tag": "button",
+      "axName": "Search",
+      "attributes": {
+        "class": "cdx-button cdx-search-input__end-button"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/div/div/div/form/button",
+      "ancestors": [
+        {
+          "tag": "form",
+          "id": "searchform"
+        },
+        {
+          "tag": "div",
+          "role": "search",
+          "id": "p-search"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17817,
+      "tag": "li",
+      "axName": null,
+      "attributes": {
+        "id": "pt-sitesupport-2",
+        "class": "mw-list-item vector-menu-item--collapsible"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/nav/div[1]/div[4]/div/ul/li[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "p-vector-user-menu-overflow"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17818,
+      "tag": "a",
+      "axName": "Donate",
+      "attributes": {
+        "href": "https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/nav/div[1]/div[4]/div/ul/li[1]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "pt-sitesupport-2"
+        },
+        {
+          "tag": "div",
+          "id": "p-vector-user-menu-overflow"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17824,
+      "tag": "a",
+      "axName": "Create account",
+      "attributes": {
+        "href": "https://en.wikipedia.org/w/index.php?title=Special%3ACreateAccount&returnto=Software+testing&returntoquery=action%3Dhist"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/nav/div[1]/div[4]/div/ul/li[2]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "pt-createaccount-2"
+        },
+        {
+          "tag": "div",
+          "id": "p-vector-user-menu-overflow"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17829,
+      "tag": "li",
+      "axName": null,
+      "attributes": {
+        "id": "pt-login-2",
+        "class": "mw-list-item vector-menu-item--collapsible"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/nav/div[1]/div[4]/div/ul/li[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "p-vector-user-menu-overflow"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17830,
+      "tag": "a",
+      "axName": "Log in",
+      "attributes": {
+        "href": "https://en.wikipedia.org/w/index.php?title=Special%3AUserLogin&returnto=Software+testing&returntoquery=action%3Dhistory&"
+      },
+      "xpath": "html/body/div[2]/header/div[2]/nav/div[1]/div[4]/div/ul/li[3]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "pt-login-2"
+        },
+        {
+          "tag": "div",
+          "id": "p-vector-user-menu-overflow"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "header"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17929,
+      "tag": "a",
+      "axName": "Help",
+      "attributes": {
+        "href": "https://www.mediawiki.org/wiki/Special:MyLanguage/Help:History",
+        "class": "mw-helplink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/header/div/div/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-indicator-mw-helplink"
+        },
+        {
+          "tag": "header"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17948,
+      "tag": "li",
+      "axName": null,
+      "attributes": {
+        "id": "ca-nstab-main",
+        "class": "selected mw-list-item vector-tab-noicon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[1]/nav/div[1]/div/ul/li[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "p-associated-pages"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "left-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17949,
+      "tag": "a",
+      "axName": "Article",
+      "attributes": {
+        "href": "/wiki/Software_testing"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[1]/nav/div[1]/div/ul/li[1]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "ca-nstab-main"
+        },
+        {
+          "tag": "div",
+          "id": "p-associated-pages"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "left-navigation"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17955,
+      "tag": "li",
+      "axName": null,
+      "attributes": {
+        "id": "ca-talk",
+        "class": "mw-list-item vector-tab-noicon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[1]/nav/div[1]/div/ul/li[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "p-associated-pages"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "left-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17956,
+      "tag": "a",
+      "axName": "Talk",
+      "attributes": {
+        "href": "/wiki/Talk:Software_testing"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[1]/nav/div[1]/div/ul/li[2]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "ca-talk"
+        },
+        {
+          "tag": "div",
+          "id": "p-associated-pages"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "left-navigation"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17996,
+      "tag": "li",
+      "axName": null,
+      "attributes": {
+        "id": "ca-view",
+        "class": "mw-list-item vector-menu-item--collapsible vector-tab-noicon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[1]/div/div/ul/li[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "p-views"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17997,
+      "tag": "a",
+      "axName": "Read",
+      "attributes": {
+        "href": "/wiki/Software_testing"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[1]/div/div/ul/li[1]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "ca-view"
+        },
+        {
+          "tag": "div",
+          "id": "p-views"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18003,
+      "tag": "li",
+      "axName": null,
+      "attributes": {
+        "id": "ca-edit",
+        "class": "mw-list-item vector-menu-item--collapsible vector-tab-noicon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[1]/div/div/ul/li[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "p-views"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18004,
+      "tag": "a",
+      "axName": "Edit",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=edit"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[1]/div/div/ul/li[2]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "ca-edit"
+        },
+        {
+          "tag": "div",
+          "id": "p-views"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18011,
+      "tag": "a",
+      "axName": "View history",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=history"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[1]/div/div/ul/li[3]/a",
+      "ancestors": [
+        {
+          "tag": "li",
+          "id": "ca-history"
+        },
+        {
+          "tag": "div",
+          "id": "p-views"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18021,
+      "tag": "nav",
+      "axName": "Page tools",
+      "attributes": {
+        "aria-label": "Page tools",
+        "class": "vector-page-tools-landmark"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18023,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "vector-page-tools-dropdown",
+        "class": "vector-dropdown vector-page-tools-dropdown"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[2]/div",
+      "ancestors": [
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17501,
+      "tag": "label",
+      "axName": null,
+      "attributes": {
+        "id": "vector-page-tools-dropdown-label",
+        "class": "vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[2]/div/label",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "vector-page-tools-dropdown"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17419,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "vector-icon mw-ui-icon-verticalEllipsis mw-ui-icon-wikimedia-verticalEllipsis cd"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[1]/div/div[2]/nav[2]/div/label/span[1]",
+      "ancestors": [
+        {
+          "tag": "label",
+          "id": "vector-page-tools-dropdown-label"
+        },
+        {
+          "tag": "div",
+          "id": "vector-page-tools-dropdown"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "div",
+          "id": "right-navigation"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17507,
+      "tag": "button",
+      "axName": "Hide Appearance",
+      "attributes": {
+        "aria-label": "Hide Appearance",
+        "class": "vector-pinnable-header-toggle-button vector-pinnable-header-unpin-button"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[1]/button[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance-pinned-container"
+        },
+        {
+          "tag": "nav"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18181,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[2]/div[2]/ul/li/div/form/div[1]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-vector-feature-custom-font-size"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17443,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[2]/div[2]/ul/li/div/form/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-vector-feature-custom-font-size"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17447,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[2]/div[2]/ul/li/div/form/div[3]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-vector-feature-custom-font-size"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17453,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[3]/div[2]/ul/li/div/form/div[1]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-vector-feature-limited-width"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17457,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[3]/div[2]/ul/li/div/form/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-vector-feature-limited-width"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17462,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[4]/div[2]/ul/li/div/form/div[1]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-skin-theme"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17466,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[4]/div[2]/ul/li/div/form/div[2]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-skin-theme"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17470,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cdx-radio__icon"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[2]/div/nav[2]/div/div/div[4]/div[2]/ul/li/div/form/div[3]/span",
+      "ancestors": [
+        {
+          "tag": "form"
+        },
+        {
+          "tag": "div",
+          "id": "skin-client-prefs-skin-theme"
+        },
+        {
+          "tag": "div",
+          "id": "vector-appearance"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18235,
+      "tag": "a",
+      "axName": "View logs for this page",
+      "attributes": {
+        "href": "/w/index.php?title=Special:Log&page=Software+testing"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[2]/div/div/a[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-subtitle"
+        },
+        {
+          "tag": "div",
+          "id": "contentSub"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18238,
+      "tag": "a",
+      "axName": "view filter log",
+      "attributes": {
+        "href": "/w/index.php?title=Special:AbuseLog&wpSearchTitle=Software+testing"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[2]/div/div/a[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-subtitle"
+        },
+        {
+          "tag": "div",
+          "id": "contentSub"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17415,
+      "tag": "form",
+      "axName": null,
+      "attributes": {
+        "id": "mw-history-searchform",
+        "class": "mw-htmlform mw-htmlform-ooui oo-ui-layout oo-ui-formLayout"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[1]/form",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17508,
+      "tag": "fieldset",
+      "axName": "Filter revisions show",
+      "attributes": {
+        "id": "mw-history-search",
+        "class": "oo-ui-layout oo-ui-labelElement oo-ui-fieldsetLayout mw-collapsibleFieldsetLayou"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[1]/form/fieldset",
+      "ancestors": [
+        {
+          "tag": "form",
+          "id": "mw-history-searchform"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17509,
+      "tag": "legend",
+      "axName": "Filter revisions show",
+      "attributes": {
+        "role": "button",
+        "class": "oo-ui-fieldsetLayout-header mw-collapsible-toggle mw-collapsible-toggle-collapse"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[1]/form/fieldset/legend",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "id": "mw-history-search"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-searchform"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18246,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "oo-ui-labelElement-label"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[1]/form/fieldset/legend/span[2]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "id": "mw-history-search"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-searchform"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17438,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-expand oo-ui"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[1]/form/fieldset/legend/span[3]",
+      "ancestors": [
+        {
+          "tag": "fieldset",
+          "id": "mw-history-search"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-searchform"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17485,
+      "tag": "label",
+      "axName": null,
+      "attributes": {
+        "id": "ooui-2",
+        "class": "oo-ui-labelElement-label"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[1]/form/fieldset/div/div/div[1]/div/span/label",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "ooui-php-6"
+        },
+        {
+          "tag": "fieldset",
+          "id": "mw-history-search"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-searchform"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18272,
+      "tag": "a",
+      "axName": null,
+      "attributes": {
+        "href": "/wiki/Special:Tags"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[1]/form/fieldset/div/div/div[2]/div/span/label/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "ooui-php-7"
+        },
+        {
+          "tag": "fieldset",
+          "id": "mw-history-search"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-searchform"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17421,
+      "tag": "a",
+      "axName": "Find addition/removal",
+      "attributes": {
+        "href": "https://wikipedia.ramselehof.de/wikiblame.php?lang=en&article=Software_testing",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[1]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17422,
+      "tag": "a",
+      "axName": "Alternate",
+      "attributes": {
+        "href": "https://xtools.wmcloud.org/blame/en.wikipedia.org?page=Software_testing",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[1]/sup/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17423,
+      "tag": "a",
+      "axName": "Find edits by user",
+      "attributes": {
+        "href": "https://sigma.toolforge.org/usersearch.py?page=Software+testing&server=enwiki",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[2]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17424,
+      "tag": "a",
+      "axName": "Alternate",
+      "attributes": {
+        "href": "https://xtools.wmcloud.org/topedits/en.wikipedia.org?namespace=0&page=Software_testing&focus=username",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[2]/sup/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17425,
+      "tag": "a",
+      "axName": "Page statistics",
+      "attributes": {
+        "href": "https://xtools.wmcloud.org/articleinfo/en.wikipedia.org/Software_testing",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[3]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17426,
+      "tag": "a",
+      "axName": "Pageviews",
+      "attributes": {
+        "href": "https://pageviews.wmcloud.org/?pages=Software_testing&project=en.wikipedia.org",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[4]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17427,
+      "tag": "a",
+      "axName": "Fix dead links",
+      "attributes": {
+        "href": "https://iabot.wmcloud.org/index.php?page=runbotsingle&pagesearch=Software_testing&wiki=enwiki",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[5]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 17428,
+      "tag": "a",
+      "axName": "Copyvio detector",
+      "attributes": {
+        "href": "https://copyvios.toolforge.org/?lang=en&project=wikipedia&title=Software_testing",
+        "class": "external text"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/div/ul/li[6]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18344,
+      "tag": "hr",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/hr",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18348,
+      "tag": "a",
+      "axName": "Help:Page history",
+      "attributes": {
+        "href": "/wiki/Help:Page_history"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/p/a[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18351,
+      "tag": "a",
+      "axName": "Help:Edit summary",
+      "attributes": {
+        "href": "/wiki/Help:Edit_summary"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/p/a[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18364,
+      "tag": "a",
+      "axName": "minor edit",
+      "attributes": {
+        "href": "/wiki/Help:Minor_edit"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/p/span[3]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18369,
+      "tag": "a",
+      "axName": "section edit",
+      "attributes": {
+        "href": "/wiki/Help:Section#Section_editing"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/p/span[4]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18374,
+      "tag": "a",
+      "axName": "automatic edit summary",
+      "attributes": {
+        "href": "/wiki/Help:Automatic_edit_summaries"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[2]/div/p/span[5]/a",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "histlegend"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18381,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-firstlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/span[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18384,
+      "tag": "a",
+      "axName": "oldest",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=history&dir=prev",
+        "class": "mw-lastlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/a[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18390,
+      "tag": "a",
+      "axName": "older 50",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=history&offset=20250930023414%7C1314169401",
+        "class": "mw-nextlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/a[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18393,
+      "tag": "a",
+      "axName": "20",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=history&offset=&limit=20",
+        "class": "mw-numlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/a[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18396,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-numlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18399,
+      "tag": "a",
+      "axName": "100",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=history&offset=&limit=100",
+        "class": "mw-numlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/a[4]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18402,
+      "tag": "a",
+      "axName": "250",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=history&offset=&limit=250",
+        "class": "mw-numlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/a[5]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18405,
+      "tag": "a",
+      "axName": "500",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=history&offset=&limit=500",
+        "class": "mw-numlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/div[3]/a[6]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18412,
+      "tag": "input",
+      "axName": "Compare selected revisions",
+      "attributes": {
+        "type": "submit",
+        "class": "historysubmit mw-history-compareselectedversions-button cdx-button"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/div/input",
+      "ancestors": [
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18424,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-history-histlinks-current"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[1]/span[1]/span",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18428,
+      "tag": "a",
+      "axName": "prev",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&diff=prev&oldid=1362773012",
+        "class": "mw-history-histlinks-previous"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[1]/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18431,
+      "tag": "input",
+      "axName": null,
+      "attributes": {
+        "id": "mw-diff-1362773012",
+        "name": "diff",
+        "type": "radio"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/input[2]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18437,
+      "tag": "a",
+      "axName": "02:54, 6 July 2026",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&oldid=1362773012",
+        "class": "mw-changeslist-date"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/bdi/bdi/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18441,
+      "tag": "a",
+      "axName": "OAbot",
+      "attributes": {
+        "href": "/wiki/User:OAbot",
+        "class": "mw-userlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18449,
+      "tag": "a",
+      "axName": "talk",
+      "attributes": {
+        "href": "/wiki/User_talk:OAbot",
+        "class": "mw-usertoollinks-talk"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[2]/span/span[1]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18454,
+      "tag": "a",
+      "axName": "contribs",
+      "attributes": {
+        "href": "/wiki/Special:Contributions/OAbot",
+        "class": "mw-usertoollinks-contribs"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[2]/span/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18457,
+      "tag": "abbr",
+      "axName": "This is a minor edit",
+      "attributes": {
+        "class": "minoredit"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/abbr",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18460,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-separator"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[3]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18468,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-plusminus-pos mw-diff-bytes"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[5]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18473,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-separator"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[6]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18479,
+      "tag": "a",
+      "axName": "Open access bot",
+      "attributes": {
+        "href": "/wiki/Wikipedia:OABOT",
+        "class": "mw-redirect"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[7]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18483,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-links mw-pager-tools mw-change-tools"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[8]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18487,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-history-undo mw-change-tools-undo"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[8]/span/span",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18488,
+      "tag": "a",
+      "axName": "undo",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=edit&undoafter=1362547926&undo=1362773012"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[1]/li/span[8]/span/span/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18501,
+      "tag": "a",
+      "axName": "cur",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&diff=1362773012&oldid=1362547926",
+        "class": "mw-history-histlinks-current"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[1]/span[1]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18505,
+      "tag": "a",
+      "axName": "prev",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&diff=prev&oldid=1362547926",
+        "class": "mw-history-histlinks-previous"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[1]/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18507,
+      "tag": "input",
+      "axName": null,
+      "attributes": {
+        "id": "mw-oldid-1362547926",
+        "name": "oldid",
+        "type": "radio"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/input[1]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18514,
+      "tag": "a",
+      "axName": "18:16, 4 July 2026",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&oldid=1362547926",
+        "class": "mw-changeslist-date"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/bdi/bdi/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18518,
+      "tag": "a",
+      "axName": "Wikideas1",
+      "attributes": {
+        "href": "/wiki/User:Wikideas1",
+        "class": "mw-userlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18526,
+      "tag": "a",
+      "axName": "talk",
+      "attributes": {
+        "href": "/wiki/User_talk:Wikideas1",
+        "class": "mw-usertoollinks-talk"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[2]/span/span[1]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18531,
+      "tag": "a",
+      "axName": "contribs",
+      "attributes": {
+        "href": "/wiki/Special:Contributions/Wikideas1",
+        "class": "mw-usertoollinks-contribs"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[2]/span/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18534,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-separator"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[3]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18542,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-plusminus-pos mw-diff-bytes"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[5]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18547,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-separator"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[6]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18554,
+      "tag": "a",
+      "axName": "→See also",
+      "attributes": {
+        "href": "/wiki/Software_testing#See_also"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[7]/span/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18561,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-links mw-pager-tools mw-change-tools"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[8]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18565,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-history-undo mw-change-tools-undo"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[8]/span/span",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18566,
+      "tag": "a",
+      "axName": "undo",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=edit&undoafter=1361941275&undo=1362547926"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[2]/li/span[8]/span/span/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18579,
+      "tag": "a",
+      "axName": "cur",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&diff=1362773012&oldid=1361941275",
+        "class": "mw-history-histlinks-current"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[1]/span[1]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18583,
+      "tag": "a",
+      "axName": "prev",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&diff=prev&oldid=1361941275",
+        "class": "mw-history-histlinks-previous"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[1]/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18585,
+      "tag": "input",
+      "axName": null,
+      "attributes": {
+        "id": "mw-oldid-1361941275",
+        "name": "oldid",
+        "type": "radio"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/input[1]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18592,
+      "tag": "a",
+      "axName": "23:51, 30 June 2026",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&oldid=1361941275",
+        "class": "mw-changeslist-date"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/bdi/bdi/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18596,
+      "tag": "a",
+      "axName": "HalJor",
+      "attributes": {
+        "href": "/wiki/User:HalJor",
+        "class": "mw-userlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18604,
+      "tag": "a",
+      "axName": "talk",
+      "attributes": {
+        "href": "/wiki/User_talk:HalJor",
+        "class": "mw-usertoollinks-talk"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[2]/span/span[1]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18609,
+      "tag": "a",
+      "axName": "contribs",
+      "attributes": {
+        "href": "/wiki/Special:Contributions/HalJor",
+        "class": "mw-usertoollinks-contribs"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[2]/span/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18612,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-separator"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[3]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18620,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-plusminus-neg mw-diff-bytes"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[5]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18625,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-separator"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[6]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18631,
+      "tag": "a",
+      "axName": "→See also",
+      "attributes": {
+        "href": "/wiki/Software_testing#See_also"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[7]/span/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18638,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-changeslist-links mw-pager-tools mw-change-tools"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[8]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18642,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "mw-history-undo mw-change-tools-undo"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[8]/span/span",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18643,
+      "tag": "a",
+      "axName": "undo",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&action=edit&undoafter=1360872830&undo=1361941275"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[3]/li/span[8]/span/span/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18656,
+      "tag": "a",
+      "axName": "cur",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&diff=1362773012&oldid=1360872830",
+        "class": "mw-history-histlinks-current"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[4]/li[1]/span[1]/span[1]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18660,
+      "tag": "a",
+      "axName": "prev",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&diff=prev&oldid=1360872830",
+        "class": "mw-history-histlinks-previous"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[4]/li[1]/span[1]/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18662,
+      "tag": "input",
+      "axName": null,
+      "attributes": {
+        "id": "mw-oldid-1360872830",
+        "name": "oldid",
+        "type": "radio"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[4]/li[1]/input[1]",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18669,
+      "tag": "a",
+      "axName": "04:30, 24 June 2026",
+      "attributes": {
+        "href": "/w/index.php?title=Software_testing&oldid=1360872830",
+        "class": "mw-changeslist-date"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[4]/li[1]/bdi/bdi/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18673,
+      "tag": "a",
+      "axName": "Plasticwonder",
+      "attributes": {
+        "href": "/wiki/User:Plasticwonder",
+        "class": "mw-userlink"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[4]/li[1]/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        },
+        {
+          "tag": "div",
+          "id": "bodyContent"
+        },
+        {
+          "tag": "main",
+          "id": "content"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18681,
+      "tag": "a",
+      "axName": "talk",
+      "attributes": {
+        "href": "/wiki/User_talk:Plasticwonder",
+        "class": "mw-usertoollinks-talk"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[4]/li[1]/span[2]/span/span[1]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 18686,
+      "tag": "a",
+      "axName": "contribs",
+      "attributes": {
+        "href": "/wiki/Special:Contributions/Plasticwonder",
+        "class": "mw-usertoollinks-contribs"
+      },
+      "xpath": "html/body/div[3]/div/div[3]/main/div[3]/div[3]/form/section/ul[4]/li[1]/span[2]/span/span[2]/a",
+      "ancestors": [
+        {
+          "tag": "section",
+          "id": "pagehistory"
+        },
+        {
+          "tag": "form",
+          "id": "mw-history-compare"
+        },
+        {
+          "tag": "div",
+          "id": "mw-content-text"
+        }
+      ]
+    }
+  ],
+  "verifiedLocators": [],
+  "domNodesSeen": 774,
+  "axNodesSeen": 774,
+  "interactiveCandidatesSeen": 774,
+  "interactiveCandidatesStored": 120,
+  "verifiedControlsStored": 0,
+  "snapshotQuality": "capped",
+  "capHit": true,
+  "captureCap": 120,
+  "captureSource": "selector_map",
+  "updatedAt": "2026-07-17T14:08:39.058085+00:00"
+}

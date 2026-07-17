@@ -7,7 +7,7 @@ import { LLMClient } from '../LLMClient';
 import { Logger } from '../../utils/Logger';
 import { ActHistoryCodegenAdapter } from './ActHistoryCodegenAdapter';
 import { DeterministicCodegenPipeline, PipelineInput } from './DeterministicCodegenPipeline';
-import { CodegenMetadata } from './GenerationPlan';
+import { CodegenMetadata, CodegenProfilePlan } from './GenerationPlan';
 import { ReportCodegenInfo } from '../execution_report/types';
 import { RawExecutionStep } from './ExecutionTrace';
 import { tryReuseExistingGeneratedSpec } from './ExistingCodegenReuse';
@@ -28,17 +28,32 @@ export interface PostExecutionCodegenResult {
   reportCodegen?: ReportCodegenInfo;
 }
 
+/** Same keys written by `webpilot init` (`project.language` / tool / pattern). */
+export function readProjectCodegenProfile(): CodegenProfilePlan {
+  const config = ConfigManager.getInstance();
+  return {
+    language: config.get('project.language', 'typescript'),
+    automationTool: config.get('project.automationTool', 'playwright'),
+    frameworkPattern: config.get('project.frameworkPattern', 'pom'),
+    testFramework: config.get('project.testFramework', 'playwright-test'),
+  };
+}
+
+/** LLM CodegenAgent / RepoEdit repair only supports TypeScript Playwright today. */
+export function supportsTypeScriptAgentCodegen(profile: CodegenProfilePlan = readProjectCodegenProfile()): boolean {
+  return profile.language === 'typescript' && profile.automationTool === 'playwright';
+}
+
 export function resolveCodegenMode(): CodegenMode {
   const envMode = process.env.WEBPILOT_CODEGEN_MODE?.trim().toLowerCase();
   if (envMode === 'deterministic' || envMode === 'llm' || envMode === 'auto') {
-    return envMode;
+    // `auto` is treated as deterministic — no LLM repair/fallback (avoids false PASSED).
+    return envMode === 'auto' ? 'deterministic' : envMode;
   }
-  // Default auto: ActHistory deterministic draft, CodegenAgent repairs with knowledge graph.
-  const configMode = ConfigManager.getInstance().get('framework.codegenMode', 'auto');
-  if (configMode === 'deterministic' || configMode === 'llm' || configMode === 'auto') {
-    return configMode;
-  }
-  return 'auto';
+  const configMode = ConfigManager.getInstance().get('framework.codegenMode', 'deterministic');
+  if (configMode === 'llm') return 'llm';
+  // auto and deterministic (and anything else) → deterministic only
+  return 'deterministic';
 }
 
 function buildSummary(metadata: CodegenMetadata, fileCount: number): string {
@@ -113,6 +128,12 @@ export async function runPostExecutionCodegen(options: {
   if (blocked) return blocked;
 
   const mode = resolveCodegenMode();
+  const projectProfile = readProjectCodegenProfile();
+  const tsAgentOk = supportsTypeScriptAgentCodegen(projectProfile);
+  Logger.detail(
+    `Codegen profile: ${projectProfile.language}/${projectProfile.automationTool}/${projectProfile.frameworkPattern}`
+  );
+
   const existing = tryReuseExistingGeneratedSpec(options.testName);
   if (existing.reuse && existing.specPath) {
     Logger.info(`Skipping codegen regenerate — ${existing.reason}`);
@@ -206,10 +227,11 @@ export async function runPostExecutionCodegen(options: {
     symbolGraphContext: graphContext,
   };
 
-  const runDeterministic = async (agentRepair: boolean): Promise<PostExecutionCodegenResult> => {
+  const runDeterministic = async (): Promise<PostExecutionCodegenResult> => {
     const result = await DeterministicCodegenPipeline.run(pipelineInput, {
       validate: options.validate !== false,
-      agentRepair,
+      // Never repair/fallback during `webpilot run --codegen` — fail closed.
+      agentRepair: false,
     });
     const reportCodegen = DeterministicCodegenPipeline.toReportCodegen(result.metadata, result.plan);
     return {
@@ -222,6 +244,13 @@ export async function runPostExecutionCodegen(options: {
   };
 
   const runLlm = async (): Promise<PostExecutionCodegenResult> => {
+    if (!tsAgentOk) {
+      throw new Error(
+        `LLM CodegenAgent only supports TypeScript Playwright. ` +
+          `Current project profile is ${projectProfile.language}/${projectProfile.automationTool} ` +
+          `(set by webpilot init → project.language). Use deterministic codegen for this stack.`
+      );
+    }
     const llm = options.llmClient ?? new LLMClient();
     const codegen = new CodegenAgent(llm);
     const llmSteps = steps.map((step) => ({
@@ -261,30 +290,45 @@ export async function runPostExecutionCodegen(options: {
   };
 
   if (mode === 'llm') {
-    Logger.info('Codegen mode: llm (ActHistory + knowledge graph)');
-    return withHealContext(await runLlm());
-  }
-
-  try {
-    Logger.info(`Codegen mode: ${mode} (ActHistory → deterministic${mode === 'auto' ? ' → agent repair' : ''})`);
-    // auto/deterministic: draft from ActHistory; auto enables CodegenAgent repair on validation failure
-    return withHealContext(await runDeterministic(mode === 'auto'));
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (mode === 'auto') {
-      Logger.warn(`Codegen pipeline failed (${message}); falling back to CodegenAgent.`);
+    if (!tsAgentOk) {
+      Logger.warn(
+        `Codegen mode llm is TypeScript-only; using deterministic codegen for ` +
+          `${projectProfile.language}/${projectProfile.automationTool} (honors webpilot init profile).`
+      );
       try {
-        return withHealContext(await runLlm());
-      } catch (fallbackErr: unknown) {
-        const fallbackMessage =
-          fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        return withHealContext(await runDeterministic());
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        Logger.error(`Deterministic codegen failed: ${message}`);
         return withHealContext({
           success: false,
-          summary: `CodegenAgent fallback failed: ${fallbackMessage} (after: ${message})`,
+          summary: `Deterministic codegen failed: ${message}`,
           files: [],
         });
       }
     }
+    Logger.info('Codegen mode: llm (explicit CodegenAgent — no deterministic draft)');
+    try {
+      return withHealContext(await runLlm());
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      Logger.error(`LLM codegen failed: ${message}`);
+      return withHealContext({
+        success: false,
+        summary: `LLM codegen failed: ${message}`,
+        files: [],
+      });
+    }
+  }
+
+  // deterministic (default): ActHistory → profile emit → validate. Fail closed — no agent fallback.
+  try {
+    Logger.info(
+      `Codegen mode: deterministic (${projectProfile.language}/${projectProfile.automationTool}; no agent fallback)`
+    );
+    return withHealContext(await runDeterministic());
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     Logger.error(`Deterministic codegen failed: ${message}`);
     return withHealContext({
       success: false,

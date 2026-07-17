@@ -9,6 +9,10 @@ import {
   ensureFrameworkTsConfig,
   resolveFrameworkBasePageContent,
 } from './FrameworkTemplates';
+import {
+  normalizeProjectRelativePath,
+  relativeImportPath,
+} from './codegen/CodegenExpressions';
 
 export interface NormalizeOptions {
   testSlug?: string;
@@ -45,7 +49,7 @@ export class CodegenNormalizer {
     const withImports = files.map((f) => ({
       ...f,
       content: f.path.endsWith('.spec.ts')
-        ? CodegenNormalizer.normalizeSpecImports(f.content)
+        ? CodegenNormalizer.normalizeSpecImports(f.content, f.path)
         : f.content,
     }));
 
@@ -110,20 +114,34 @@ export class CodegenNormalizer {
     return normalized;
   }
 
-  /** Specs under test-framework/tests must import pages via ../pages/ (one level up). */
-  public static normalizeSpecImports(content: string): string {
+  /** Specs under test-framework/tests (including nested site folders) import sibling pages/. */
+  public static normalizeSpecImports(content: string, specPath?: string): string {
+    const pagesImport = (suffix: string): string => {
+      const normalizedSuffix = suffix.replace(/\.tsx?$/, '');
+      if (!specPath) {
+        return `../pages/${normalizedSuffix}`;
+      }
+      const from = normalizeProjectRelativePath(specPath);
+      const testsIdx = from.lastIndexOf('/tests/');
+      const pagesTarget =
+        testsIdx >= 0
+          ? `${from.slice(0, testsIdx)}/pages/${normalizedSuffix}`
+          : `packages/test-framework/pages/${normalizedSuffix}`;
+      return relativeImportPath(from, `${pagesTarget}.ts`);
+    };
+
     return content
       .replace(
         /from\s+['"](?:\.\.\/)+pages\/([^'"]+)['"]/g,
-        "from '../pages/$1'"
+        (_match, suffix: string) => `from '${pagesImport(suffix)}'`
       )
       .replace(
         /from\s+['"]@pages\/([^'"]+)['"]/g,
-        "from '../pages/$1'"
+        (_match, suffix: string) => `from '${pagesImport(suffix)}'`
       )
       .replace(
         /from\s+['"]\.\/pages\/([^'"]+)['"]/g,
-        "from '../pages/$1'"
+        (_match, suffix: string) => `from '${pagesImport(suffix)}'`
       )
       .replace(/toHaveCountGreaterThan/g, 'assertCountAtLeast');
   }
@@ -136,7 +154,7 @@ export class CodegenNormalizer {
       }
       return {
         ...file,
-        content: CodegenNormalizer.normalizeSpecImports(file.content),
+        content: CodegenNormalizer.normalizeSpecImports(file.content, file.path),
       };
     });
   }

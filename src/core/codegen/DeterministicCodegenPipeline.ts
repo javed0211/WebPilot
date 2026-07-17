@@ -310,7 +310,7 @@ export class DeterministicCodegenPipeline {
         urls: [...new Set(trace.steps.map((step) => step.url).filter(Boolean) as string[])],
       });
       if (!validation.ok) {
-        const allowAgentRepair = options?.agentRepair !== false;
+        const allowAgentRepair = options?.agentRepair === true;
         const historyFp =
           fingerprintHistoryFile(resolveExecutionHistoryPath(trace.scenarioSlug)) || undefined;
         CodegenFailureMemory.save({

@@ -82,6 +82,18 @@ function stepLines(step: TraceStep, receiver = 'page'): string[] {
   }
 }
 
+/** Python requires at least one statement in a `def` body — comments alone cause IndentationError. */
+function ensureExecutablePythonBody(indentedLines: string[]): string[] {
+  const hasStatement = indentedLines.some((line) => {
+    const trimmed = line.trim();
+    return trimmed.length > 0 && !trimmed.startsWith('#');
+  });
+  if (!hasStatement) {
+    return [...indentedLines, '        pass'];
+  }
+  return indentedLines;
+}
+
 function pageObjectContent(page: PlannedFile, steps: TraceStep[], trace: ExecutionTrace): string {
   const methods: string[] = [];
   const seen = new Set<string>();
@@ -89,7 +101,9 @@ function pageObjectContent(page: PlannedFile, steps: TraceStep[], trace: Executi
     const name = methodName(step);
     if (seen.has(name)) continue;
     seen.add(name);
-    const lines = stepLines(step, 'self.page').map((line) => `        ${line}`);
+    const lines = ensureExecutablePythonBody(
+      stepLines(step, 'self.page').map((line) => `        ${line}`)
+    );
     if (lines.length === 0) continue;
     methods.push(`    def ${name}(self):\n${lines.join('\n')}`);
   }

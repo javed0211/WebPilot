@@ -189,25 +189,76 @@ def build_sensitive_data_context(
     return redact_for_logs(sanitized_task, placeholders) + '\n'.join(lines), sensitive_data
 
 
+def pricing_model_name(llm_cfg: dict | None = None) -> str:
+    """Best model id for USD estimates (prefer billed model over opaque Azure deployment names)."""
+    if not llm_cfg:
+        return (
+            os.environ.get('WEBPILOT_LLM_MODEL')
+            or os.environ.get('AZURE_OPENAI_DEPLOYMENT')
+            or 'gpt-4.1'
+        )
+    return str(
+        llm_cfg.get('pricingModel')
+        or llm_cfg.get('model')
+        or llm_cfg.get('deploymentId')
+        or os.environ.get('WEBPILOT_LLM_MODEL')
+        or 'gpt-4.1'
+    )
+
+
 def estimate_cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    """Approximate USD cost (mirrors utils/ModelPricing.ts)."""
-    m = model.lower()
+    """Approximate USD cost (mirrors utils/ModelPricing.ts). Always returns >0 when tokens >0."""
+    m = (model or '').lower()
+    for prefix in ('azure/', 'aws/', 'gcp/', 'google/'):
+        if m.startswith(prefix):
+            m = m[len(prefix) :]
+            break
     input_per_m, output_per_m = 2.5, 10.0
-    if 'gpt-4.1-mini' in m or 'gpt-4.1-nano' in m:
+    if 'gpt-4o-mini' in m or 'gpt-4-mini' in m:
+        input_per_m, output_per_m = 0.15, 0.6
+    elif 'gpt-4.1-mini' in m or 'gpt-4.1-nano' in m:
         input_per_m, output_per_m = 0.4, 1.6
     elif 'gpt-4.1' in m:
         input_per_m, output_per_m = 2.0, 8.0
-    elif 'gpt-4o-mini' in m or 'gpt-4-mini' in m:
-        input_per_m, output_per_m = 0.15, 0.6
     elif 'gpt-4o' in m:
         input_per_m, output_per_m = 2.5, 10.0
+    elif 'gpt-4-turbo' in m:
+        input_per_m, output_per_m = 10.0, 30.0
+    elif 'gpt-4' in m:
+        input_per_m, output_per_m = 30.0, 60.0
+    elif 'gpt-3.5' in m:
+        input_per_m, output_per_m = 0.5, 1.5
+    elif 'o3-mini' in m:
+        input_per_m, output_per_m = 1.1, 4.4
+    elif 'o3' in m:
+        input_per_m, output_per_m = 10.0, 40.0
+    elif 'claude-3-5-sonnet' in m or 'claude-sonnet-4' in m:
+        input_per_m, output_per_m = 3.0, 15.0
+    elif 'claude-3-opus' in m or 'claude-opus' in m:
+        input_per_m, output_per_m = 15.0, 75.0
+    elif 'claude-3-haiku' in m or 'claude-haiku' in m:
+        input_per_m, output_per_m = 0.25, 1.25
     elif 'gemini-2.5-flash' in m or 'gemini-2-flash' in m:
         input_per_m, output_per_m = 0.075, 0.3
     elif 'gemini-2.5-pro' in m or 'gemini-2-pro' in m:
         input_per_m, output_per_m = 1.25, 5.0
-    elif 'claude-3-5-sonnet' in m:
-        input_per_m, output_per_m = 3.0, 15.0
+    elif 'gemini' in m:
+        input_per_m, output_per_m = 0.5, 1.5
     return (prompt_tokens / 1_000_000) * input_per_m + (completion_tokens / 1_000_000) * output_per_m
+
+
+def priced_cost_usd(
+    prompt_tokens: int,
+    completion_tokens: int,
+    browser_use_cost: float,
+    llm_cfg: dict | None = None,
+) -> float:
+    """Prefer LiteLLM/browser-use cost; fall back to hardcoded rates when unpriced (Azure)."""
+    if float(browser_use_cost or 0) > 0:
+        return float(browser_use_cost)
+    if (prompt_tokens or 0) + (completion_tokens or 0) <= 0:
+        return 0.0
+    return estimate_cost_usd(pricing_model_name(llm_cfg), int(prompt_tokens or 0), int(completion_tokens or 0))
 
 def merge_llm_usage(totals: dict, prompt_tokens: int, completion_tokens: int, cost_usd: float) -> None:
     totals['promptTokens'] += int(prompt_tokens or 0)
@@ -292,7 +343,7 @@ def update_cumulative_usage_from_snapshot(
     total_tokens = totals['promptTokens'] + totals['completionTokens']
     if totals['estimatedCostUsd'] <= 0 and total_tokens > 0:
         totals['estimatedCostUsd'] = estimate_cost_usd(
-            llm_cfg.get('model', llm_cfg.get('deploymentId', '')),
+            pricing_model_name(llm_cfg),
             totals['promptTokens'],
             totals['completionTokens'],
         )
@@ -311,10 +362,7 @@ def save_llm_usage_file(test_file_path: str, totals: dict, *, llm_cfg: dict | No
 
     # Always estimate when we have tokens but no priced cost (Azure/custom models, litellm miss).
     if cost <= 0 and prompt + completion > 0:
-        model = ''
-        if llm_cfg:
-            model = str(llm_cfg.get('model') or llm_cfg.get('deploymentId') or '')
-        cost = estimate_cost_usd(model, prompt, completion)
+        cost = estimate_cost_usd(pricing_model_name(llm_cfg), prompt, completion)
         totals['estimatedCostUsd'] = cost
 
     # Never wipe a prior BA usage file with a zeroed knowledge-only / early-exit run.
@@ -416,7 +464,7 @@ def _merge_agent_usage(totals: dict, history: Any, llm_cfg: dict) -> None:
     completion = int(getattr(usage, 'total_completion_tokens', 0) or 0)
     cost = float(getattr(usage, 'total_cost', 0.0) or 0.0)
     if cost <= 0 and prompt + completion:
-        cost = estimate_cost_usd(llm_cfg.get('model', ''), prompt, completion)
+        cost = estimate_cost_usd(pricing_model_name(llm_cfg), prompt, completion)
     totals['promptTokens'] += prompt
     totals['completionTokens'] += completion
     totals['estimatedCostUsd'] += cost
@@ -758,6 +806,7 @@ async def run_native_browser_use_scenario(
             return
         try:
             prompt, completion, cost, _calls = await read_browser_use_usage_snapshot(native_agent)
+            priced = priced_cost_usd(prompt, completion, cost, llm_cfg)
             total = (
                 llm_usage_totals['promptTokens']
                 + llm_usage_totals['completionTokens']
@@ -771,7 +820,7 @@ async def run_native_browser_use_scenario(
                     'totalSteps': len(steps),
                     'currentText': 'Native browser-use agent running full scenario',
                     'tokens': total,
-                    'cost': f"{llm_usage_totals['estimatedCostUsd'] + cost:.4f}",
+                    'cost': f"{llm_usage_totals['estimatedCostUsd'] + priced:.4f}",
                     'allSteps': [
                         {'index': i + 1, 'text': s, 'done': False}
                         for i, s in enumerate(steps)
@@ -832,7 +881,7 @@ async def run_native_browser_use_scenario(
         delta_cost
         if delta_cost > 0
         else estimate_cost_usd(
-            llm_cfg.get('model', ''),
+            pricing_model_name(llm_cfg),
             max(0, after_prompt - before_prompt),
             max(0, after_completion - before_completion),
         )
@@ -1000,6 +1049,7 @@ async def run_intelligent_steps(
         if scoped_agent is not None:
             try:
                 prompt, completion, cost, _calls = await read_browser_use_usage_snapshot(scoped_agent)
+                priced = priced_cost_usd(prompt, completion, cost, llm_cfg)
                 total = (
                     llm_usage_totals['promptTokens']
                     + llm_usage_totals['completionTokens']
@@ -1013,7 +1063,7 @@ async def run_intelligent_steps(
                         'totalSteps': len(steps),
                         'currentText': active_step_text,
                         'tokens': total,
-                        'cost': f"{llm_usage_totals['estimatedCostUsd'] + cost:.4f}",
+                        'cost': f"{llm_usage_totals['estimatedCostUsd'] + priced:.4f}",
                         'allSteps': [
                             {'index': i + 1, 'text': s, 'done': i < active_step_index - 1}
                             for i, s in enumerate(steps)
@@ -1254,7 +1304,7 @@ async def run_intelligent_steps(
         llm_usage_totals['estimatedCostUsd'] += (
             delta_cost
             if delta_cost > 0
-            else estimate_cost_usd(llm_cfg.get('model', ''), delta_prompt, delta_completion)
+            else estimate_cost_usd(pricing_model_name(llm_cfg), delta_prompt, delta_completion)
         )
         llm_usage_totals['llmCalls'] += delta_calls
 
@@ -1465,7 +1515,13 @@ def load_browser_artifact_config():
             pass
     except Exception as e:
         print("Warning: Could not parse config/webpilot.yaml for artifacts:", e)
-    # BA no longer uses imageio/ffmpeg screencast recording — ignore ffmpeg availability.
+    if defaults.get('record_video') and not _FFMPEG_AVAILABLE:
+        defaults['record_video'] = False
+        print(
+            "[WebPilot] browser.video requested but ffmpeg is unavailable — "
+            "disabling video for this run (pip install \"browser-use[video]\" / fix IMAGEIO_FFMPEG_EXE, "
+            "or set browser.video: off)."
+        )
     env_video = os.environ.get('WEBPILOT_VIDEO', '').strip().lower()
     if env_video in ('off', '0', 'false', 'no'):
         defaults['record_video'] = False
@@ -1556,7 +1612,7 @@ async def generate_playwright_code(
         ],
         temperature=0.0
     )
-    pricing_model = llm_cfg.get('model', model_id)
+    pricing_model = pricing_model_name(llm_cfg) or model_id
     usage_meta = getattr(response, 'usage', None)
     if usage_meta is not None:
         pt = getattr(usage_meta, 'prompt_tokens', 0) or 0
@@ -1956,7 +2012,11 @@ async def main():
                 if os.path.exists(report_path):
                     with open(report_path, 'r', encoding='utf-8') as f_rep:
                         report_summary = json.load(f_rep)
-                    if not report_summary.get('tokens'):
+                    summary_tokens = int(report_summary.get('tokens') or 0)
+                    summary_cost = float(report_summary.get('estimatedCostUsd') or 0)
+                    # Backfill when tokens missing, OR when tokens exist but cost stayed $0
+                    # (LiteLLM miss / Azure deployment names — common in consumer installs).
+                    if not summary_tokens or summary_cost <= 0:
                         report_summary['tokens'] = total_tokens
                         report_summary['promptTokens'] = llm_usage_totals['promptTokens']
                         report_summary['completionTokens'] = llm_usage_totals['completionTokens']
@@ -1964,6 +2024,7 @@ async def main():
                             float(llm_usage_totals.get('estimatedCostUsd') or 0), 6
                         )
                         report_summary['llmCalls'] = llm_usage_totals.get('llmCalls', 0)
+                        report_summary.setdefault('model', pricing_model_name(llm_cfg))
                         with open(report_path, 'w', encoding='utf-8') as f_rep:
                             json.dump(report_summary, f_rep, indent=2)
         except Exception as usage_err:

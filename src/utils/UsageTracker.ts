@@ -136,7 +136,11 @@ export class UsageTracker {
 
     // Estimate if Python persisted tokens without a priced cost (common for Azure deployments).
     if (cost <= 0 && prompt + completion > 0) {
-      cost = estimateCostUsd(process.env.WEBPILOT_LLM_MODEL || 'gpt-4.1', prompt, completion);
+      cost = estimateCostUsd(
+        process.env.WEBPILOT_LLM_MODEL || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1',
+        prompt,
+        completion
+      );
     }
 
     this.addToTotals(prompt, completion, cost, calls, 'execution');

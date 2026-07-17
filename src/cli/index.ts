@@ -400,9 +400,23 @@ function writeProjectProfileConfig(projectRoot: string, profile: InitProfile): v
   if (!fs.existsSync(configPath)) return;
   let yaml = fs.readFileSync(configPath, 'utf8');
   yaml = yaml.replace(/activeProvider:\s*"[^"]+"/, `activeProvider: "${profile.llmProvider}"`);
+
+  const generatedCodePath =
+    profile.language === 'python'
+      ? './tests/generated'
+      : profile.language === 'java'
+        ? './src/test/java'
+        : profile.language === 'csharp'
+          ? './tests'
+          : './packages/test-framework';
+  if (/generatedCodePath:\s*"[^"]+"/.test(yaml)) {
+    yaml = yaml.replace(/generatedCodePath:\s*"[^"]+"/, `generatedCodePath: "${generatedCodePath}"`);
+  }
+
   yaml += `
 
 # Project generation profile selected by webpilot init.
+# Codegen reads project.language / automationTool. Default path is deterministic-only (no agent fallback).
 project:
   name: "${profile.projectName}"
   target: "${profile.target}"
@@ -2316,11 +2330,11 @@ program
     }
     if (options.codegen) {
       process.env.WEBPILOT_CODEGEN = '1';
-      // Prefer config/auto — do not force deterministic over ActHistory+agent repair.
+      // Honor framework.codegenMode (default deterministic). `auto` maps to deterministic — no agent fallback.
       if (!process.env.WEBPILOT_CODEGEN_MODE) {
-        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'auto');
+        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'deterministic');
         process.env.WEBPILOT_CODEGEN_MODE =
-          cfgMode === 'deterministic' || cfgMode === 'llm' || cfgMode === 'auto' ? cfgMode : 'auto';
+          cfgMode === 'llm' ? 'llm' : cfgMode === 'auto' ? 'auto' : 'deterministic';
       }
     }
     if (options.forceCodegen) {
@@ -2379,9 +2393,9 @@ program
     if (metadataCodegen) {
       process.env.WEBPILOT_CODEGEN = '1';
       if (!process.env.WEBPILOT_CODEGEN_MODE) {
-        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'auto');
+        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'deterministic');
         process.env.WEBPILOT_CODEGEN_MODE =
-          cfgMode === 'deterministic' || cfgMode === 'llm' || cfgMode === 'auto' ? cfgMode : 'auto';
+          cfgMode === 'llm' ? 'llm' : cfgMode === 'auto' ? 'auto' : 'deterministic';
       }
     }
     if (metadataReport) {
@@ -2855,7 +2869,7 @@ program
   .description('Generate deterministic Playwright code from a saved execution trace')
   .option('--from <slug>', 'Scenario slug to generate from, or "latest"', 'latest')
   .option('--no-validate', 'Skip TypeScript and Playwright validation')
-  .option('--repair', 'Allow CodegenAgent LLM repair when deterministic validation fails')
+  .option('--repair', 'Opt-in CodegenAgent LLM repair when deterministic validation fails (off by default)')
   .action(async (options: { from?: string; validate?: boolean; repair?: boolean }) => {
     const slug =
       options.from === 'latest'

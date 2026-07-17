@@ -6,6 +6,7 @@ import {
   resolveLlmUsagePath,
   resolveSummaryPath,
 } from '../ReportPaths';
+import { estimateCostUsd } from '../../utils/ModelPricing';
 
 function readJson(filePath: string): Record<string, unknown> {
   if (!fs.existsSync(filePath)) return {};
@@ -27,11 +28,22 @@ function pricingFrom(
 ): ReportPricing {
   const promptTokens = numberValue(summary.promptTokens ?? usage.promptTokens);
   const completionTokens = numberValue(summary.completionTokens ?? usage.completionTokens);
+  let estimatedCostUsd = numberValue(summary.estimatedCostUsd);
+  if (estimatedCostUsd <= 0) {
+    estimatedCostUsd = numberValue(usage.estimatedCostUsd);
+  }
+  if (estimatedCostUsd <= 0 && promptTokens + completionTokens > 0) {
+    const model =
+      (typeof summary.model === 'string' && summary.model) ||
+      process.env.WEBPILOT_LLM_MODEL ||
+      'gpt-4.1';
+    estimatedCostUsd = estimateCostUsd(model, promptTokens, completionTokens);
+  }
   return {
     promptTokens,
     completionTokens,
     totalTokens: numberValue(summary.tokens ?? usage.totalTokens ?? promptTokens + completionTokens),
-    estimatedCostUsd: numberValue(summary.estimatedCostUsd ?? usage.estimatedCostUsd),
+    estimatedCostUsd,
     llmCalls: numberValue(summary.llmCalls ?? usage.llmCalls),
     model: typeof summary.model === 'string' ? summary.model : undefined,
     provider: typeof summary.provider === 'string' ? summary.provider : undefined,

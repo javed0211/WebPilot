@@ -12,6 +12,7 @@ import { AUTOMATION_EXERCISE_BASE_PAGE } from './CodegenCanonicalPages';
 import { ensureFrameworkTsConfig } from './FrameworkTemplates';
 import { CodegenValidationBundle } from './CodegenValidationBundle';
 import { CodegenReferenceValidator } from './CodegenReferenceValidator';
+import { relativeImportPath } from './codegen/CodegenExpressions';
 
 const MONOLITHIC_PAGE_DENYLIST = ['AutomationExercisePage.ts'];
 
@@ -92,25 +93,25 @@ export class CodegenWriter {
     return `packages/test-framework/pages/${className}.ts`;
   }
 
-  /** Align spec imports with resolved POM paths (flat vs pages/<site>/). */
+  /** Align spec imports with resolved POM paths (flat vs pages/<site>/), depth-aware for nested specs. */
   private static rewriteSpecImportsForWrittenPages(
     specContent: string,
-    pagePaths: string[]
+    pagePaths: string[],
+    specPath: string
   ): string {
     let next = specContent;
     for (const pagePath of pagePaths) {
       const normalized = pagePath.replace(/\\/g, '/');
       const className = path.basename(normalized, '.ts');
-      const afterPages = normalized.replace(/^.*\/pages\//, '');
-      const importTarget = afterPages.replace(/\.ts$/, '');
+      const importTarget = relativeImportPath(specPath, normalized);
       // Rewrite any …/pages/**/ClassName → correct relative import for where we wrote the file.
       next = next.replace(
         new RegExp(`from\\s+(['"])(?:\\.\\./)+pages/(?:[^'"]*/)?${className}\\1`, 'g'),
-        `from '../pages/${importTarget}'`
+        `from '${importTarget}'`
       );
       next = next.replace(
         new RegExp(`from\\s+(['"])@pages/(?:[^'"]*/)?${className}\\1`, 'g'),
-        `from '../pages/${importTarget}'`
+        `from '${importTarget}'`
       );
     }
     return next;
@@ -151,7 +152,11 @@ export class CodegenWriter {
       if (file.path.replace(/\\/g, '/').endsWith('.spec.ts') && resolvedPages.length) {
         file = {
           ...file,
-          content: CodegenWriter.rewriteSpecImportsForWrittenPages(file.content, resolvedPages),
+          content: CodegenWriter.rewriteSpecImportsForWrittenPages(
+            file.content,
+            resolvedPages,
+            file.path
+          ),
         };
       }
 

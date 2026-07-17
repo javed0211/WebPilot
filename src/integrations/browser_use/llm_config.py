@@ -120,7 +120,12 @@ def resolve_provider_config(provider: str | None = None) -> tuple[str, dict[str,
             or '2024-12-01-preview'
         )
         block['model'] = block.get('model') or block['deploymentId']
-        # Normalize endpoint (no trailing slash)
+        # Optional explicit billed model for cost estimates when deploymentId is opaque.
+        block['pricingModel'] = (
+            block.get('pricingModel')
+            or os.environ.get('WEBPILOT_LLM_MODEL')
+            or block.get('model')
+        )
         if block.get('endpoint'):
             block['endpoint'] = str(block['endpoint']).rstrip('/')
 

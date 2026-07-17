@@ -3,9 +3,7 @@
 #
 # Browser Use is vendored from upstream tag 0.13.4 so WebPilot can customize
 # the agent, browser, DOM, tools, and observability internals. Keep this editable.
-# Do NOT install the [video] extra — that pulls imageio+ffmpeg for CDP screencast MP4s.
-# BA evidence uses Playwright traces; generated specs use Playwright's built-in video.
--e "./packages/browser-use"
+-e "./packages/browser-use[video]"
 openai>=1.0.0
 PyYAML>=6.0
 python-dotenv>=1.0.0
