@@ -31,7 +31,7 @@ function loadDocument(slug: string): ActHistoryDocument {
   const historyPath = resolveExecutionHistoryPath(slug);
   if (!fs.existsSync(historyPath)) {
     throw new Error(
-      `No ActHistory found for "${slug}". Expected: ${historyPath}. Run the scenario with browser-use first.`
+      `No ActHistory found for "${slug}". Expected: ${historyPath}. Run the scenario with the WebPilot agent first.`
     );
   }
   const raw = JSON.parse(fs.readFileSync(historyPath, 'utf8')) as ActHistoryDocument;
@@ -229,6 +229,16 @@ export class ActHistoryReplayService {
     }
     if (result.screenshotPaths?.length) {
       console.log(`  Failure screenshots: ${result.screenshotPaths.length}`);
+    }
+
+    try {
+      const { AdoResultPublisher } = require('../integrations/ado/AdoResultPublisher');
+      await AdoResultPublisher.maybeAutoPublish(slug, false);
+    } catch (adoErr) {
+      console.warn(
+        `Warning: ADO auto-publish skipped:`,
+        adoErr instanceof Error ? adoErr.message : adoErr
+      );
     }
 
     return result;

@@ -112,6 +112,11 @@ def setup_logging(stream=None, log_level=None, force_setup=False, debug_log_file
 					record.msg.replace('browser-use agent', 'WebPilot agent')
 					.replace('Browser-Use Library', 'WebPilot')
 					.replace('Browser Use', 'WebPilot')
+					.replace('browser-use', 'WebPilot')
+					.replace('uv add browser-use', 'upgrade WebPilot')
+					.replace('https://github.com/browser-use/browser-use/issues', 'https://github.com/qubiqlabs/webpilot/issues')
+					.replace('https://cloud.browser-use.com', 'https://github.com/qubiqlabs/webpilot')
+					.replace('https://docs.browser-use.com', 'https://github.com/qubiqlabs/webpilot')
 				)
 			return super().format(record)
 

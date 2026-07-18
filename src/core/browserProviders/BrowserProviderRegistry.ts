@@ -5,6 +5,7 @@ import {
   BrowserProviderConfig,
   BrowserProviderName,
   BrowserSessionInfo,
+  browserProviderDisplayName,
 } from './BrowserProvider';
 
 const PROVIDERS: BrowserProviderName[] = [
@@ -45,6 +46,7 @@ class ConfiguredBrowserProvider implements BrowserProvider {
   public sessionInfo(): BrowserSessionInfo {
     return {
       provider: this.name,
+      displayName: browserProviderDisplayName(this.name),
       browserName: this.config.browserName,
       browserVersion: this.config.browserVersion,
       platform: this.config.platform,
@@ -65,7 +67,7 @@ class ConfiguredBrowserProvider implements BrowserProvider {
         pass(`Provider local-playwright selected (${this.config.browserName})`);
         break;
       case 'browser-use':
-        pass(`Provider browser-use selected (${this.config.browserName})`);
+        pass(`WebPilot agent provider selected (${this.config.browserName})`);
         break;
       case 'testmu':
         if (!this.config.enabled) warn('TestMu provider is configured but disabled');

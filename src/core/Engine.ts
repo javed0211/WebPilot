@@ -211,7 +211,7 @@ export class Engine {
 
     // Phase 4: knowledge-only uses Playwright (generated spec or ActHistory) — not JS execute_capability.
     if (knowledgeOnly && !legacyJsKnowledge) {
-      Logger.info('Knowledge-only mode — Playwright replay (no browser-use / no LLM discovery)');
+      Logger.info('Knowledge-only mode — Playwright replay (no WebPilot agent / no LLM discovery)');
       const planned = KnowledgeOnlyReplay.plan(slug);
       Logger.detail(planned.reason);
       if (planned.strategy === 'unavailable') {
@@ -274,7 +274,7 @@ export class Engine {
           // ActHistory must always be validated by replaying steps in a real browser —
           // otherwise "PASSED" is a false positive (history on disk ≠ scenario still works).
           Logger.info(
-            `Skipping browser-use rediscovery — ${historyDecision.reason}. ` +
+            `Skipping WebPilot rediscovery — ${historyDecision.reason}. ` +
               `Validating ActHistory in a real browser before ${
                 process.env.WEBPILOT_CODEGEN === '1' ? 'codegen' : 'pass'
               }…`
@@ -342,7 +342,7 @@ export class Engine {
         }
       }
 
-      Logger.info(`Delegating to browser-use runner (${browserProvider.name})`);
+      Logger.info(`Delegating to WebPilot agent runner (${browserProvider.name})`);
       
       // 1. Generate/refresh the symbol graph so Python gets the latest repo knowledge
       try {
@@ -525,7 +525,7 @@ export class Engine {
         this.finalizeJobUsage(baseName);
         return { success: discoveryOk, stepsExecuted };
       } catch (err: any) {
-        Logger.error(`browser-use execution failed: ${err.message}`);
+        Logger.error(`WebPilot agent execution failed: ${err.message}`);
         const failedSlug = path.basename(this.testFilePath, path.extname(this.testFilePath));
         // Python still saves usage in finally before exit — pick it up for Job summary.
         const failedUsagePath = resolveLlmUsagePath(failedSlug);
@@ -821,6 +821,14 @@ export class Engine {
       } catch (reportErr: unknown) {
         const msg = reportErr instanceof Error ? reportErr.message : String(reportErr);
         Logger.warn(`HTML report generation skipped: ${msg}`);
+      }
+
+      try {
+        const { AdoResultPublisher } = require('../integrations/ado/AdoResultPublisher');
+        await AdoResultPublisher.maybeAutoPublish(testName, false);
+      } catch (adoErr: unknown) {
+        const msg = adoErr instanceof Error ? adoErr.message : String(adoErr);
+        Logger.warn(`ADO auto-publish skipped: ${msg}`);
       }
     } else {
       Logger.error('Test suite failed — diagnostics saved under /reports');

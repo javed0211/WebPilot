@@ -887,8 +887,8 @@ class BrowserSession(BaseModel):
 			)
 			if self.is_local and not isinstance(e, (CloudBrowserAuthError, CloudBrowserError)):
 				self.logger.warning(
-					'Local browser failed to start. Cloud browsers require no local install and work out of the box.\n'
-					'         Try: Browser(use_cloud=True)  |  Get an API key: https://cloud.browser-use.com?utm_source=oss&utm_medium=browser_launch_failure'
+					'Local browser failed to start. Confirm Google Chrome is installed, '
+					'or set browser.target / WEBPILOT_BROWSER_CHANNEL in WebPilot config.'
 				)
 			raise
 

@@ -1,0 +1,128 @@
+@api @openapi
+Test: Swagger Petstore — OpenAPI suite
+
+@source https://petstore.swagger.io/v2/swagger.json
+@baseUrl https://petstore.swagger.io/v2
+@importMode full
+@auth bearer AUTH_TOKEN
+
+# Seed variables for path/query params (override in environments/*.json)
+@var petId=1
+@var status="available"
+@var orderId=1
+@var username="user1"
+@var password="1"
+
+# uploadFile
+Send POST request to {{apiBaseUrl}}/pet/{{petId}}/uploadImage
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert response schema schemas/uploadfile.json
+Assert status is 200
+
+# addPet
+Send POST request to {{apiBaseUrl}}/pet
+With Headers {"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+With body {"name":"doggie","photoUrls":["string"],"id":1,"category":{"id":1,"name":"string"},"tags":[{"id":1,"name":"string"}],"status":"available"}
+Assert status is 200
+
+# updatePet
+Send PUT request to {{apiBaseUrl}}/pet
+With Headers {"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+With body {"name":"doggie","photoUrls":["string"],"id":1,"category":{"id":1,"name":"string"},"tags":[{"id":1,"name":"string"}],"status":"available"}
+Assert status is 200
+
+# findPetsByStatus
+Send GET request to {{apiBaseUrl}}/pet/findByStatus?status={{status}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert response schema schemas/findpetsbystatus.json
+Assert status is 200
+
+# getPetById
+Send GET request to {{apiBaseUrl}}/pet/{{petId}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert response schema schemas/getpetbyid.json
+Assert status is 200
+Extract response id into id
+
+# updatePetWithForm
+Send POST request to {{apiBaseUrl}}/pet/{{petId}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert status is 200
+
+# deletePet
+Send DELETE request to {{apiBaseUrl}}/pet/{{petId}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert status is 200
+
+# getInventory
+Send GET request to {{apiBaseUrl}}/store/inventory
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert response schema schemas/getinventory.json
+Assert status is 200
+
+# placeOrder
+Send POST request to {{apiBaseUrl}}/store/order
+With Headers {"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+With body {"id":1,"petId":1,"quantity":1,"shipDate":"2026-07-17T22:31:50.947Z","status":"placed","complete":true}
+Assert response schema schemas/placeorder.json
+Assert status is 200
+Extract response id into id
+
+# getOrderById
+Send GET request to {{apiBaseUrl}}/store/order/{{orderId}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert response schema schemas/getorderbyid.json
+Assert status is 200
+Extract response id into id
+
+# deleteOrder
+Send DELETE request to {{apiBaseUrl}}/store/order/{{orderId}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert status is 200
+
+# createUsersWithListInput
+Send POST request to {{apiBaseUrl}}/user/createWithList
+With Headers {"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+With body [{"id":1,"username":"string","firstName":"string","lastName":"string","email":"string","password":"string","phone":"string","userStatus":1}]
+Assert status is 200
+
+# getUserByName
+Send GET request to {{apiBaseUrl}}/user/{{username}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert response schema schemas/getuserbyname.json
+Assert status is 200
+Extract response id into id
+
+# updateUser
+Send PUT request to {{apiBaseUrl}}/user/{{username}}
+With Headers {"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+With body {"id":1,"username":"string","firstName":"string","lastName":"string","email":"string","password":"string","phone":"string","userStatus":1}
+Assert status is 200
+
+# deleteUser
+Send DELETE request to {{apiBaseUrl}}/user/{{username}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert status is 200
+
+# loginUser
+Send GET request to {{apiBaseUrl}}/user/login?username={{username}}&password={{password}}
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert response schema schemas/loginuser.json
+Assert status is 200
+
+# logoutUser
+Send GET request to {{apiBaseUrl}}/user/logout
+With Headers {"Accept":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+Assert status is 200
+
+# createUsersWithArrayInput
+Send POST request to {{apiBaseUrl}}/user/createWithArray
+With Headers {"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+With body [{"id":1,"username":"string","firstName":"string","lastName":"string","email":"string","password":"string","phone":"string","userStatus":1}]
+Assert status is 200
+
+# createUser
+Send POST request to {{apiBaseUrl}}/user
+With Headers {"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer {{AUTH_TOKEN}}"}
+With body {"id":1,"username":"string","firstName":"string","lastName":"string","email":"string","password":"string","phone":"string","userStatus":1}
+Assert status is 200

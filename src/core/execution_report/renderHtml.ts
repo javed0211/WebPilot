@@ -1,5 +1,6 @@
 import { SuiteExecutionReport, TestCaseReport, ReportStep } from './types';
 import { REPORT_LOGO_HREF, REPORT_SCRIPTS, REPORT_STYLES } from './reportTheme';
+import { browserProviderDisplayName } from '../browserProviders/BrowserProvider';
 
 /* ── Utilities ──────────────────────────────────────────────────── */
 
@@ -10,6 +11,14 @@ function esc(s: unknown): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function providerLabel(br: { provider?: { provider?: string; displayName?: string } }): string {
+  return (
+    br.provider?.displayName ||
+    browserProviderDisplayName(br.provider?.provider) ||
+    'Local Playwright'
+  );
 }
 
 function pathBasename(p: string): string {
@@ -788,7 +797,7 @@ export function renderSuiteHtml(report: SuiteExecutionReport, baseHref = ''): st
             </div>
             <div class="env-row">
               <div class="env-key">Provider</div>
-              <div class="env-val">${esc(br.provider?.provider || 'local-playwright')}</div>
+              <div class="env-val">${esc(providerLabel(br))}</div>
             </div>
             <div class="env-row">
               <div class="env-key">Framework</div>
@@ -884,7 +893,7 @@ export function renderSuiteHtml(report: SuiteExecutionReport, baseHref = ''): st
         <div class="card-header"><div class="card-title">${ICON_CHROME.replace('<svg ', '<svg width="14" height="14" ')} Browser</div></div>
         <div class="card-body" style="padding:8px 16px">
           ${[
-            ['Provider', br.provider?.provider || 'local-playwright'],
+            ['Provider', providerLabel(br)],
             ['Target', br.target],
             ['Browser Name', br.provider?.browserName || br.target],
             ['Browser Version', br.provider?.browserVersion || '—'],
@@ -907,7 +916,7 @@ export function renderSuiteHtml(report: SuiteExecutionReport, baseHref = ''): st
         <div class="card-body" style="padding:8px 16px">
           ${[
             ['Framework', `${fw.name} v${fw.version}`],
-            ['browser-use', fw.useBrowserUse ? 'Enabled' : 'Disabled'],
+            ['WebPilot agent', fw.useBrowserUse ? 'Enabled' : 'Disabled'],
             ['LLM Provider', fw.activeProvider],
           ].map(([k, v]) => `
           <div class="env-row">

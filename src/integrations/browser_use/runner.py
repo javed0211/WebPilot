@@ -408,7 +408,7 @@ def parse_txt_file(file_path):
         content = f.read()
         
     lines = content.split('\n')
-    test_name = "WebPilot Browser-Use Scenario"
+    test_name = "WebPilot Scenario"
     bdd_steps = []
     numbered_steps = []
     plain_steps = []
@@ -820,7 +820,7 @@ async def run_native_browser_use_scenario(
                 {
                     'currentIndex': min(len(steps), max(1, len(captured_actions))),
                     'totalSteps': len(steps),
-                    'currentText': 'Native browser-use agent running full scenario',
+                    'currentText': 'WebPilot agent running full scenario',
                     'tokens': total,
                     'cost': f"{llm_usage_totals['estimatedCostUsd'] + priced:.4f}",
                     'allSteps': [
@@ -834,7 +834,7 @@ async def run_native_browser_use_scenario(
 
     use_judge = judge_mode != 'off'
     print(
-        f"[WebPilot] Engine mode=native (browser-use full-scenario agent, "
+        f"[WebPilot] Engine mode=native (WebPilot full-scenario agent, "
         f"maxSteps={int(perf.get('nativeAgentMaxSteps', 80))})"
     )
     native_agent = Agent(
@@ -854,7 +854,7 @@ async def run_native_browser_use_scenario(
         directly_open_url=True,
         llm_timeout=int(os.environ.get('WEBPILOT_LLM_TIMEOUT', '180') or 180),
         extend_system_message=(
-            "You are running a WebPilot QE scenario via browser-use. "
+            "You are running a WebPilot QE scenario via the WebPilot agent. "
             "Follow the numbered test steps in order. "
             "Dismiss blocking overlays only when they prevent progress. "
             "Call done(success=true) only when the last step outcome is satisfied. "
@@ -972,7 +972,7 @@ async def run_native_browser_use_scenario(
         'assertionPlanCount': len(context.get('assertionPlan') or []),
     }
     if not agent_ok:
-        context['failure'] = 'Native browser-use agent did not complete the scenario successfully'
+        context['failure'] = 'WebPilot agent did not complete the scenario successfully'
         context['errors'] = [context['failure']]
         context.setdefault('runLog', {})['failures'] = [context['failure']]
     return agent_ok, context, native_agent
@@ -1539,12 +1539,14 @@ def browser_provider_summary(browser_cfg):
     if provider == 'testmu' or testmu_cfg.get('enabled'):
         return {
             'provider': 'testmu',
+            'displayName': 'TestMu',
             'browserName': testmu_cfg.get('browserName', 'Chrome'),
             'browserVersion': testmu_cfg.get('browserVersion', 'latest'),
             'platform': testmu_cfg.get('platform', 'Windows 10'),
         }
     return {
         'provider': 'browser-use',
+        'displayName': 'WebPilot agent',
         'browserName': browser_cfg.get('target', 'chrome'),
         'platform': 'local',
     }

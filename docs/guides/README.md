@@ -52,13 +52,14 @@ Write .txt scenario  →  webpilot run  →  learn + execute live  →  optional
 |-------|---------|
 | [Selector Intelligence & Healing](./selector-intelligence-and-healing.md) | Registry, confidence, fallbacks, `webpilot self-heal` |
 | [Flake Analyzer](./flake-analyzer.md) | Failure classification and fix recommendations |
+| [ADO Test Plans](./ado-test-plans.md) | Bundled Azure DevOps MCP: plans, cases, mapping, pass/fail publish |
 
 ### Authoring & operations
 
 | Guide | Summary |
 |-------|---------|
 | [Test Authoring](./test-authoring.md) | `.txt` format, metadata, templates, `webpilot create` |
-| [API Testing](./api-testing.md) | HTTP scenarios, OpenAPI import |
+| [API Testing](./api-testing.md) | HTTP scenarios, full OpenAPI/Swagger import |
 | [Reports & Evidence](./reports-and-evidence.md) | HTML dashboards, traces, videos, AI analysis |
 | [CI & Artifacts](./ci-and-artifacts.md) | `webpilot ci`, JUnit, artifact manifest |
 | [CLI Reference](./cli-reference.md) | All commands, flags, and environment variables |

@@ -9,7 +9,6 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import { Engine } from '../core/Engine';
 import { ApiEngine } from '../core/ApiEngine';
-import { OpenApiLoader } from '../core/api/OpenApiLoader';
 import { LLMClient } from '../core/LLMClient';
 import { CliDisplay } from '../utils/CliDisplay';
 import { UsageTracker } from '../utils/UsageTracker';
@@ -878,7 +877,7 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
     }
 
     if (!hasBrowserUse(py)) {
-      warn(`browser_use not installed for ${py}`, 'Run: webpilot setup');
+      warn(`WebPilot agent not installed for ${py}`, 'Run: webpilot setup');
     } else {
       const installRoot = findCliInstallRoot();
       const source = execFileSync(
@@ -897,8 +896,8 @@ async function runDoctor(options: { provider?: string; json?: boolean } = {}): P
         }
       ).trim();
       const vendored = source.includes(path.join('packages', 'browser-use'));
-      if (vendored) pass('browser_use vendored source installed');
-      else warn(`browser_use resolves outside WebPilot: ${source}`, 'Run: webpilot setup');
+      if (vendored) pass('WebPilot agent vendored source installed');
+      else warn(`WebPilot agent resolves outside WebPilot: ${source}`, 'Run: webpilot setup');
     }
   } catch (error: any) {
     warn(`Python/WebPilot engine check failed: ${error.message}`, 'Run: webpilot setup');
@@ -1999,7 +1998,7 @@ program
       const { resolvePythonPath, hasBrowserUse, execPythonSync } = require('../integrations/browser_use/PythonRuntime');
       const py = resolvePythonPath();
       if (!hasBrowserUse(py)) {
-        console.log(`  ${chalk.yellow('⚠')} browser_use not found for ${py}`);
+        console.log(`  ${chalk.yellow('⚠')} WebPilot agent not found for ${py}`);
         console.log(`  ${chalk.dim('→')} Run: ${chalk.bold('webpilot setup')}`);
       } else {
         const installRoot = findCliInstallRoot();
@@ -2019,7 +2018,7 @@ program
         ).trim();
         const vendored = source.includes(path.join('packages', 'browser-use'));
         console.log(
-          `  ${vendored ? chalk.green('✔') : chalk.yellow('⚠')} browser_use source: ${source}`
+          `  ${vendored ? chalk.green('✔') : chalk.yellow('⚠')} WebPilot agent source: ${source}`
         );
         if (!vendored) {
           console.log(`  ${chalk.dim('→')} Run webpilot setup to install the vendored source editable`);
@@ -2200,37 +2199,57 @@ program
   .command('import-api')
   .argument('<source>', 'OpenAPI/Swagger URL or local .json/.yaml file')
   .option('-o, --output <file>', 'Write generated NL scenario to this path')
+  .option('--mode <mode>', 'full (all ops) or smoke (sample GETs)', 'full')
   .option('--operations <ops>', 'Comma-separated operations, e.g. GET /pet/{petId},POST /pet')
-  .description('Import OpenAPI spec and scaffold an API test script')
-  .action(async (source: string, options: { output?: string; operations?: string }) => {
-    try {
-      const loaded = await OpenApiLoader.load(source);
-      const text = OpenApiLoader.toScenarioText(loaded, source);
-      const outPath =
-        options.output ||
-        path.join(
-          process.cwd(),
-          'tests',
-          'api',
-          `${loaded.title.replace(/\s+/g, '_').toLowerCase()}_openapi.txt`
-        );
-      fs.mkdirSync(path.dirname(outPath), { recursive: true });
-      fs.writeFileSync(outPath, text, 'utf8');
-      console.log(chalk.green(`Imported OpenAPI (${loaded.operations.length} operations)`));
-      console.log(chalk.dim(`  Title: ${loaded.title}`));
-      if (loaded.baseUrl) console.log(chalk.dim(`  Base URL: ${loaded.baseUrl}`));
-      console.log(chalk.green(`  Scenario: ${outPath}`));
-      if (options.operations) {
-        const steps = OpenApiLoader.buildSteps(loaded, {
-          operations: options.operations.split(',').map((s) => s.trim())
-        });
-        console.log(chalk.dim(`  Built ${steps.length} executable step(s) from --operations`));
+  .option('--split-by <by>', 'Split suites: none | tag', 'none')
+  .option('--negatives', 'Also generate negative (4xx) contract cases')
+  .option('--include-deprecated', 'Include deprecated operations')
+  .option('--no-schema-sidecars', 'Inline schemas in memory only (no tests/api/schemas files)')
+  .description('Import OpenAPI/Swagger and generate a full API automation suite')
+  .action(
+    async (
+      source: string,
+      options: {
+        output?: string;
+        mode?: string;
+        operations?: string;
+        splitBy?: string;
+        negatives?: boolean;
+        includeDeprecated?: boolean;
+        schemaSidecars?: boolean;
       }
-    } catch (err: any) {
-      console.error(chalk.red(`import-api failed: ${err.message}`));
-      process.exit(1);
+    ) => {
+      try {
+        const { OpenApiSuiteBuilder } = require('../core/api/OpenApiSuiteBuilder');
+        const mode = options.mode === 'smoke' ? 'smoke' : 'full';
+        const splitBy = options.splitBy === 'tag' ? 'tag' : 'none';
+        const built = await OpenApiSuiteBuilder.buildFromSource(source, {
+          mode,
+          operations: options.operations
+            ? options.operations.split(',').map((s: string) => s.trim()).filter(Boolean)
+            : undefined,
+          splitBy,
+          negatives: Boolean(options.negatives),
+          includeDeprecated: Boolean(options.includeDeprecated),
+          schemaSidecars: options.schemaSidecars !== false,
+        });
+        const written = OpenApiSuiteBuilder.writeSuite(built, process.cwd(), options.output);
+        console.log(chalk.green(`Imported OpenAPI (${built.operations} operations, mode=${mode})`));
+        console.log(chalk.dim(`  Title: ${built.title}`));
+        if (built.baseUrl) console.log(chalk.dim(`  Base URL: ${built.baseUrl}`));
+        console.log(chalk.dim(`  Auth: ${built.auth.type} (${built.auth.envVar})`));
+        console.log(chalk.dim(`  Steps: ${built.steps.length}` + (built.negatives.length ? ` + ${built.negatives.length} negatives` : '')));
+        for (const file of written) {
+          console.log(chalk.green(`  Wrote: ${file}`));
+        }
+        console.log(chalk.dim(`\nNext: set ${built.auth.envVar} if required, then:`));
+        console.log(chalk.dim(`  webpilot run ${written.find((f: string) => f.endsWith('.txt')) || 'tests/api/...'} --env qa`));
+      } catch (err: any) {
+        console.error(chalk.red(`import-api failed: ${err.message}`));
+        process.exit(1);
+      }
     }
-  });
+  );
 
 function inferEnvironmentForTest(testFilePath: string): string {
   try {
@@ -2344,10 +2363,10 @@ program
   )
   .option('--architecture <arch>', 'Target generated architecture: flat, pom, bdd, pom-bdd', 'pom')
   .option('--parallel <workers>', 'Run parallel workers', '1')
-  .option('--provider <name>', 'Browser provider: local-playwright, browser-use, testmu')
+  .option('--provider <name>', 'Browser provider: local-playwright, browser-use (WebPilot agent), testmu')
   .option('--report', 'Automatically generate HTML report after run completes')
   .option('--knowledge-only', 'Replay via Playwright (generated spec or ActHistory); no LLM discovery')
-  .option('--force-discovery', 'Force browser-use rediscovery (ignore prior ActHistory reuse)')
+  .option('--force-discovery', 'Force WebPilot rediscovery (ignore prior ActHistory reuse)')
   .option('--codegen', 'Generate and validate Playwright code after execution', false)
   .option('--force-codegen', 'Force codegen regenerate even when an existing spec already passes')
   .option('--no-heal', 'Disable automatic locator self-heal (strict: no heal, no cache upsert)')
@@ -2387,7 +2406,7 @@ program
           `Provider "${browserProvider.name}" is configured but not executable in this product slice yet.`
         )
       );
-      console.error(chalk.dim('Use local-playwright, browser-use, or testmu for webpilot run.'));
+      console.error(chalk.dim('Use local-playwright, browser-use (WebPilot agent), or testmu for webpilot run.'));
       process.exit(1);
     }
     process.env.WEBPILOT_BROWSER_PROVIDER = browserProvider.name;
@@ -2601,7 +2620,7 @@ program
   .option('--heal', 'Force-enable self-heal on ActHistory locator failure (already on by default)')
   .option('--no-heal', 'Disable self-heal on ActHistory locator failure (strict: no heal, no cache upsert)')
   .description(
-    'Replay without browser-use discovery: generated Playwright specs, or ActHistory via --from'
+    'Replay without WebPilot discovery: generated Playwright specs, or ActHistory via --from'
   )
   .action(async (paths: string[], options: {
     from?: string;
@@ -3699,6 +3718,264 @@ regression
       for (const q of pack.quarantine) {
         console.log(`  ${q.path} ${chalk.dim(`flake ${q.flakeScore}`)}`);
       }
+    }
+  });
+
+/**
+ * COMMAND GROUP: ado
+ * Azure DevOps Test Plans via bundled official MCP (+ REST for result publish).
+ */
+const adoCmd = program
+  .command('ado')
+  .description('Azure DevOps Test Plans, case linking, and result publish');
+
+adoCmd
+  .command('status')
+  .description('Verify ADO config, auth, and MCP connectivity')
+  .action(async () => {
+    try {
+      const { assertAdoEnabled, loadAdoConfig, resolveAdoPat } = require('../integrations/ado/AdoConfig');
+      const { AdoTestPlanService } = require('../integrations/ado/AdoTestPlanService');
+      const { buildAdoMcpLaunchSpec } = require('../integrations/ado/AdoMcpLauncher');
+      const config = assertAdoEnabled(loadAdoConfig());
+      const launch = buildAdoMcpLaunchSpec(config);
+      console.log(`\n${chalk.magenta('=== WebPilot ADO Status ===')}\n`);
+      console.log(`  Organization : ${chalk.cyan(config.organization)}`);
+      console.log(`  Project      : ${chalk.cyan(config.project)}`);
+      console.log(`  Auth         : ${chalk.cyan(config.auth)}`);
+      console.log(
+        `  PAT present  : ${config.auth === 'pat' ? (resolveAdoPat() ? chalk.green('yes') : chalk.red('no')) : chalk.dim('n/a (azcli)')}`
+      );
+      console.log(`  MCP command  : ${chalk.dim(launch.command)}`);
+      console.log(`  MCP args     : ${chalk.dim(launch.args.slice(0, 6).join(' ') + (launch.args.length > 6 ? ' …' : ''))}`);
+      const status = await new AdoTestPlanService(config).status();
+      console.log(`  MCP tools    : ${chalk.bold(status.toolCount)}`);
+      if (status.planCount !== undefined) {
+        console.log(`  Test plans   : ${chalk.bold(status.planCount)}`);
+      }
+      console.log(`\n${chalk.green('ADO MCP connectivity OK')}`);
+      if (status.tools.length) {
+        console.log(chalk.dim(`  Sample tools: ${status.tools.slice(0, 8).join(', ')}`));
+      }
+    } catch (err) {
+      console.error(chalk.red(`ADO status failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+const adoTestPlan = adoCmd.command('testplan').description('Create and list Azure DevOps Test Plans');
+
+adoTestPlan
+  .command('create')
+  .description('Create a Test Plan')
+  .requiredOption('--name <name>', 'Test plan name')
+  .requiredOption('--iteration <iteration>', 'Iteration path (e.g. MyProject\\\\Sprint 1)')
+  .option('--area <area>', 'Area path')
+  .option('--description <text>', 'Description')
+  .option('--dry-run', 'Print payload without calling MCP')
+  .action(async (options: Record<string, string | boolean>) => {
+    try {
+      const { assertAdoEnabled, loadAdoConfig } = require('../integrations/ado/AdoConfig');
+      const { AdoTestPlanService } = require('../integrations/ado/AdoTestPlanService');
+      const config = assertAdoEnabled(loadAdoConfig(), { requirePat: !options.dryRun });
+      const result = await new AdoTestPlanService(config).createTestPlan({
+        name: String(options.name),
+        iteration: String(options.iteration),
+        areaPath: options.area as string | undefined,
+        description: options.description as string | undefined,
+        dryRun: Boolean(options.dryRun),
+      });
+      console.log(`\n${chalk.magenta('=== ADO Test Plan ===')}`);
+      if (result.dryRun) {
+        console.log(chalk.dim(JSON.stringify(result.raw, null, 2)));
+        return;
+      }
+      console.log(`  Id   : ${chalk.bold(result.id ?? 'unknown')}`);
+      console.log(`  Name : ${chalk.cyan(options.name)}`);
+    } catch (err) {
+      console.error(chalk.red(`Create test plan failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+adoTestPlan
+  .command('list')
+  .description('List Test Plans in the configured project')
+  .action(async () => {
+    try {
+      const { assertAdoEnabled, loadAdoConfig } = require('../integrations/ado/AdoConfig');
+      const { AdoTestPlanService } = require('../integrations/ado/AdoTestPlanService');
+      const plans = await new AdoTestPlanService(assertAdoEnabled(loadAdoConfig())).listTestPlans();
+      console.log(`\n${chalk.magenta('=== ADO Test Plans ===')} (${plans.length})\n`);
+      for (const plan of plans) {
+        const p = plan as { id?: number; name?: string; state?: string };
+        console.log(`  ${chalk.bold(p.id ?? '?')}  ${p.name || '(unnamed)'} ${chalk.dim(p.state || '')}`);
+      }
+    } catch (err) {
+      console.error(chalk.red(`List test plans failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+const adoTestCase = adoCmd.command('testcase').description('Create Azure DevOps Test Cases');
+
+adoTestCase
+  .command('create')
+  .description('Create a Test Case and optionally add it to a suite')
+  .requiredOption('--title <title>', 'Test case title')
+  .option('--plan <id>', 'Test plan id (required with --suite to add to suite)', (v: string) => Number(v))
+  .option('--suite <id>', 'Test suite id', (v: string) => Number(v))
+  .option('--from-test <path>', 'Local .txt test to derive steps/title from')
+  .option('--requirement <id>', 'Requirement work item id to link (Tests)', (v: string) => Number(v))
+  .option('--dry-run', 'Print payload without calling MCP')
+  .action(async (options: Record<string, string | boolean | number>) => {
+    try {
+      const { assertAdoEnabled, loadAdoConfig } = require('../integrations/ado/AdoConfig');
+      const { AdoTestPlanService } = require('../integrations/ado/AdoTestPlanService');
+      const { AdoAutomationLinkService } = require('../integrations/ado/AdoAutomationLinkService');
+      const { TestInventory } = require('../core/requirements/TestInventory');
+      const config = assertAdoEnabled(loadAdoConfig(), { requirePat: !options.dryRun });
+      let title = String(options.title);
+      let steps: string | undefined;
+      const fromTest = options.fromTest as string | undefined;
+      if (fromTest) {
+        const artifact = TestInventory.collect().find(
+          (t: { path: string }) => t.path === fromTest || t.path.endsWith(fromTest)
+        );
+        if (artifact) {
+          if (!title) title = artifact.title;
+          steps = artifact.steps
+            .map((s: { index: number; text: string }) => `${s.index}. ${s.text}|Expected: step completes successfully`)
+            .join('\n');
+        }
+      }
+      const result = await new AdoTestPlanService(config).createTestCase({
+        title,
+        steps,
+        planId: options.plan as number | undefined,
+        suiteId: options.suite as number | undefined,
+        testsWorkItemId: options.requirement as number | undefined,
+        dryRun: Boolean(options.dryRun),
+      });
+      console.log(`\n${chalk.magenta('=== ADO Test Case ===')}`);
+      if (result.dryRun) {
+        console.log(chalk.dim(JSON.stringify(result.raw, null, 2)));
+        return;
+      }
+      console.log(`  Id    : ${chalk.bold(result.id ?? 'unknown')}`);
+      console.log(`  Title : ${chalk.cyan(title)}`);
+      if (result.id && fromTest && !options.dryRun) {
+        await new AdoAutomationLinkService(config).link({
+          testPath: fromTest,
+          testCaseId: result.id,
+          testPlanId: options.plan as number | undefined,
+          testSuiteId: options.suite as number | undefined,
+          title,
+        });
+        console.log(`  Linked: ${chalk.green(fromTest)}`);
+      }
+    } catch (err) {
+      console.error(chalk.red(`Create test case failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+adoCmd
+  .command('link')
+  .description('Map a local test file to an ADO Test Case id')
+  .requiredOption('--test <path>', 'Repo-relative test path')
+  .requiredOption('--testcase <id>', 'ADO Test Case id', (v: string) => Number(v))
+  .option('--plan <id>', 'Test plan id', (v: string) => Number(v))
+  .option('--suite <id>', 'Test suite id', (v: string) => Number(v))
+  .option('--no-push', 'Do not patch AutomatedTest* fields on the work item')
+  .option('--dry-run', 'Show mapping without writing')
+  .action(async (options: Record<string, string | boolean | number>) => {
+    try {
+      const { assertAdoEnabled, loadAdoConfig } = require('../integrations/ado/AdoConfig');
+      const { AdoAutomationLinkService } = require('../integrations/ado/AdoAutomationLinkService');
+      const config = assertAdoEnabled(loadAdoConfig(), { requirePat: !options.dryRun });
+      const entry = await new AdoAutomationLinkService(config).link({
+        testPath: String(options.test),
+        testCaseId: Number(options.testcase),
+        testPlanId: options.plan as number | undefined,
+        testSuiteId: options.suite as number | undefined,
+        pushAutomationFields: options.push !== false && !options.dryRun,
+        dryRun: Boolean(options.dryRun),
+      });
+      console.log(`\n${chalk.magenta('=== ADO Link ===')}`);
+      console.log(`  Test     : ${chalk.cyan(options.test)}`);
+      console.log(`  Case     : ${chalk.bold(entry.testCaseId)}`);
+      console.log(`  AutoName : ${chalk.dim(entry.automatedTestName || '')}`);
+      if (options.dryRun) console.log(chalk.yellow('  (dry-run — map not written)'));
+    } catch (err) {
+      console.error(chalk.red(`ADO link failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+adoCmd
+  .command('sync-cases')
+  .description('Create missing ADO Test Cases from local tests and write ado-test-map.yaml')
+  .requiredOption('--plan <id>', 'Test plan id', (v: string) => Number(v))
+  .requiredOption('--suite <id>', 'Test suite id', (v: string) => Number(v))
+  .option('--from <dir>', 'Directory of tests to sync', 'tests')
+  .option('--dry-run', 'Preview creates without calling ADO')
+  .action(async (options: Record<string, string | boolean | number>) => {
+    try {
+      const { assertAdoEnabled, loadAdoConfig } = require('../integrations/ado/AdoConfig');
+      const { AdoAutomationLinkService } = require('../integrations/ado/AdoAutomationLinkService');
+      const result = await new AdoAutomationLinkService(
+        assertAdoEnabled(loadAdoConfig(), { requirePat: !options.dryRun })
+      ).syncCases({
+        fromDir: String(options.from || 'tests'),
+        planId: Number(options.plan),
+        suiteId: Number(options.suite),
+        dryRun: Boolean(options.dryRun),
+      });
+      console.log(`\n${chalk.magenta('=== ADO Sync Cases ===')}`);
+      console.log(`  Created : ${chalk.green(result.created)}`);
+      console.log(`  Linked  : ${chalk.cyan(result.linked)}`);
+      console.log(`  Skipped : ${chalk.dim(result.skipped)}`);
+      for (const row of result.entries.filter((e: { created: boolean }) => e.created).slice(0, 20)) {
+        console.log(`  + ${row.path} → ${row.entry.testCaseId || '(dry-run)'}`);
+      }
+    } catch (err) {
+      console.error(chalk.red(`ADO sync-cases failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
+    }
+  });
+
+adoCmd
+  .command('publish-results')
+  .description('Publish local PASSED/FAILED summaries to an ADO Test Run')
+  .option('--summary <slugOrPath>', 'Limit to one summary slug or file')
+  .option('--run-id <id>', 'Local idempotency / naming id')
+  .option('--name <name>', 'ADO Test Run name')
+  .option('--dry-run', 'Show outcomes without calling ADO REST')
+  .option('--strict-ado', 'Fail the CLI if publish errors')
+  .action(async (options: Record<string, string | boolean>) => {
+    try {
+      const { assertAdoEnabled, loadAdoConfig } = require('../integrations/ado/AdoConfig');
+      const { AdoResultPublisher } = require('../integrations/ado/AdoResultPublisher');
+      const result = await new AdoResultPublisher(
+        assertAdoEnabled(loadAdoConfig(), { requirePat: !options.dryRun })
+      ).publishFromSummaries({
+        summary: options.summary as string | undefined,
+        runId: options.runId as string | undefined,
+        runName: options.name as string | undefined,
+        dryRun: Boolean(options.dryRun),
+      });
+      console.log(`\n${chalk.magenta('=== ADO Publish Results ===')}`);
+      if (result.runId) console.log(`  Run id   : ${chalk.bold(result.runId)}`);
+      console.log(`  Published: ${chalk.green(result.published)}`);
+      console.log(`  Skipped  : ${chalk.dim(result.skipped)}`);
+      for (const o of result.outcomes) {
+        const color = o.outcome === 'Passed' ? chalk.green : o.outcome === 'Failed' ? chalk.red : chalk.yellow;
+        console.log(`  ${color(o.outcome.padEnd(12))} case ${o.testCaseId}  ${chalk.dim(o.path)}`);
+      }
+    } catch (err) {
+      console.error(chalk.red(`ADO publish-results failed: ${err instanceof Error ? err.message : String(err)}`));
+      process.exitCode = 1;
     }
   });
 

@@ -876,7 +876,7 @@ def format_history_for_prompt(context: dict) -> str:
         lines.append(f"  - {u}")
 
     lines.append("")
-    lines.append("=== ACTION NAMES (browser-use) ===")
+    lines.append("=== ACTION NAMES (WebPilot agent) ===")
     for n in context.get("actionNames") or []:
         lines.append(f"  - {n}")
 

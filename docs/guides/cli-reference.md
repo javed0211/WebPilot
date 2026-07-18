@@ -20,12 +20,13 @@ Complete reference for WebPilot CLI commands, flags, and environment variables.
 | `webpilot self-heal` | Selector healing proposals and apply |
 | `webpilot graph` | Build repository knowledge graph |
 | `webpilot create` | Create test from template |
-| `webpilot import-api` | OpenAPI → API scenario |
+| `webpilot import-api` | OpenAPI/Swagger → full or smoke API suite |
 | `webpilot interactive` | Human-in-the-loop headed run |
 | `webpilot ci` | CI init, doctor, run |
 | `webpilot reports-tidy` | Migrate legacy report paths |
 | `webpilot history list` | List saved ActHistory scenarios |
 | `webpilot history clear` | Clear ActHistory (one scenario or `--all`) |
+| `webpilot ado …` | Azure DevOps Test Plans (bundled MCP) |
 
 ---
 
@@ -190,12 +191,48 @@ webpilot create api <name> [--template api-smoke]
 
 ---
 
+## `webpilot import-api`
+
+Import OpenAPI/Swagger into a full or smoke API suite. See [API Testing](./api-testing.md).
+
+```bash
+webpilot import-api <url|file> [--mode full|smoke] [-o path]
+webpilot import-api ./openapi.yaml --mode full --split-by tag --negatives
+```
+
+| Flag | Description |
+|------|-------------|
+| `--mode` | `full` (default): all non-deprecated ops; `smoke`: sample GETs |
+| `--split-by tag` | One `.txt` per OpenAPI tag |
+| `--negatives` | Add missing-required-field 4xx cases |
+| `--operations` | Comma-separated filter (`GET /pet/{petId}`) |
+| `--include-deprecated` | Keep deprecated operations |
+| `--no-schema-sidecars` | Skip writing `tests/api/schemas/*.json` |
+
+---
+
 ## `webpilot ci`
 
 ```bash
 webpilot ci init      # Write .github/workflows/webpilot.yml
 webpilot ci doctor    # CI environment checks
 webpilot ci run       # CI wrapper for webpilot run
+```
+
+---
+
+## `webpilot ado`
+
+Bundled Azure DevOps MCP for Test Plans. See [ADO Test Plans](./ado-test-plans.md).
+
+```bash
+webpilot ado status
+webpilot ado testplan create --name "WebPilot Automation" --iteration "MyProject\\Sprint 1"
+webpilot ado testplan list
+webpilot ado testcase create --title "Search hotels" --plan 100 --suite 200 --from-test tests/web/booking_search_hotels.txt
+webpilot ado link --test tests/web/booking_search_hotels.txt --testcase 12345 --plan 100 --suite 200
+webpilot ado sync-cases --plan 100 --suite 200 --from tests
+webpilot ado publish-results [--summary <slug>] [--dry-run]
 ```
 
 ---
@@ -262,6 +299,13 @@ webpilot ci run       # CI wrapper for webpilot run
 | `TESTMU_USERNAME`, `TESTMU_ACCESS_KEY` | TestMu / LambdaTest |
 | `REMOTE_CDP_URL` | Remote CDP endpoint |
 | `SELENIUM_GRID_URL` | Selenium Grid |
+
+### Azure DevOps
+
+| Variable | Purpose |
+|----------|---------|
+| `AZURE_DEVOPS_EXT_PAT` / `ADO_MCP_AUTH_TOKEN` / `AZURE_DEVOPS_PAT` | PAT for MCP and result publish |
+| `AZURE_DEVOPS_ORG` / `AZURE_DEVOPS_PROJECT` | Optional overrides for `ado.organization` / `ado.project` |
 
 ### Other
 

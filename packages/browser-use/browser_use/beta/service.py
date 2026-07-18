@@ -4586,7 +4586,7 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 			return
 		provider = getattr(self.llm, 'provider', None) or 'rust-terminal'
 		model = getattr(self.llm, 'model', None) or self.model
-		self.logger.info(f'Starting a browser-use agent with version {self.version}, with provider={provider} and model={model}')
+		self.logger.info(f'Starting a WebPilot agent with version {self.version}, with provider={provider} and model={model}')
 
 	def _log_main_execution_start(self, max_steps: int) -> None:
 		"""Log Browser Use's main execution-loop start for terminal-backed runs."""
@@ -4652,7 +4652,7 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 		)
 
 	def _log_final_outcome_messages(self) -> None:
-		"""Log Browser Use-style guidance for failed runs."""
+		"""Log WebPilot guidance for failed runs."""
 		is_successful = self.history.is_successful()
 		if is_successful is not False and is_successful is not None:
 			return
@@ -4660,13 +4660,13 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 		final_result_str = str(final_result).lower() if final_result else ''
 		captcha_keywords = ['captcha', 'cloudflare', 'recaptcha', 'challenge', 'bot detection', 'access denied']
 		if any(keyword in final_result_str for keyword in captcha_keywords):
-			task_preview = self.task[:10] if len(self.task) > 10 else self.task
 			self.logger.info('')
-			self.logger.info('Failed because of CAPTCHA? For better browser stealth, try:')
-			self.logger.info(f'   agent = Agent(task="{task_preview}...", browser=Browser(use_cloud=True))')
+			self.logger.info(
+				'Failed because of CAPTCHA? Retry headed so you can solve the challenge, or use a clean browser profile.'
+			)
 		self.logger.info('')
-		self.logger.info('Did the Agent not work as expected? Let us fix this!')
-		self.logger.info('   Please open a short issue here: https://github.com/browser-use/browser-use/issues')
+		self.logger.info('Did the WebPilot agent not work as expected? Let us fix this!')
+		self.logger.info('   Please open a short issue here: https://github.com/qubiqlabs/webpilot/issues')
 
 	@observe(ignore_input=True, ignore_output=False)
 	async def _judge_trace(self) -> JudgementResult | None:
@@ -4723,8 +4723,8 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 			judge_log += f'   Failure Reason: {judgement.failure_reason}\n'
 		if judgement.reached_captcha:
 			self.logger.warning(
-				'Agent was blocked by a captcha. Cloud browsers include stealth fingerprinting and proxy rotation to avoid this.\n'
-				'         Try: Browser(use_cloud=True)  |  Get an API key: https://cloud.browser-use.com?utm_source=oss&utm_medium=captcha_nudge'
+				'Agent was blocked by a captcha or bot challenge. Retry with a clean profile, '
+				'or run headed so you can solve the challenge manually.'
 			)
 		judge_log += f'   {judgement.reasoning}\n'
 		self.logger.info(judge_log)

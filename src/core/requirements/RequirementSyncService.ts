@@ -107,6 +107,7 @@ function readConfig(source: Exclude<RequirementSource, 'import'>): {
   timeoutMs: number;
 } {
   const config = ConfigManager.getInstance().getAll() as {
+    ado?: { enabled?: boolean; organization?: string; project?: string };
     requirements?: {
       mcp?: {
         timeoutMs?: number;
@@ -116,10 +117,30 @@ function readConfig(source: Exclude<RequirementSource, 'import'>): {
     };
   };
   const mcp = config.requirements?.mcp ?? {};
-  const server = source === 'ado' ? mcp.ado : mcp.jira;
+  const server = { ...(source === 'ado' ? mcp.ado : mcp.jira) } as McpServerCommandConfig;
+
+  // Prefer an explicit requirements.mcp command; otherwise reuse the bundled ADO MCP launcher.
+  if (source === 'ado' && (!server.command || !server.command.trim())) {
+    try {
+      const { buildAdoMcpLaunchSpec } = require('../../integrations/ado/AdoMcpLauncher');
+      const { loadAdoConfig } = require('../../integrations/ado/AdoConfig');
+      const adoCfg = loadAdoConfig();
+      if (adoCfg.enabled && adoCfg.organization) {
+        const launch = buildAdoMcpLaunchSpec(adoCfg);
+        server.enabled = true;
+        server.command = launch.command;
+        server.args = launch.args;
+        server.env = { ...(server.env || {}), ...launch.env };
+        return { server, timeoutMs: mcp.timeoutMs ?? launch.timeoutMs ?? DEFAULT_TIMEOUT };
+      }
+    } catch {
+      // Fall through to the explicit-config error below.
+    }
+  }
+
   if (!server?.enabled || !server.command) {
     throw new Error(
-      `${source.toUpperCase()} MCP sync is not configured. Set requirements.mcp.${source}.enabled=true and command/args in resources/config/webpilot.yaml.`
+      `${source.toUpperCase()} MCP sync is not configured. Set ado.enabled=true (bundled MCP) or requirements.mcp.${source}.enabled=true with command/args in resources/config/webpilot.yaml.`
     );
   }
   return { server, timeoutMs: mcp.timeoutMs ?? DEFAULT_TIMEOUT };

@@ -8,9 +8,12 @@ import { ApiTestParser } from './api/ApiTestParser';
 import { ApiRunnerPlaywright } from './api/ApiRunnerPlaywright';
 import { ApiCodegenService } from './api/ApiCodegenService';
 import { CodegenWriter } from './CodegenWriter';
-import { ApiContext } from '../../packages/test-framework/core/ApiContext';
+import { ApiContext, resolveApiAuthHeaders } from '../../packages/test-framework/core/ApiContext';
 import { EngineRunResult } from './Engine';
-import { apiReportPath, ensureReportDirs } from './ReportPaths';
+import { apiReportPath, ensureReportDirs, summaryPath } from './ReportPaths';
+import { generateExecutionReports } from './ExecutionReportService';
+import { archiveCurrentRun } from './execution_report/history';
+import { ApiAuthPlan } from './api/types';
 
 export interface ApiEngineOptions {
   testFilePath: string;
@@ -46,11 +49,24 @@ export class ApiEngine {
       baseUrl: config.baseUrl,
       apiBaseUrl: config.apiBaseUrl,
       ...config.variables,
-      ...config.credentials
+      ...config.credentials,
+      ...(config.apiAuth && typeof config.apiAuth === 'object' ? config.apiAuth : {}),
+    };
+  }
+
+  private resolveAuthPlan(scenarioAuth?: ApiAuthPlan): ApiAuthPlan {
+    const cfg = ConfigManager.getInstance().getAll() as {
+      api?: { auth?: { bearerEnv?: string; apiKeyEnv?: string } };
+    };
+    if (scenarioAuth) return scenarioAuth;
+    return {
+      type: 'bearer',
+      envVar: cfg.api?.auth?.bearerEnv || 'AUTH_TOKEN',
     };
   }
 
   public async execute(): Promise<EngineRunResult> {
+    const startedAt = Date.now();
     const llm = new LLMClient();
     let scenario = await ApiTestParser.parseFile(this.testFilePath, llm);
 
@@ -70,34 +86,84 @@ export class ApiEngine {
       baseUrl: envVars.baseUrl,
       apiBaseUrl: envVars.apiBaseUrl,
       ...scenario.variables,
-      ...envVars
+      ...envVars,
     };
 
+    // Inject auth secrets into variables for {{AUTH_TOKEN}} style headers
+    const auth = this.resolveAuthPlan(scenario.auth);
+    if (auth.envVar && process.env[auth.envVar]) {
+      variables[auth.envVar] = process.env[auth.envVar];
+    }
+    const cfg = ConfigManager.getInstance().getAll() as {
+      api?: { auth?: { apiKeyEnv?: string } };
+    };
+    const apiKeyEnv = cfg.api?.auth?.apiKeyEnv || 'API_KEY';
+    if (process.env[apiKeyEnv]) variables[apiKeyEnv] = process.env[apiKeyEnv];
+
     const baseURL = String(variables.apiBaseUrl ?? variables.baseUrl ?? '');
+    const authHeaders = resolveApiAuthHeaders(auth);
     const requestContext = await playwrightRequest.newContext({
       baseURL: baseURL || undefined,
       extraHTTPHeaders: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        ...(process.env.AUTH_TOKEN
-          ? { Authorization: `Bearer ${process.env.AUTH_TOKEN}` }
-          : {})
+        ...authHeaders,
       },
-      ignoreHTTPSErrors: true
+      ignoreHTTPSErrors: true,
     });
 
+    const slug = path.basename(this.testFilePath, path.extname(this.testFilePath));
+    let success = false;
+    let stepsExecuted = 0;
+
     try {
-      const apiContext = new ApiContext(requestContext, variables);
+      const apiContext = new ApiContext(requestContext, variables, process.cwd());
       const runner = new ApiRunnerPlaywright(apiContext);
       const result = await runner.runPipeline(scenario.steps);
+      success = result.success;
+      stepsExecuted = result.steps.length;
 
       ensureReportDirs();
-      const reportName = path.basename(this.testFilePath, path.extname(this.testFilePath));
+      const reportName = slug;
       fs.writeFileSync(
         apiReportPath(reportName, Date.now()),
         JSON.stringify({ scenario: scenario.name, result }, null, 2),
         'utf8'
       );
+
+      const durationMs = Date.now() - startedAt;
+      const reportSummary = {
+        test: slug,
+        status: success ? 'PASSED' : 'FAILED',
+        timestamp: new Date().toISOString(),
+        stepsExecuted,
+        kind: 'api',
+        summary: success
+          ? `API suite passed (${stepsExecuted} steps)`
+          : `API suite failed after ${stepsExecuted} step(s)`,
+        durationMs,
+        scenario: scenario.name,
+        sourceRef: scenario.sourceRef,
+      };
+      fs.writeFileSync(summaryPath(slug), JSON.stringify(reportSummary, null, 2), 'utf8');
+
+      try {
+        archiveCurrentRun(slug);
+      } catch {
+        // history is best-effort
+      }
+
+      try {
+        await generateExecutionReports({
+          testSlugs: [slug],
+          env: this.envName,
+          testFilePath: this.testFilePath,
+          suiteName: `WebPilot API — ${scenario.name}`,
+        });
+      } catch (reportErr: unknown) {
+        const msg = reportErr instanceof Error ? reportErr.message : String(reportErr);
+        Logger.warn(`HTML report generation skipped: ${msg}`);
+      }
 
       if (this.enableCodegen && result.success) {
         const files = ApiCodegenService.generate(scenario, scenario.steps, result.steps);
@@ -106,7 +172,15 @@ export class ApiEngine {
         Logger.info(`Generated ${files.length} API automation file(s).`);
       }
 
-      return { success: result.success, stepsExecuted: scenario.steps.length };
+      try {
+        const { AdoResultPublisher } = require('../integrations/ado/AdoResultPublisher');
+        await AdoResultPublisher.maybeAutoPublish(slug, false);
+      } catch (adoErr: unknown) {
+        const msg = adoErr instanceof Error ? adoErr.message : String(adoErr);
+        Logger.warn(`ADO auto-publish skipped: ${msg}`);
+      }
+
+      return { success, stepsExecuted };
     } finally {
       await requestContext.dispose();
     }

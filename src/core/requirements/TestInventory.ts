@@ -48,7 +48,7 @@ function parseSteps(content: string): TestStep[] {
   let index = 0;
   for (const raw of content.split(/\r?\n/)) {
     const line = raw.trim();
-    if (!line) continue;
+    if (!line || line.startsWith('#') || line.startsWith('@')) continue;
     const match = line.match(STEP_RE);
     if (match && match[1].trim()) {
       index += 1;
@@ -57,6 +57,12 @@ function parseSteps(content: string): TestStep[] {
     }
     // BDD-style steps without numbering.
     if (/^(given|when|then|and|but)\b/i.test(line)) {
+      index += 1;
+      steps.push({ index, text: line });
+      continue;
+    }
+    // API NL verbs (OpenAPI suites).
+    if (/^(send|assert|with|extract)\b/i.test(line)) {
       index += 1;
       steps.push({ index, text: line });
     }

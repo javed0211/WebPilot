@@ -88,7 +88,7 @@ def build_testmu_cdp_url(
     adapter = (testmu_cfg.get('adapter') or 'puppeteer').strip().lower()
     if adapter not in ('puppeteer', 'playwright'):
         raise ValueError(
-            'browser.testmu.adapter must be "puppeteer" (recommended for browser-use) or "playwright".'
+            'browser.testmu.adapter must be "puppeteer" (recommended for the WebPilot agent) or "playwright".'
         )
 
     lt_options: dict[str, Any] = {

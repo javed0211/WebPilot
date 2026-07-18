@@ -1653,8 +1653,8 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 					judge_log += f'   Failure Reason: {judgement.failure_reason}\n'
 				if judgement.reached_captcha:
 					self.logger.warning(
-						'Agent was blocked by a captcha. Cloud browsers include stealth fingerprinting and proxy rotation to avoid this.\n'
-						'         Try: Browser(use_cloud=True)  |  Get an API key: https://cloud.browser-use.com?utm_source=oss&utm_medium=captcha_nudge'
+						'Agent was blocked by a captcha or bot challenge. Retry with a clean profile, '
+						'or run headed so you can solve the challenge manually.'
 					)
 				judge_log += f'   {judgement.reasoning}\n'
 				self.logger.info(judge_log)
@@ -2033,21 +2033,21 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 		# Blue color for task
 		self.logger.info(f'\033[34m🎯 Task: {self.task}\033[0m')
 
-		self.logger.debug(f'🤖 Browser-Use Library Version {self.version} ({self.source})')
+		self.logger.debug(f'🤖 WebPilot agent version {self.version} ({self.source})')
 
 		# Check for latest version and log upgrade message if needed
 		if CONFIG.BROWSER_USE_VERSION_CHECK:
 			latest_version = await check_latest_browser_use_version()
 			if latest_version and latest_version != self.version:
 				self.logger.info(
-					f'📦 Newer version available: {latest_version} (current: {self.version}). Upgrade with: uv add browser-use=={latest_version}'
+					f'📦 Newer version available: {latest_version} (current: {self.version}). Upgrade WebPilot to pick up agent updates.'
 				)
 
 	def _log_first_step_startup(self) -> None:
 		"""Log startup message only on the first step"""
 		if len(self.history.history) == 0:
 			self.logger.info(
-				f'Starting a browser-use agent with version {self.version}, with provider={self.llm.provider} and model={self.llm.model}'
+				f'Starting a WebPilot agent with version {self.version}, with provider={self.llm.provider} and model={self.llm.model}'
 			)
 
 	def _log_step_context(self, browser_state_summary: BrowserStateSummary) -> None:
@@ -2169,14 +2169,14 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 
 			if has_captcha_issue:
 				self.logger.warning(
-					'Agent was blocked by a captcha. Cloud browsers include stealth fingerprinting and proxy rotation to avoid this.\n'
-					'         Try: Browser(use_cloud=True)  |  Get an API key: https://cloud.browser-use.com?utm_source=oss&utm_medium=captcha_nudge'
+					'Agent was blocked by a captcha or bot challenge. Retry with a clean profile, '
+					'or run headed so you can solve the challenge manually.'
 				)
 
 			# General failure message
 			self.logger.info('')
-			self.logger.info('Did the Agent not work as expected? Let us fix this!')
-			self.logger.info('   Open a short issue on GitHub: https://github.com/browser-use/browser-use/issues')
+			self.logger.info('Did the WebPilot agent not work as expected? Let us fix this!')
+			self.logger.info('   Open a short issue: https://github.com/qubiqlabs/webpilot/issues')
 
 	def _log_agent_event(self, max_steps: int, agent_run_error: str | None = None) -> None:
 		"""Sent the agent event for this run to telemetry"""

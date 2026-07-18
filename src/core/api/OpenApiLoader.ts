@@ -122,7 +122,7 @@ export class OpenApiLoader {
     }));
   }
 
-  private static filterOperations(
+  public static filterOperations(
     all: OpenApiOperationRef[],
     selectors: string[]
   ): OpenApiOperationRef[] {

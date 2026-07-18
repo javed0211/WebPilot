@@ -1,6 +1,8 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { APIRequestContext, APIResponse } from '@playwright/test';
 import { BaseAPI } from './BaseAPI';
-import { ApiRequestStep, HttpMethod } from '../../../src/core/api/types';
+import { ApiAuthPlan, ApiRequestStep, HttpMethod } from '../../../src/core/api/types';
 import { deepInterpolate, getNestedProperty, interpolateString } from '../../../src/core/api/variableUtils';
 
 /**
@@ -8,10 +10,16 @@ import { deepInterpolate, getNestedProperty, interpolateString } from '../../../
  */
 export class ApiContext extends BaseAPI {
   private variables: Record<string, unknown>;
+  private projectRoot: string;
 
-  constructor(requestContext: APIRequestContext, initialVariables: Record<string, unknown> = {}) {
+  constructor(
+    requestContext: APIRequestContext,
+    initialVariables: Record<string, unknown> = {},
+    projectRoot = process.cwd()
+  ) {
     super(requestContext);
     this.variables = { ...initialVariables };
+    this.projectRoot = projectRoot;
   }
 
   public getVariables(): Record<string, unknown> {
@@ -30,12 +38,33 @@ export class ApiContext extends BaseAPI {
     return interpolateString(url, this.variables);
   }
 
+  public resolveSchema(step: ApiRequestStep): object | undefined {
+    if (step.schema) return step.schema;
+    if (!step.schemaRef) return undefined;
+    const candidates = [
+      path.join(this.projectRoot, 'tests', 'api', step.schemaRef),
+      path.join(this.projectRoot, step.schemaRef),
+      path.join(this.projectRoot, 'tests', 'api', 'schemas', path.basename(step.schemaRef)),
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return JSON.parse(fs.readFileSync(candidate, 'utf8')) as object;
+      }
+    }
+    throw new Error(`Schema sidecar not found for ${step.schemaRef}`);
+  }
+
   public async executeStep(step: ApiRequestStep): Promise<APIResponse> {
     const url = interpolateString(step.url, this.variables);
     const headers = step.headers
       ? (deepInterpolate(step.headers, this.variables) as Record<string, string>)
       : undefined;
     const body = step.body !== undefined ? deepInterpolate(step.body, this.variables) : undefined;
+
+    // Drop empty Authorization if env token missing
+    if (headers?.Authorization && /Bearer\s*$/i.test(headers.Authorization.trim())) {
+      delete headers.Authorization;
+    }
 
     const options = { headers, data: body };
     let response: APIResponse;
@@ -65,13 +94,18 @@ export class ApiContext extends BaseAPI {
 
     if (step.assertions?.status !== undefined) {
       await this.assertStatus(response, step.assertions.status);
+    } else if (step.assertions?.statusIn?.length) {
+      await this.assertStatusIn(response, step.assertions.statusIn);
     }
+
     if (step.assertions?.containsText) {
       await this.assertBodyContains(response, step.assertions.containsText);
     }
+    if (step.assertions?.headerEquals) {
+      await this.assertHeaderEquals(response, step.assertions.headerEquals);
+    }
     if (step.assertions?.jsonPath) {
       const json = await this.getJson(response);
-      const value = getNestedProperty(json, step.assertions.jsonPath.path);
       if (step.assertions.jsonPath.exists) {
         await this.assertJsonPathExists(json, step.assertions.jsonPath.path);
       }
@@ -80,8 +114,9 @@ export class ApiContext extends BaseAPI {
       }
     }
 
-    if (step.schema) {
-      await this.validateSchema(response, step.schema);
+    const schema = this.resolveSchema(step);
+    if (schema) {
+      await this.validateSchema(response, schema);
     }
 
     if (step.extractedVariables) {
@@ -96,4 +131,31 @@ export class ApiContext extends BaseAPI {
 
     return response;
   }
+}
+
+/**
+ * Build Playwright extraHTTPHeaders from an OpenAPI auth plan + environment.
+ */
+export function resolveApiAuthHeaders(
+  auth: ApiAuthPlan | undefined,
+  env: NodeJS.ProcessEnv = process.env
+): Record<string, string> {
+  if (!auth || auth.type === 'none') return {};
+  const secret = env[auth.envVar]?.trim();
+  if (!secret) return {};
+
+  if (auth.type === 'bearer') {
+    return { Authorization: `Bearer ${secret}` };
+  }
+  if (auth.type === 'basic') {
+    const encoded = secret.includes(':')
+      ? Buffer.from(secret).toString('base64')
+      : secret;
+    return { Authorization: `Basic ${encoded}` };
+  }
+  if (auth.type === 'apiKey' && auth.name) {
+    if (auth.in === 'query') return {};
+    return { [auth.name]: secret };
+  }
+  return {};
 }

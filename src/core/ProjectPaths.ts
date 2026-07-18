@@ -31,5 +31,7 @@ export const REQUIREMENTS_COVERAGE_PATH = path.join(REQUIREMENTS_COVERAGE_DIR, '
 export const REQUIREMENTS_GAPS_PATH = path.join(REQUIREMENTS_COVERAGE_DIR, 'coverage-gaps.json');
 export const REGRESSION_PACKS_DIR = path.join(REQUIREMENTS_ROOT, 'regression-packs');
 export const REQUIREMENT_MAP_PATH = path.join(CONFIG_ROOT, 'requirement-map.yaml');
+export const ADO_TEST_MAP_PATH = path.join(CONFIG_ROOT, 'ado-test-map.yaml');
+export const ADO_RUNTIME_DIR = path.join(RUNTIME_ROOT, 'ado');
 export const TESTS_WEB_ROOT = path.join(PROJECT_ROOT, 'tests', 'web');
 export const TESTS_API_ROOT = path.join(PROJECT_ROOT, 'tests', 'api');

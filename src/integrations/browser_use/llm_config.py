@@ -237,7 +237,7 @@ def create_browser_use_llm(provider: str, cfg: dict[str, Any]):
         return ChatOllama(model=cfg['model'], host=cfg.get('endpoint') or 'http://localhost:11434')
 
     raise ValueError(
-        f'browser-use runner supports activeProvider "azure", "openai", or "ollama" (got "{provider}"). '
+        f'WebPilot agent runner supports activeProvider "azure", "openai", or "ollama" (got "{provider}"). '
         'Set framework.activeProvider in config/webpilot.yaml or use Azure/OpenAI credentials.'
     )
 

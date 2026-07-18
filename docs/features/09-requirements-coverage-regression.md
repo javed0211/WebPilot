@@ -43,10 +43,18 @@ This feature introduces:
 
 Deferred:
 
-- Bidirectional write-back to ADO/Jira.
-- Auto-creating test cases in ADO Test Plans or Jira plugins.
+- Bidirectional field write-back for requirements (beyond TestedBy links).
 - Deep integrations with Xray, Zephyr, or TestRail.
 - Full app-code impact analysis.
+- Jira Test Plan write-back.
+
+Shipped (ADO Test Plans via bundled MCP):
+
+- Create/list Test Plans and Suites through official `@azure-devops/mcp`.
+- Create Test Cases, add to suites, map local automation via `ado-test-map.yaml`.
+- Publish PASSED/FAILED outcomes to ADO Test Runs (REST; MCP has no outcome-write tool).
+- CLI: `webpilot ado status|testplan|testcase|link|sync-cases|publish-results`.
+- Guide: [ado-test-plans.md](../guides/ado-test-plans.md).
 
 ## Official MCP Sources
 
@@ -56,8 +64,9 @@ Use the official Microsoft Azure DevOps MCP Server.
 
 Options:
 
-- Remote MCP Server (preferred where supported): `https://mcp.dev.azure.com/{organization}`
-- Local MCP Server: `microsoft/azure-devops-mcp`
+- **Bundled local MCP (product default):** pinned `@azure-devops/mcp` spawned by WebPilot from the install root (`ado:` in `webpilot.yaml`). Works when WebPilot is packaged into other repos — no Cursor `mcp.json` required.
+- Remote MCP Server (IDE-oriented): `https://mcp.dev.azure.com/{organization}`
+- Standalone local MCP: `npx @azure-devops/mcp {organization}`
 
 Expected requirement sources:
 
@@ -785,7 +794,7 @@ Requirements may contain confidential product data. WebPilot must:
 
 ## Implementation Status
 
-Phase 1 shipped (local model + AI-assisted discovery + reconciliation + regression packs). Phase 2 MCP sync is now wired for configured official ADO/Jira MCP stdio servers. The HTML dashboard is still planned.
+Phase 1 shipped (local model + AI-assisted discovery + reconciliation + regression packs). Phase 2 MCP sync is wired for official ADO/Jira stdio servers. **ADO Test Plans** (create plans/cases, map automation, publish pass/fail) ship via bundled `@azure-devops/mcp` under `src/integrations/ado/` and `webpilot ado …`. The HTML requirements dashboard is still planned.
 
 ### Shipped in Phase 1
 
@@ -798,6 +807,7 @@ Source modules:
 - `src/core/requirements/CoverageMatcher.ts` — deterministic semantic baseline matcher, acceptance-criterion-level scoring, and mapping reconciliation.
 - `src/core/requirements/RequirementMap.ts` — reads/writes `resources/config/requirement-map.yaml` (human-editable, `confirmed` / `proposed` / `rejected`).
 - `src/core/requirements/CoverageService.ts` — orchestrates reconcile → coverage → proposal writing → confirmation.
+- `src/integrations/ado/` — bundled ADO MCP launcher, Test Plan/Case services, automation map, REST result publisher.
 - `src/core/requirements/McpStdioClient.ts` — minimal JSON-RPC-over-stdio MCP client for official ADO/Jira MCP servers.
 - `src/core/requirements/RequirementSyncService.ts` — guided ADO WIQL / Jira JQL scope sync, MCP tool selection, result extraction, and direct normalization.
 - `src/core/regression/RegressionPackManager.ts` — priority- and flake-weighted pack recommendation with quarantine.

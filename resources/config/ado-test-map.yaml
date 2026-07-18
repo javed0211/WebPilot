@@ -1,0 +1,6 @@
+# WebPilot ↔ Azure DevOps Test Case map
+# Keys are repo-relative test paths. Populate via:
+#   webpilot ado link --test <path> --testcase <id>
+#   webpilot ado sync-cases --plan <id> --suite <id>
+version: 1
+tests: {}

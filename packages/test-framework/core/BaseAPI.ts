@@ -3,7 +3,7 @@ import Ajv from 'ajv';
 import { HttpMethod } from '../../../src/core/api/types';
 import { getNestedProperty } from '../../../src/core/api/variableUtils';
 
-const ajv = new Ajv({ allErrors: true });
+const ajv = new Ajv({ allErrors: true, strict: false });
 
 export class BaseAPI {
   protected requestContext: APIRequestContext;
@@ -60,6 +60,23 @@ export class BaseAPI {
     const status = response.status();
     console.log(`[BaseAPI] Assert status ${expectedStatus} (actual: ${status})`);
     expect(status).toBe(expectedStatus);
+  }
+
+  public async assertStatusIn(response: APIResponse, expected: number[]): Promise<void> {
+    const status = response.status();
+    console.log(`[BaseAPI] Assert status in [${expected.join(', ')}] (actual: ${status})`);
+    expect(expected).toContain(status);
+  }
+
+  public async assertHeaderEquals(
+    response: APIResponse,
+    expected: Record<string, string>
+  ): Promise<void> {
+    for (const [name, value] of Object.entries(expected)) {
+      const actual = response.headers()[name.toLowerCase()];
+      console.log(`[BaseAPI] Assert header ${name}=${value} (actual: ${actual})`);
+      expect(actual).toBe(value);
+    }
   }
 
   public async assertBodyContains(response: APIResponse, text: string): Promise<void> {

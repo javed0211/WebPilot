@@ -107,14 +107,14 @@ function tryPythonCandidate(cmd: string): string | null {
 function pythonSetupHint(): string {
   if (process.platform === 'win32') {
     return (
-      'browser-use requires Python 3.11+.\n' +
+      'WebPilot requires Python 3.11+.\n' +
       '  Install from https://www.python.org/downloads/ (or: winget install Python.Python.3.13)\n' +
       '  Or set WEBPILOT_PYTHON to your python.exe path\n' +
       'Then run: webpilot setup'
     );
   }
   return (
-    'browser-use requires Python 3.11+.\n' +
+    'WebPilot requires Python 3.11+.\n' +
     '  Install: brew install python@3.12  (macOS) or your distro python3 package\n' +
     '  Or set WEBPILOT_PYTHON=/path/to/python3\n' +
     'Then run: webpilot setup'
@@ -274,7 +274,7 @@ export function setupPythonVenv(systemPython?: string): string {
 }
 
 /**
- * Ensure browser-use is importable. Auto-creates .venv and installs deps unless
+ * Ensure the WebPilot browser agent is importable. Auto-creates .venv and installs deps unless
  * WEBPILOT_SKIP_PYTHON_SETUP=1.
  */
 export function ensureBrowserUsePython(): string {
@@ -286,10 +286,10 @@ export function ensureBrowserUsePython(): string {
 
   if (process.env.WEBPILOT_SKIP_PYTHON_SETUP === '1') {
     throw new Error(
-      'Python package "browser_use" is not installed.\n' +
+      'WebPilot browser agent is not installed.\n' +
       '  Run: webpilot setup\n' +
       `  Or: python -m venv .venv && ${process.platform === 'win32' ? '.venv\\Scripts\\pip' : '.venv/bin/pip'} install -r requirements.txt\n` +
-      '  Or set WEBPILOT_PYTHON to a Python that already has browser-use.'
+      '  Or set WEBPILOT_PYTHON to a Python that already has the WebPilot agent package.'
     );
   }
 
@@ -297,7 +297,7 @@ export function ensureBrowserUsePython(): string {
 
   if (!hasBrowserUse(pythonPath)) {
     throw new Error(
-      'Failed to install WebPilot\'s vendored browser-use source. Run manually:\n' +
+      'Failed to install WebPilot\'s vendored agent source. Run manually:\n' +
       `  ${pythonPath} -m pip install -r "${path.join(installRoot(), REQUIREMENTS)}"`
     );
   }
