@@ -1,0 +1,27 @@
+# Example HTTP seed (requires a reachable API that accepts create + delete).
+# Uncomment and adjust for your environment.
+schemaVersion: 1
+name: api-seed-user
+
+# seed:
+#   provider: http-seed
+#   method: POST
+#   url: "{{apiBaseUrl}}/test-users"
+#   bodyPath: fixtures/data/checkout-user.json
+#   cleanup:
+#     method: DELETE
+#     urlTemplate: "{{apiBaseUrl}}/test-users/{{id}}"
+#     idPath: id
+
+seed:
+  provider: static-json
+  path: fixtures/data/checkout-user.json
+
+isolation:
+  strategy: per-run
+
+failureCleanup:
+  enabled: true
+
+redaction:
+  fields: [email, password, token]

@@ -1,4 +1,5 @@
 import { TraceSelector } from '../codegen/ExecutionTrace';
+import type { SemanticAssertion } from './SemanticAssertion';
 
 export type AssertionKind =
   | 'url_contains'
@@ -9,7 +10,8 @@ export type AssertionKind =
   | 'value_equals'
   | 'count_at_least'
   | 'enabled'
-  | 'disabled';
+  | 'disabled'
+  | 'semantic';
 
 export type AssertionStrength = 'strong' | 'medium' | 'weak';
 
@@ -20,9 +22,11 @@ export interface AssertionCandidate {
   description: string;
   selector?: TraceSelector;
   expected?: string | number | boolean;
-  source: 'intent' | 'url-change' | 'selector' | 'value' | 'fallback';
+  source: 'intent' | 'url-change' | 'selector' | 'value' | 'fallback' | 'semantic';
   signals: string[];
   risks: string[];
+  /** Present when kind === 'semantic'. */
+  semantic?: SemanticAssertion;
 }
 
 export interface AssertionSummary {

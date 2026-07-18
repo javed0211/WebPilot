@@ -154,6 +154,9 @@ function wdioLocator(assertion: AssertionCandidate): string | null {
 
 export class AssertionEmitter {
   public static typeScriptPlaywright(assertion: AssertionCandidate, receiver = 'page'): string[] {
+    if (assertion.kind === 'semantic' && assertion.semantic) {
+      return AssertionEmitter.typeScriptPlaywrightSemantic(assertion, receiver);
+    }
     const comment = `// assertion(${assertion.strength}): ${assertion.description}`;
     switch (assertion.kind) {
       case 'url_contains':
@@ -177,7 +180,13 @@ export class AssertionEmitter {
       }
       case 'count_at_least': {
         const locator = assertion.selector ? tsLocator(assertion.selector, receiver) : null;
-        return locator ? [comment, `await expect(${locator}).toHaveCount(${Number(assertion.expected)});`] : [comment];
+        // Count is "at least N", not exact equality.
+        return locator
+          ? [
+              comment,
+              `expect(await ${locator}.count()).toBeGreaterThanOrEqual(${Number(assertion.expected)});`,
+            ]
+          : [comment];
       }
       default: {
         const locator = assertion.selector ? tsLocator(assertion.selector, receiver) : null;
@@ -188,7 +197,118 @@ export class AssertionEmitter {
     }
   }
 
+  /**
+   * Emit TypeScript Playwright for semantic assertions.
+   * Unsupported nodes fail closed with a thrown Error in generated code comments + runtime throw.
+   */
+  public static typeScriptPlaywrightSemantic(
+    assertion: AssertionCandidate,
+    receiver = 'page'
+  ): string[] {
+    const semantic = assertion.semantic!;
+    const lines: string[] = [
+      `// semantic-assertion(${assertion.strength}): ${assertion.description}`,
+    ];
+
+    for (const spec of semantic.extract || []) {
+      const src = spec.source;
+      if (src.kind === 'locatorText' && src.locator?.kind === 'testid') {
+        lines.push(
+          `const ${spec.name} = Number(String(await ${receiver}.getByTestId('${escapeSingle(src.locator.selector)}').innerText()).replace(/[^0-9.-]+/g, ''));`
+        );
+      } else if (src.kind === 'locatorText' && src.locator) {
+        lines.push(
+          `const ${spec.name} = Number(String(await ${receiver}.locator('${escapeSingle(src.locator.selector)}').innerText()).replace(/[^0-9.-]+/g, ''));`
+        );
+      } else if (src.kind === 'variable' || src.kind === 'jsonPath') {
+        lines.push(
+          `const ${spec.name} = /* from ${src.kind}:${src.path || spec.name} */ Number(process.env['${escapeSingle(spec.name)}'] ?? 0); // bind via fixture/API variables in runtime`
+        );
+      } else if (src.kind === 'url') {
+        lines.push(`const ${spec.name} = ${receiver}.url();`);
+      } else {
+        lines.push(
+          `throw new Error('Unsupported semantic extraction in codegen: ${spec.name} (${src.kind})');`
+        );
+      }
+    }
+
+    if (semantic.domainCheck) {
+      lines.push(
+        `// domain check: ${semantic.domainCheck.id} — evaluate via SemanticAssertionRuntime in WebPilot runs`
+      );
+      lines.push(
+        `throw new Error('Domain check ${semantic.domainCheck.id} requires SemanticAssertionRuntime (not inlined)');`
+      );
+      return lines;
+    }
+
+    if (semantic.assert) {
+      const left = AssertionEmitter.exprToTs(semantic.assert.left);
+      const right = semantic.assert.right
+        ? AssertionEmitter.exprToTs(semantic.assert.right)
+        : 'undefined';
+      const op = semantic.assert.op;
+      if (op === 'approximatelyEquals') {
+        const tol = semantic.assert.absoluteTolerance ?? 0.01;
+        lines.push(`expect(Math.abs((${left}) - (${right}))).toBeLessThanOrEqual(${tol});`);
+      } else if (op === 'equals') {
+        lines.push(`expect(${left}).toEqual(${right});`);
+      } else if (op === 'greaterOrEqual') {
+        lines.push(`expect(${left}).toBeGreaterThanOrEqual(${right});`);
+      } else if (op === 'greaterThan') {
+        lines.push(`expect(${left}).toBeGreaterThan(${right});`);
+      } else if (op === 'lessOrEqual') {
+        lines.push(`expect(${left}).toBeLessThanOrEqual(${right});`);
+      } else if (op === 'lessThan') {
+        lines.push(`expect(${left}).toBeLessThan(${right});`);
+      } else if (op === 'contains') {
+        lines.push(`expect(String(${left})).toContain(String(${right}));`);
+      } else if (op === 'exists') {
+        lines.push(`expect(${left}).toBeTruthy();`);
+      } else {
+        lines.push(
+          `throw new Error('Unsupported semantic operator in codegen: ${op}');`
+        );
+      }
+    }
+
+    return lines;
+  }
+
+  private static exprToTs(expr: import('./SemanticAssertion').SemanticExpression): string {
+    switch (expr.kind) {
+      case 'literal':
+        return JSON.stringify(expr.value);
+      case 'ref':
+        return expr.name;
+      case 'arithmetic': {
+        const op =
+          expr.op === 'add'
+            ? '+'
+            : expr.op === 'subtract'
+              ? '-'
+              : expr.op === 'multiply'
+                ? '*'
+                : '/';
+        return `(${AssertionEmitter.exprToTs(expr.left)} ${op} ${AssertionEmitter.exprToTs(expr.right)})`;
+      }
+      case 'array':
+        return `[${expr.items.map((i) => AssertionEmitter.exprToTs(i)).join(', ')}]`;
+      case 'extract':
+        return expr.extraction.name;
+      default:
+        return 'undefined';
+    }
+  }
+
   public static pythonPlaywright(assertion: AssertionCandidate, receiver = 'page'): string[] {
+    if (assertion.kind === 'semantic') {
+      return [
+        `# semantic-assertion not emitted for Python yet: ${assertion.description}`,
+        `raise NotImplementedError("Semantic assertions require TypeScript Playwright or SemanticAssertionRuntime")`,
+      ];
+    }
     const comment = `# assertion(${assertion.strength}): ${assertion.description}`;
     switch (assertion.kind) {
       case 'url_contains':

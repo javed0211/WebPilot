@@ -6,6 +6,7 @@ import { HEALING_PROPOSALS_DIR } from '../core/ProjectPaths';
 import { SelectorCandidate } from '../core/selectors/SelectorCandidate';
 import { SelectorRanker } from '../core/selectors/SelectorRanker';
 import { SelectorRegistry } from '../core/selectors/SelectorRegistry';
+import { resolveFeatureFlags } from '../core/lifecycle/FeatureFlags';
 
 export interface HealingResult {
   healedSelector: string;
@@ -13,6 +14,8 @@ export interface HealingResult {
   reasoning: string;
   proposalPath?: string;
   candidates?: SelectorCandidate[];
+  /** True when this call wrote the healing cache (legacy path only). */
+  cached?: boolean;
 }
 
 export interface HealingProposal {
@@ -29,6 +32,14 @@ export interface HealingProposal {
   apply: {
     instructions: string;
   };
+  /** Set when classification has run (sidecar may also exist). */
+  classification?: {
+    label: string;
+    confidence: number;
+    reasons: string[];
+    state?: string;
+    committed?: boolean;
+  };
 }
 
 export class HealingAgent {
@@ -38,22 +49,17 @@ export class HealingAgent {
   constructor(llm: LLMClient, cachePath?: string) {
     this.llm = llm;
     this.cachePath = cachePath ?? path.join(process.cwd(), 'runtime', 'healing-cache', 'cache.json');
-    
-    // Ensure cache directory exists
+
     const dir = path.dirname(this.cachePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
   }
 
-  /**
-   * Loads a selector override from the local healing cache if available
-   */
   public getFromCache(brokenSelector: string): string | null {
     return HealingAgent.lookupCache(brokenSelector, this.cachePath);
   }
 
-  /** Static cache lookup for codegen / replay without constructing an agent. */
   public static lookupCache(
     brokenSelector: string,
     cachePath?: string
@@ -71,7 +77,8 @@ export class HealingAgent {
   }
 
   /**
-   * Persists a newly healed selector to the cache file
+   * Persists a healed selector to the cache.
+   * Prefer HealingTransaction.finalize() under postvalidated/enforce policies.
    */
   public saveToCache(brokenSelector: string, healedSelector: string): void {
     let cache: Record<string, string> = {};
@@ -84,6 +91,10 @@ export class HealingAgent {
     }
     cache[brokenSelector] = healedSelector;
     fs.writeFileSync(this.cachePath, JSON.stringify(cache, null, 2), 'utf8');
+  }
+
+  public getCachePath(): string {
+    return this.cachePath;
   }
 
   private candidatesFromState(state: PageState): SelectorCandidate[] {
@@ -137,29 +148,32 @@ export class HealingAgent {
   }
 
   /**
-   * Inspects current DOM to find the closest element matching the intent of the broken selector
+   * Propose a healed selector without writing the trusted healing cache.
    */
-  public async heal(
+  public async propose(
     brokenSelector: string,
     state: PageState,
     actionType: string
   ): Promise<HealingResult> {
     const selectorCandidates = this.candidatesFromState(state);
 
-    // First check local cache
     const cached = this.getFromCache(brokenSelector);
     if (cached) {
-      const result = {
+      const result: HealingResult = {
         healedSelector: cached,
         confidence: 1.0,
         reasoning: 'Loaded from local self-healing cache',
         candidates: selectorCandidates,
+        cached: false,
       };
-      const proposalPath = this.saveProposal(brokenSelector, state, actionType, result, selectorCandidates);
-      return {
-        ...result,
-        proposalPath,
-      };
+      const proposalPath = this.saveProposal(
+        brokenSelector,
+        state,
+        actionType,
+        result,
+        selectorCandidates
+      );
+      return { ...result, proposalPath };
     }
 
     const systemPrompt = `You are the WebPilot Self-Healing Agent.
@@ -176,9 +190,9 @@ Output JSON Structure:
 }`;
 
     const elementsTreeText = state.elements
-      .map(el => {
+      .map((el) => {
         const candidates = (el.selectorCandidates || [])
-          .map(candidate => `${candidate.expression}`)
+          .map((candidate) => `${candidate.expression}`)
           .join(' | ');
         return `Tag: <${el.tagName}> | Text: "${el.text}" | Plh: "${el.placeholder}" | Selector: "${el.selector}" | Candidates: ${candidates}`;
       })
@@ -196,7 +210,7 @@ Identify the best element and return its selector.`;
 
     const messages: LLMMessage[] = [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
+      { role: 'user', content: userPrompt },
     ];
 
     const response = await this.llm.complete(messages);
@@ -210,24 +224,50 @@ Identify the best element and return its selector.`;
 
       const result: HealingResult = JSON.parse(cleanedText);
       result.candidates = selectorCandidates;
-      const proposalPath = this.saveProposal(brokenSelector, state, actionType, result, selectorCandidates);
+      result.cached = false;
+      const proposalPath = this.saveProposal(
+        brokenSelector,
+        state,
+        actionType,
+        result,
+        selectorCandidates
+      );
       result.proposalPath = proposalPath;
-      
-      // Save it to cache for subsequent execution speed-ups
-      if (result.confidence >= 0.6) {
-        this.saveToCache(brokenSelector, result.healedSelector);
-        SelectorRegistry.recordFailure(state.url, actionType);
-      }
-
       return result;
     } catch (error) {
       console.error('[Healing Error] Failed to parse healing result. LLM output:', response.text);
       return {
-        healedSelector: brokenSelector, // Fallback to original
+        healedSelector: brokenSelector,
         confidence: 0.0,
         reasoning: `AI Healing output could not be parsed: ${response.text}`,
         candidates: selectorCandidates,
+        cached: false,
       };
     }
+  }
+
+  /**
+   * Propose a heal. Under legacy commitPolicy (and classification !== enforce),
+   * also writes the healing cache immediately for backward compatibility.
+   */
+  public async heal(
+    brokenSelector: string,
+    state: PageState,
+    actionType: string
+  ): Promise<HealingResult> {
+    const result = await this.propose(brokenSelector, state, actionType);
+    const flags = resolveFeatureFlags();
+    const mayCacheEagerly =
+      result.confidence >= 0.6 &&
+      flags.healingCommitPolicy === 'legacy' &&
+      flags.healingClassification !== 'enforce';
+
+    if (mayCacheEagerly) {
+      this.saveToCache(brokenSelector, result.healedSelector);
+      SelectorRegistry.recordFailure(state.url, actionType);
+      result.cached = true;
+    }
+
+    return result;
   }
 }

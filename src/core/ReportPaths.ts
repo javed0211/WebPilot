@@ -16,6 +16,8 @@ export const REPORTS_TRACES_DIR = path.join(REPORTS_ROOT, 'traces');
 export const REPORTS_SCREENSHOTS_DIR = path.join(REPORTS_ROOT, 'screenshots');
 export const REPORTS_ASSETS_DIR = path.join(REPORTS_ROOT, 'assets');
 export const REPORTS_HISTORY_DIR = path.join(REPORTS_ROOT, 'history');
+export const REPORTS_EVENTS_DIR = path.join(REPORTS_DATA_DIR, 'events');
+export const REPORTS_EVIDENCE_DIR = path.join(REPORTS_DATA_DIR, 'evidence');
 
 const REPORT_DIRS = [
   REPORTS_HTML_DIR,
@@ -31,6 +33,8 @@ const REPORT_DIRS = [
   REPORTS_SCREENSHOTS_DIR,
   REPORTS_ASSETS_DIR,
   REPORTS_HISTORY_DIR,
+  REPORTS_EVENTS_DIR,
+  REPORTS_EVIDENCE_DIR,
 ] as const;
 
 export function ensureReportDirs(): void {

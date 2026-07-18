@@ -3,6 +3,10 @@ import * as path from 'path';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import { chromium } from 'playwright';
 import { REPORTS_SCREENSHOTS_DIR, REPORTS_VIDEOS_DIR } from '../ReportPaths';
+import type { ExecutionEventLedger } from '../events/ExecutionEventLedger';
+import { PlaywrightEventCollector } from '../events/PlaywrightEventCollector';
+import { resolveFeatureFlags } from '../lifecycle/FeatureFlags';
+import { HealingTransaction } from '../healing/HealingTransaction';
 import type {
   ActHealingRecord,
   ActHistoryDocument,
@@ -27,7 +31,13 @@ export interface ActReplayHealHook {
     step: ActStep;
     brokenDescription: string;
     locators: ActLocator[];
-  }): Promise<{ healedSelector: string; confidence: number; reasoning: string; proposalPath?: string } | null>;
+  }): Promise<{
+    healedSelector: string;
+    confidence: number;
+    reasoning: string;
+    proposalPath?: string;
+    proposeSequence?: number;
+  } | null>;
 }
 
 export interface ActReplayOptions {
@@ -39,6 +49,13 @@ export interface ActReplayOptions {
   video?: 'off' | 'on' | 'retain-on-failure';
   /** off | on | only-on-failure (default: only-on-failure) */
   screenshots?: 'off' | 'on' | 'only-on-failure';
+  /** Optional shared execution event ledger. */
+  eventLedger?: ExecutionEventLedger;
+  /** Callbacks used when a heal is committed after post-action validation. */
+  healCommit?: {
+    saveToCache: (brokenSelector: string, healedSelector: string) => void;
+    upsertInventory?: (healedSelector: string, url?: string) => void;
+  };
 }
 
 function stepLocators(step: ActStep): ActLocator[] {
@@ -52,6 +69,63 @@ function normalizeAction(action: string): string {
   if (a === 'send_keys') return 'press';
   if (a === 'navigate_back' || a === 'back') return 'go_back';
   return a;
+}
+
+type HealMeta = {
+  proposeSequence?: number;
+  candidateUnique: boolean;
+  broken: string;
+  healed: {
+    healedSelector: string;
+    confidence: number;
+    reasoning: string;
+    proposalPath?: string;
+  };
+};
+
+function finalizeHealedStep(args: {
+  healing: ActHealingRecord[];
+  stepResult: ActReplayStepResult & { _healMeta?: HealMeta };
+  ledger: ExecutionEventLedger | null | undefined;
+  healCommit?: ActReplayOptions['healCommit'];
+  pageUrl?: string;
+}): void {
+  const meta = args.stepResult._healMeta;
+  const record = [...args.healing].reverse().find((h) => h.stepIndex === args.stepResult.index);
+  if (!record || !meta) return;
+
+  const flags = resolveFeatureFlags();
+  const tx = new HealingTransaction(
+    {
+      brokenSelector: meta.broken,
+      healedSelector: meta.healed.healedSelector,
+      confidence: meta.healed.confidence,
+      reasoning: meta.healed.reasoning,
+      proposalPath: meta.healed.proposalPath,
+      url: args.pageUrl || record.url,
+      actionType: args.stepResult.action,
+    },
+    {
+      flags,
+      ledger: args.ledger,
+      proposeSequence: meta.proposeSequence,
+    }
+  );
+  tx.markCandidateVerified(meta.candidateUnique);
+  tx.markActionAttempted(args.stepResult.ok, args.stepResult.error);
+  // Postcondition/assertion hooks are optional in v1 — leave null → may yield inconclusive.
+  const result = tx.finalize({
+    saveToCache: args.healCommit?.saveToCache,
+    upsertInventory: args.healCommit?.upsertInventory,
+  });
+
+  record.classification = result.classification.label;
+  record.classificationConfidence = result.classification.confidence;
+  record.classificationReasons = result.classification.reasons;
+  record.state = result.state;
+  record.committed = result.committed;
+  HealingTransaction.writeClassificationSidecar(meta.healed.proposalPath, result);
+  delete args.stepResult._healMeta;
 }
 
 async function dismissBookingOverlays(page: Page): Promise<boolean> {
@@ -564,6 +638,9 @@ export class ActHistoryPlaywrightRunner {
     let videoPath: string | undefined;
     const screenshotPaths: string[] = [];
     const videoTmpDir = path.join(REPORTS_VIDEOS_DIR, `.act-replay-${slug}`);
+    let eventCollector: PlaywrightEventCollector | null = null;
+    let currentStepIndex: number | undefined;
+    const ledger = options.eventLedger;
 
     try {
       browser = await chromium.launch({
@@ -583,8 +660,24 @@ export class ActHistoryPlaywrightRunner {
       });
       const page = await context.newPage();
 
+      if (ledger) {
+        const flags = resolveFeatureFlags();
+        eventCollector = new PlaywrightEventCollector({
+          ledger,
+          networkMode: flags.captureNetwork,
+          consoleMode: flags.captureConsole,
+          currentStepIndex: () => currentStepIndex,
+        });
+        eventCollector.attach(page);
+        ledger.appendLifecycle('replay.browser.launched', 'passed', {
+          headed: Boolean(options.headed),
+          stepCount: steps.length,
+        });
+      }
+
       for (const step of steps) {
         const action = normalizeAction(step.action);
+        currentStepIndex = step.index;
         const stepResult: ActReplayStepResult = {
           index: step.index,
           action,
@@ -675,26 +768,58 @@ export class ActHistoryPlaywrightRunner {
                 locators,
               });
               if (healed?.healedSelector) {
-                const loc = bindHealedSelector(page, healed.healedSelector);
-                await loc.first().waitFor({ state: 'visible', timeout });
-                resolved = {
-                  locator: loc.first(),
-                  used: { kind: 'css', value: healed.healedSelector },
-                  description: healed.healedSelector,
-                };
-                healedCount += 1;
-                stepResult.healed = true;
-                healing.push({
-                  stepIndex: step.index,
-                  action,
-                  url: page.url(),
-                  brokenSelector: broken,
-                  healedSelector: healed.healedSelector,
-                  confidence: healed.confidence,
-                  reasoning: healed.reasoning,
-                  proposalPath: healed.proposalPath,
-                  at: new Date().toISOString(),
-                });
+                let candidateUnique = false;
+                try {
+                  const loc = bindHealedSelector(page, healed.healedSelector);
+                  await loc.first().waitFor({ state: 'visible', timeout });
+                  candidateUnique = true;
+                  resolved = {
+                    locator: loc.first(),
+                    used: { kind: 'css', value: healed.healedSelector },
+                    description: healed.healedSelector,
+                  };
+                  healedCount += 1;
+                  stepResult.healed = true;
+                  healing.push({
+                    stepIndex: step.index,
+                    action,
+                    url: page.url(),
+                    brokenSelector: broken,
+                    healedSelector: healed.healedSelector,
+                    confidence: healed.confidence,
+                    reasoning: healed.reasoning,
+                    proposalPath: healed.proposalPath,
+                    at: new Date().toISOString(),
+                    state: 'candidate_verified',
+                    classification: 'inconclusive',
+                  });
+                  // Stash propose sequence for classification finalize after the action.
+                  (stepResult as ActReplayStepResult & { _healMeta?: unknown })._healMeta = {
+                    proposeSequence: healed.proposeSequence,
+                    candidateUnique,
+                    broken,
+                    healed,
+                  };
+                } catch (verifyErr) {
+                  healing.push({
+                    stepIndex: step.index,
+                    action,
+                    url: page.url(),
+                    brokenSelector: broken,
+                    healedSelector: healed.healedSelector,
+                    confidence: healed.confidence,
+                    reasoning: healed.reasoning,
+                    proposalPath: healed.proposalPath,
+                    at: new Date().toISOString(),
+                    state: 'rejected',
+                    classification: 'possible_regression',
+                    classificationReasons: [
+                      'Healed selector did not become uniquely visible',
+                      verifyErr instanceof Error ? verifyErr.message : String(verifyErr),
+                    ],
+                    committed: false,
+                  });
+                }
               }
             }
 
@@ -713,12 +838,15 @@ export class ActHistoryPlaywrightRunner {
               );
             }
 
-            // Live Playwright success → page inventory (trust gate, not heal path).
-            try {
-              const { upsertLiveVerifiedLocator } = require('./PageInventory') as typeof import('./PageInventory');
-              upsertLiveVerifiedLocator(page.url(), resolved.used, resolved.used.name || null);
-            } catch {
-              /* inventory is best-effort */
+            // Live Playwright success → page inventory (trust gate).
+            // Healed locators are committed only after post-action classification.
+            if (!stepResult.healed) {
+              try {
+                const { upsertLiveVerifiedLocator } = require('./PageInventory') as typeof import('./PageInventory');
+                upsertLiveVerifiedLocator(page.url(), resolved.used, resolved.used.name || null);
+              } catch {
+                /* inventory is best-effort */
+              }
             }
 
             if (action === 'click') {
@@ -759,6 +887,23 @@ export class ActHistoryPlaywrightRunner {
           stepResult.error = err instanceof Error ? err.message : String(err);
         }
 
+        // Finalize heal classification after the action attempt (success or failure).
+        if (stepResult.healed) {
+          finalizeHealedStep({
+            healing,
+            stepResult,
+            ledger,
+            healCommit: options.healCommit,
+            pageUrl: (() => {
+              try {
+                return page.url();
+              } catch {
+                return undefined;
+              }
+            })(),
+          });
+        }
+
         if (!stepResult.ok && screenshotMode !== 'off') {
           try {
             const ssDir = path.join(REPORTS_SCREENSHOTS_DIR, slug);
@@ -773,6 +918,18 @@ export class ActHistoryPlaywrightRunner {
         }
 
         stepResults.push(stepResult);
+        ledger?.appendAction({
+          action,
+          stepIndex: step.index,
+          outcome: stepResult.ok ? 'passed' : 'failed',
+          locator: stepResult.locatorUsed,
+          url: step.url || undefined,
+          error: stepResult.error,
+          healed: stepResult.healed,
+          extra: stepResult.screenshotPath
+            ? { screenshotPath: stepResult.screenshotPath }
+            : undefined,
+        });
         options.onStep?.(stepResult);
         if (!stepResult.ok) {
           failure = `Step ${step.index} [${action}] failed: ${stepResult.error}`;
@@ -782,6 +939,7 @@ export class ActHistoryPlaywrightRunner {
 
       success = !failure;
     } finally {
+      eventCollector?.detach();
       // Close context before browser so Playwright flushes the video file.
       if (context) {
         await context.close().catch(() => undefined);

@@ -1,5 +1,6 @@
 import { AssertionCandidate, AssertionStrength, AssertionSummary } from './AssertionCandidate';
 import { TraceSelector, TraceStep } from '../codegen/ExecutionTrace';
+import { AssertionDslParser } from './AssertionDslParser';
 
 const SUCCESS_WORDS = [
   'added',
@@ -196,8 +197,34 @@ function explicitAssert(step: TraceStep, previous?: TraceStep): AssertionCandida
   );
 }
 
+function semanticCandidates(step: TraceStep): AssertionCandidate[] {
+  // Prefer a single text surface to avoid duplicating identical intent/description lines.
+  const text = step.intent || step.description || step.value || '';
+  if (!AssertionDslParser.looksLikeSemanticDsl(text) && !/^Extract\b|^Assert\b/im.test(text)) {
+    return [];
+  }
+  const plan = AssertionDslParser.parseText(text);
+  step.semanticPlan = plan;
+  return plan.assertions.map((semantic, index) => ({
+    kind: 'semantic' as const,
+    strength: 'strong' as const,
+    confidence: 0.95,
+    description: semantic.description || semantic.assertionId,
+    source: 'semantic' as const,
+    signals: ['semantic-dsl', ...(plan.extractions.length ? ['has-extractions'] : [])],
+    risks: plan.rejected.map((r) => r.reason),
+    semantic,
+    expected: index,
+  }));
+}
+
 export class AssertionRanker {
   public static candidatesForStep(step: TraceStep, previous?: TraceStep): AssertionCandidate[] {
+    const semantic = semanticCandidates(step);
+    if (semantic.length) {
+      return semantic;
+    }
+
     const candidates = [
       explicitAssert(step, previous),
       homepageUrlAssertion(step),

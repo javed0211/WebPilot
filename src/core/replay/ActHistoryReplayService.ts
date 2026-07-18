@@ -10,11 +10,15 @@ import {
 } from '../ReportPaths';
 import { generateExecutionReports } from '../ExecutionReportService';
 import { HealingAgent } from '../../agents/HealingAgent';
+import { ExecutionEventLedger } from '../events/ExecutionEventLedger';
+import { eventBundlePath, replayStepResultsPath } from '../events/EventPaths';
+import { resolveFeatureFlags } from '../lifecycle/FeatureFlags';
 import {
   ActHistoryPlaywrightRunner,
   type ActReplayHealHook,
 } from './ActHistoryPlaywrightRunner';
 import type {
+  ActHealingRecord,
   ActHistoryDocument,
   ActReplayResult,
   ActRunLog,
@@ -83,7 +87,50 @@ function resolveScreenshotMode(cm: ConfigManager): 'off' | 'on' | 'only-on-failu
   return 'only-on-failure';
 }
 
-function persistReplayArtifacts(slug: string, result: ActReplayResult): void {
+function persistReplayStepResults(
+  slug: string,
+  runId: string,
+  result: ActReplayResult
+): string | undefined {
+  try {
+    const outPath = replayStepResultsPath(slug, runId);
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(
+      outPath,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          runId,
+          slug,
+          success: result.success,
+          stepsExecuted: result.stepsExecuted,
+          healedCount: result.healedCount,
+          failure: result.failure,
+          stepResults: result.stepResults,
+          videoPath: result.videoPath,
+          screenshotPaths: result.screenshotPaths,
+          persistedAt: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+    return outPath;
+  } catch (err) {
+    console.warn(
+      `Warning: could not persist replay step results for ${slug}:`,
+      err instanceof Error ? err.message : err
+    );
+    return undefined;
+  }
+}
+
+function persistReplayArtifacts(
+  slug: string,
+  result: ActReplayResult,
+  extras?: { eventBundlePath?: string; stepResultsPath?: string; runId?: string }
+): void {
   const summaryPath = resolveSummaryPath(slug);
   if (!fs.existsSync(summaryPath)) return;
 
@@ -112,10 +159,14 @@ function persistReplayArtifacts(slug: string, result: ActReplayResult): void {
       artifacts.screenshots = [];
     }
 
+    if (extras?.eventBundlePath) artifacts.eventBundle = extras.eventBundlePath;
+    if (extras?.stepResultsPath) artifacts.stepResults = extras.stepResultsPath;
+
     summary.artifacts = artifacts;
     summary.status = result.success ? 'PASSED' : 'FAILED';
     summary.stepsExecuted = result.stepsExecuted;
     summary.timestamp = new Date().toISOString();
+    if (extras?.runId) summary.runId = extras.runId;
     if (!result.success && result.failure) {
       summary.failureContext = result.failure;
     }
@@ -145,58 +196,110 @@ export class ActHistoryReplayService {
     const runner = new ActHistoryPlaywrightRunner();
     const cm = ConfigManager.getInstance();
     const healEnabled = Boolean(options.heal);
+    const flags = resolveFeatureFlags(cm);
+
+    const ledger = flags.eventLedger
+      ? new ExecutionEventLedger({ scenarioId: slug, source: 'replay' })
+      : null;
+    ledger?.appendLifecycle('replay.started', 'started', { heal: healEnabled });
 
     let healHook: ActReplayHealHook | null = null;
+    let healer: HealingAgent | null = null;
     if (healEnabled) {
       const llm = new LLMClient();
-      const healer = new HealingAgent(
+      healer = new HealingAgent(
         llm,
         cm.get('framework.healingCachePath', './runtime/healing-cache/cache.json')
       );
       healHook = async ({ page, step, brokenDescription }) => {
         const state = await ActHistoryPlaywrightRunner.pageStateForHeal(page);
-        const result = await healer.heal(brokenDescription, state as any, step.action);
+        // Always propose — cache/inventory commit happens after post-action classification.
+        const result = await healer!.propose(brokenDescription, state as any, step.action);
         if (!result.healedSelector || result.confidence < 0.6) return null;
-        // Staleness path: recapture live page inventory and upsert healed locator
-        try {
-          const {
-            snapshotFromHealPageState,
-            upsertInventory,
-            verifiedLocatorFromHealedSelector,
-          } = require('./PageInventory') as typeof import('./PageInventory');
-          const snap = snapshotFromHealPageState(state);
-          const verified = verifiedLocatorFromHealedSelector(result.healedSelector);
-          upsertInventory(snap, {
-            verifiedLocator: verified || undefined,
-            axName: verified?.name || null,
-          });
-        } catch (err) {
-          console.warn(
-            '  Warning: page inventory upsert after heal failed:',
-            err instanceof Error ? err.message : err
-          );
-        }
-        return result;
+        const proposeEvent = ledger?.append({
+          kind: 'healing',
+          phase: 'execute',
+          outcome: 'info',
+          stepIndex: step.index,
+          payload: {
+            event: 'heal.proposed',
+            brokenSelector: brokenDescription,
+            healedSelector: result.healedSelector,
+            confidence: result.confidence,
+            reasoning: result.reasoning,
+            proposalPath: result.proposalPath,
+            commitPolicy: flags.healingCommitPolicy,
+            classificationMode: flags.healingClassification,
+          },
+        });
+        return {
+          healedSelector: result.healedSelector,
+          confidence: result.confidence,
+          reasoning: result.reasoning,
+          proposalPath: result.proposalPath,
+          proposeSequence: proposeEvent?.sequence,
+        };
       };
     }
 
     const headed = BrowserProviderRegistry.resolveHeaded();
-    const { result, healing } = await runner.run(slug, doc, {
-      headed,
-      stepTimeoutMs: options.stepTimeoutMs,
-      heal: healHook,
-      video: resolveVideoMode(cm),
-      screenshots: resolveScreenshotMode(cm),
-      onStep: (stepResult) => {
-        const mark = stepResult.ok ? 'ok' : 'FAIL';
-        const healMark = stepResult.healed ? ' (healed)' : '';
-        console.log(
-          `  [${mark}] #${stepResult.index} ${stepResult.action}${healMark}` +
-            (stepResult.locatorUsed ? ` — ${stepResult.locatorUsed}` : '') +
-            (stepResult.error ? ` — ${stepResult.error}` : '')
-        );
-      },
-    });
+    let result: ActReplayResult;
+    let healing: ActHealingRecord[] = [];
+    try {
+      const run = await runner.run(slug, doc, {
+        headed,
+        stepTimeoutMs: options.stepTimeoutMs,
+        heal: healHook,
+        video: resolveVideoMode(cm),
+        screenshots: resolveScreenshotMode(cm),
+        eventLedger: ledger || undefined,
+        healCommit: healer
+          ? {
+              saveToCache: (broken, healedSel) => healer!.saveToCache(broken, healedSel),
+              upsertInventory: (healedSel, url) => {
+                try {
+                  const { upsertLiveVerifiedLocator, verifiedLocatorFromHealedSelector } =
+                    require('./PageInventory') as typeof import('./PageInventory');
+                  const verified = verifiedLocatorFromHealedSelector(healedSel);
+                  if (!verified || !url) return;
+                  upsertLiveVerifiedLocator(
+                    url,
+                    {
+                      kind: verified.kind as any,
+                      value: verified.value,
+                      name: verified.name,
+                      exact: verified.exact,
+                    },
+                    verified.name || null
+                  );
+                } catch (err) {
+                  console.warn(
+                    '  Warning: page inventory upsert after classified heal failed:',
+                    err instanceof Error ? err.message : err
+                  );
+                }
+              },
+            }
+          : undefined,
+        onStep: (stepResult) => {
+          const mark = stepResult.ok ? 'ok' : 'FAIL';
+          const healMark = stepResult.healed ? ' (healed)' : '';
+          console.log(
+            `  [${mark}] #${stepResult.index} ${stepResult.action}${healMark}` +
+              (stepResult.locatorUsed ? ` — ${stepResult.locatorUsed}` : '') +
+              (stepResult.error ? ` — ${stepResult.error}` : '')
+          );
+        },
+      });
+      result = run.result;
+      healing = run.healing;
+    } catch (err) {
+      ledger?.appendLifecycle('replay.crashed', 'failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      ledger?.finalize();
+      throw err;
+    }
 
     // Strict --no-heal: never persist healing records or cache side-effects.
     if (healEnabled && healing.length) {
@@ -210,7 +313,25 @@ export class ActHistoryReplayService {
       });
     }
 
-    persistReplayArtifacts(slug, result);
+    let stepResultsPath: string | undefined;
+    let bundlePath: string | undefined;
+    if (ledger) {
+      ledger.appendLifecycle('replay.finished', result.success ? 'passed' : 'failed', {
+        stepsExecuted: result.stepsExecuted,
+        healedCount: result.healedCount,
+        failure: result.failure,
+      });
+      const bundle = ledger.finalize();
+      bundlePath = eventBundlePath(slug, bundle.header.runId);
+      stepResultsPath = persistReplayStepResults(slug, bundle.header.runId, result);
+      persistReplayArtifacts(slug, result, {
+        eventBundlePath: bundlePath,
+        stepResultsPath,
+        runId: bundle.header.runId,
+      });
+    } else {
+      persistReplayArtifacts(slug, result);
+    }
     try {
       await generateExecutionReports({
         testSlugs: [slug],
@@ -229,6 +350,9 @@ export class ActHistoryReplayService {
     }
     if (result.screenshotPaths?.length) {
       console.log(`  Failure screenshots: ${result.screenshotPaths.length}`);
+    }
+    if (bundlePath) {
+      console.log(`  Event ledger: ${bundlePath}`);
     }
 
     try {

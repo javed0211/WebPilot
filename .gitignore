@@ -63,6 +63,8 @@ runtime/healing-cache/*
 !runtime/healing-cache/.gitkeep
 runtime/selectors/
 runtime/screenshots/
+runtime/fixtures/
+runtime/auth-state/
 
 # Repository knowledge graph (regenerated before codegen)
 runtime/knowledge/

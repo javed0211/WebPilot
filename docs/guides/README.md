@@ -60,7 +60,7 @@ Write .txt scenario  →  webpilot run  →  learn + execute live  →  optional
 |-------|---------|
 | [Test Authoring](./test-authoring.md) | `.txt` format, metadata, templates, `webpilot create` |
 | [API Testing](./api-testing.md) | HTTP scenarios, full OpenAPI/Swagger import |
-| [Reports & Evidence](./reports-and-evidence.md) | HTML dashboards, traces, videos, AI analysis |
+| [Reports & Evidence](./reports-and-evidence.md) | HTML dashboards, traces, videos, AI analysis ([governance spec](../features/11-evidence-first-reports.md)) |
 | [CI & Artifacts](./ci-and-artifacts.md) | `webpilot ci`, JUnit, artifact manifest |
 | [CLI Reference](./cli-reference.md) | All commands, flags, and environment variables |
 | [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md) | Clear / list history, success-only codegen rules |

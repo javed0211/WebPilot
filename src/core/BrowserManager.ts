@@ -1,6 +1,9 @@
 import { chromium, firefox, webkit, Browser, BrowserContext, Page } from 'playwright';
 import * as path from 'path';
 import * as fs from 'fs';
+import type { ExecutionEventLedger } from './events/ExecutionEventLedger';
+import { PlaywrightEventCollector } from './events/PlaywrightEventCollector';
+import { resolveFeatureFlags } from './lifecycle/FeatureFlags';
 
 export interface InteractiveElement {
   id: number;
@@ -22,6 +25,12 @@ export interface PageState {
   elements: InteractiveElement[];
 }
 
+export interface BrowserManagerLaunchOptions {
+  /** Optional event ledger for network/console capture. */
+  eventLedger?: ExecutionEventLedger;
+  storageStatePath?: string;
+}
+
 export class BrowserManager {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
@@ -32,6 +41,7 @@ export class BrowserManager {
   private screenshotsOption: string;
   private videoOption: string;
   private traceOption: boolean;
+  private eventCollector: PlaywrightEventCollector | null = null;
 
   constructor(config: {
     browser?: string;
@@ -52,7 +62,7 @@ export class BrowserManager {
   /**
    * Launches the browser instance and sets up the context and recording settings
    */
-  public async launch(): Promise<Page> {
+  public async launch(options: BrowserManagerLaunchOptions = {}): Promise<Page> {
     const launchOptions: Parameters<typeof chromium.launch>[0] = {
       headless: this.headless,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -87,7 +97,8 @@ export class BrowserManager {
     this.context = await this.browser.newContext({
       viewport: this.viewport,
       recordVideo,
-      acceptDownloads: true
+      acceptDownloads: true,
+      ...(options.storageStatePath ? { storageState: options.storageStatePath } : {}),
     });
 
     if (this.traceOption) {
@@ -95,6 +106,21 @@ export class BrowserManager {
     }
 
     this.page = await this.context.newPage();
+
+    if (options.eventLedger) {
+      const flags = resolveFeatureFlags();
+      this.eventCollector = new PlaywrightEventCollector({
+        ledger: options.eventLedger,
+        networkMode: flags.captureNetwork,
+        consoleMode: flags.captureConsole,
+      });
+      this.eventCollector.attach(this.page);
+      options.eventLedger.appendLifecycle('browser.launched', 'passed', {
+        browser: this.browserTypeStr,
+        headless: this.headless,
+      });
+    }
+
     return this.page;
   }
 
@@ -113,6 +139,9 @@ export class BrowserManager {
    */
   public async close(testName: string, success: boolean): Promise<void> {
     try {
+      this.eventCollector?.detach();
+      this.eventCollector = null;
+
       if (this.context && this.traceOption) {
         const tracePath = path.join(process.cwd(), 'runtime', 'reports', 'traces', `${testName.replace(/\s+/g, '_')}_trace.zip`);
         fs.mkdirSync(path.dirname(tracePath), { recursive: true });

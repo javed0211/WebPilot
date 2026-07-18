@@ -70,6 +70,25 @@ export interface ActHealingRecord {
   reasoning?: string;
   proposalPath?: string;
   at: string;
+  /** Change classification — defaults to inconclusive for legacy records. */
+  classification?:
+    | 'likely_intentional_refactor'
+    | 'possible_regression'
+    | 'inconclusive';
+  classificationConfidence?: number;
+  classificationReasons?: string[];
+  /** Transaction state after post-action validation. */
+  state?:
+    | 'proposed'
+    | 'candidate_verified'
+    | 'action_attempted'
+    | 'post_action_validated'
+    | 'committed'
+    | 'rejected'
+    | 'quarantined'
+    | 'legacy';
+  committed?: boolean;
+  validationEventIds?: string[];
 }
 
 export interface ActHistoryDocument {

@@ -5,6 +5,8 @@ export interface ScenarioMetadata {
   baseUrl?: string;
   codegen?: boolean;
   report?: boolean;
+  /** Relative path to a fixture manifest (e.g. fixtures/checkout.yaml). */
+  fixture?: string;
   format: 'natural-language' | 'bdd' | 'hybrid-metadata';
 }
 
@@ -28,6 +30,7 @@ export class ScenarioMetadataParser {
     let baseUrl: string | undefined;
     let codegen: boolean | undefined;
     let report: boolean | undefined;
+    let fixture: string | undefined;
     let hasMetadata = false;
     let hasBdd = false;
 
@@ -67,6 +70,7 @@ export class ScenarioMetadataParser {
         else if (key === 'baseurl') baseUrl = value;
         else if (key === 'codegen') codegen = parseBoolean(value);
         else if (key === 'report') report = parseBoolean(value);
+        else if (key === 'fixture') fixture = value;
         continue;
       }
 
@@ -80,6 +84,7 @@ export class ScenarioMetadataParser {
       baseUrl,
       codegen,
       report,
+      fixture,
       format: hasMetadata ? 'hybrid-metadata' : hasBdd ? 'bdd' : 'natural-language',
     };
   }

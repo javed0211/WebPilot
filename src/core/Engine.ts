@@ -35,6 +35,14 @@ import { decideHistoryReuse, isSuccessfulActHistory } from './codegen/HistoryReu
 import { ActHistoryCodegenAdapter } from './codegen/ActHistoryCodegenAdapter';
 import { isReplayHealEnabled } from './replay/ReplayHealPolicy';
 import { ActHistoryReplayService } from './replay/ActHistoryReplayService';
+import { ExecutionEventLedger } from './events/ExecutionEventLedger';
+import { resolveFeatureFlags, shouldRunFixtureLifecycle } from './lifecycle/FeatureFlags';
+import { CleanupStack } from './lifecycle/CleanupStack';
+import {
+  FixtureLifecycleManager,
+  type FixtureLifecycleSession,
+} from './lifecycle/FixtureLifecycleManager';
+import { ScenarioMetadataParser } from './authoring/ScenarioMetadata';
 
 /** Model id used for USD estimates when LiteLLM cannot price Azure deployment names. */
 function resolvePricingModelName(): string {
@@ -75,6 +83,8 @@ export interface EngineOptions {
   architecture?: 'flat' | 'pom' | 'bdd' | 'pom-bdd';
   fallbackReason?: string;
   forceBrowserUse?: boolean;
+  /** Optional fixture manifest path (overrides scenario metadata). */
+  fixturePath?: string;
 }
 
 export class Engine {
@@ -85,6 +95,7 @@ export class Engine {
   private architecture: 'flat' | 'pom' | 'bdd' | 'pom-bdd';
   private fallbackReason?: string;
   private forceBrowserUse: boolean;
+  private fixturePath?: string;
 
   private browserManager!: BrowserManager;
   private llmClient!: LLMClient;
@@ -102,6 +113,7 @@ export class Engine {
     this.architecture = options.architecture ?? 'pom';
     this.fallbackReason = options.fallbackReason;
     this.forceBrowserUse = options.forceBrowserUse ?? false;
+    this.fixturePath = options.fixturePath;
   }
 
   private async promptUser(message: string): Promise<string> {
@@ -576,17 +588,85 @@ export class Engine {
       Logger.detail(`${step.index}. [${step.actionType}] ${step.originalText}`)
     );
 
+    const testName = path.basename(this.testFilePath, path.extname(this.testFilePath));
+    const flags = resolveFeatureFlags(configManager);
+    const eventLedger = flags.eventLedger
+      ? new ExecutionEventLedger({ scenarioId: testName, source: 'ui' })
+      : null;
+    const cleanup = new CleanupStack();
+    const executionHistory: {
+      action: string;
+      selector?: string;
+      value?: string;
+      url?: string;
+      description: string;
+    }[] = [];
+    let success = true;
+    let fixtureSession: FixtureLifecycleSession | null = null;
+
+    const scenarioMeta = ScenarioMetadataParser.parse(testContent);
+    const fixtureRef = this.fixturePath || scenarioMeta.fixture;
+
+    cleanup.push('eventLedger.finalize', () => {
+      eventLedger?.appendLifecycle('ui.finished', success ? 'passed' : 'failed', {
+        stepsExecuted: executionHistory.length,
+      });
+      eventLedger?.finalize();
+    });
+    cleanup.push('browser.close', async () => {
+      await this.browserManager.close(testName, success);
+    });
+    cleanup.push('fixture.teardown', async () => {
+      if (fixtureSession) {
+        await fixtureSession.teardown({ failed: !success });
+      }
+    });
+
+    try {
+    if (fixtureRef && shouldRunFixtureLifecycle(flags, fixtureRef)) {
+      Logger.info(`Fixture lifecycle: ${fixtureRef}`);
+      const envPath = path.join(
+        process.cwd(),
+        'resources',
+        'config',
+        'environments',
+        `${this.envName}.json`
+      );
+      let envVars: Record<string, unknown> = {};
+      if (fs.existsSync(envPath)) {
+        try {
+          envVars = JSON.parse(fs.readFileSync(envPath, 'utf8')) as Record<string, unknown>;
+        } catch {
+          envVars = {};
+        }
+      }
+      fixtureSession = await FixtureLifecycleManager.start({
+        scenarioId: testName,
+        environment: this.envName,
+        fixturePath: fixtureRef,
+        runId: eventLedger?.runId,
+        eventLedger,
+        variables: {
+          baseUrl: (envVars as any).baseUrl,
+          apiBaseUrl: (envVars as any).apiBaseUrl,
+          ...((envVars as any).variables || {}),
+          ...((envVars as any).credentials || {}),
+        },
+      });
+    }
+
     Logger.info(`Launching browser (${this.headed ? 'headed' : 'headless'})`);
-    const page = await this.browserManager.launch();
+    const page = await this.browserManager.launch({
+      eventLedger: eventLedger || undefined,
+      storageStatePath: fixtureSession?.lease.storageStatePath,
+    });
+    eventLedger?.appendLifecycle('ui.started', 'started');
     
     // Automatically open Base URL
     if (envConfig.baseUrl) {
       Logger.info(`Navigate to ${envConfig.baseUrl}`);
       await page.goto(envConfig.baseUrl);
     }
-
-    const executionHistory: { action: string; selector?: string; value?: string; url?: string; description: string }[] = [];
-    let success = true;
 
     // Loop through step sequences
     for (const step of plan) {
@@ -719,10 +799,10 @@ export class Engine {
         break;
       }
     }
-
-    // Clean up browser sessions and save traces
-    const testName = path.basename(this.testFilePath, path.extname(this.testFilePath));
-    await this.browserManager.close(testName, success);
+    } finally {
+      // Always dispose browser + finalize ledger (even on launch/step exceptions).
+      await cleanup.drain();
+    }
 
     if (success) {
       Logger.success('Test suite completed — generating Playwright artifacts');
@@ -793,6 +873,13 @@ export class Engine {
       }
       if (reportCodegen) {
         reportSummary.codegen = reportCodegen;
+      }
+      if (eventLedger) {
+        reportSummary.runId = eventLedger.runId;
+        reportSummary.artifacts = {
+          ...((reportSummary.artifacts as Record<string, unknown>) || {}),
+          eventBundle: `runtime/reports/data/events/${testName}/${eventLedger.runId}_events.json`,
+        };
       }
       
       ensureReportDirs();

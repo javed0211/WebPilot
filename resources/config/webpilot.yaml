@@ -202,6 +202,26 @@ browserProviders:
     browserVersion: "latest"
     platform: "Windows 10"
 
+# 3c. Feature flags — trust / evidence / lifecycle roadmap
+# Roll out in order: eventLedger → fixtureLifecycle → semanticAssertions
+# → healingClassification (shadow then enforce) → groundedRootCause.
+features:
+  eventLedger: true
+  fixtureLifecycle: false
+  semanticAssertions: false
+  healingClassification: shadow   # off | shadow | enforce
+  groundedRootCause: false
+
+healing:
+  # legacy: cache write on propose when classification !== enforce
+  # postvalidated: only commit after action + classification allows
+  commitPolicy: postvalidated
+
+evidence:
+  captureNetwork: errors     # off | errors | metadata
+  captureConsole: errors     # off | errors | all
+  failOnInvalidCitation: true
+
 # 4. Test Runner & Execution Options
 execution:
   parallelWorkers: 4

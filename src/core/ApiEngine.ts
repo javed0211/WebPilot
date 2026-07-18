@@ -14,17 +14,26 @@ import { apiReportPath, ensureReportDirs, summaryPath } from './ReportPaths';
 import { generateExecutionReports } from './ExecutionReportService';
 import { archiveCurrentRun } from './execution_report/history';
 import { ApiAuthPlan } from './api/types';
+import { ExecutionEventLedger } from './events/ExecutionEventLedger';
+import { resolveFeatureFlags, shouldRunFixtureLifecycle } from './lifecycle/FeatureFlags';
+import {
+  FixtureLifecycleManager,
+  type FixtureLifecycleSession,
+} from './lifecycle/FixtureLifecycleManager';
+import { ScenarioMetadataParser } from './authoring/ScenarioMetadata';
 
 export interface ApiEngineOptions {
   testFilePath: string;
   env: string;
   enableCodegen?: boolean;
+  fixturePath?: string;
 }
 
 export class ApiEngine {
   private testFilePath: string;
   private envName: string;
   private enableCodegen: boolean;
+  private fixturePath?: string;
 
   constructor(options: ApiEngineOptions) {
     this.testFilePath = options.testFilePath;
@@ -32,6 +41,7 @@ export class ApiEngine {
     this.enableCodegen =
       options.enableCodegen ??
       ConfigManager.getInstance().get('framework.apiCodegenEnabled', true);
+    this.fixturePath = options.fixturePath;
   }
 
   private loadEnvironment(): Record<string, unknown> {
@@ -100,6 +110,30 @@ export class ApiEngine {
     const apiKeyEnv = cfg.api?.auth?.apiKeyEnv || 'API_KEY';
     if (process.env[apiKeyEnv]) variables[apiKeyEnv] = process.env[apiKeyEnv];
 
+    const slug = path.basename(this.testFilePath, path.extname(this.testFilePath));
+    const flags = resolveFeatureFlags();
+    const eventLedger = flags.eventLedger
+      ? new ExecutionEventLedger({ scenarioId: slug, source: 'api' })
+      : null;
+
+    let fixtureSession: FixtureLifecycleSession | null = null;
+    const content = fs.readFileSync(this.testFilePath, 'utf8');
+    const meta = ScenarioMetadataParser.parse(content);
+    const fixtureRef = this.fixturePath || meta.fixture;
+
+    if (fixtureRef && shouldRunFixtureLifecycle(flags, fixtureRef)) {
+      Logger.info(`Fixture lifecycle: ${fixtureRef}`);
+      fixtureSession = await FixtureLifecycleManager.start({
+        scenarioId: slug,
+        environment: this.envName,
+        fixturePath: fixtureRef,
+        runId: eventLedger?.runId,
+        eventLedger,
+        variables,
+      });
+      Object.assign(variables, fixtureSession.lease.variables);
+    }
+
     const baseURL = String(variables.apiBaseUrl ?? variables.baseUrl ?? '');
     const authHeaders = resolveApiAuthHeaders(auth);
     const requestContext = await playwrightRequest.newContext({
@@ -112,11 +146,11 @@ export class ApiEngine {
       ignoreHTTPSErrors: true,
     });
 
-    const slug = path.basename(this.testFilePath, path.extname(this.testFilePath));
     let success = false;
     let stepsExecuted = 0;
 
     try {
+      eventLedger?.appendLifecycle('api.started', 'started');
       const apiContext = new ApiContext(requestContext, variables, process.cwd());
       const runner = new ApiRunnerPlaywright(apiContext);
       const result = await runner.runPipeline(scenario.steps);
@@ -125,14 +159,18 @@ export class ApiEngine {
 
       ensureReportDirs();
       const reportName = slug;
+      const secrets = fixtureSession?.secrets;
+      const redactedResult = secrets
+        ? secrets.redactStructured(result as unknown as Record<string, unknown>)
+        : result;
       fs.writeFileSync(
         apiReportPath(reportName, Date.now()),
-        JSON.stringify({ scenario: scenario.name, result }, null, 2),
+        JSON.stringify({ scenario: scenario.name, result: redactedResult }, null, 2),
         'utf8'
       );
 
       const durationMs = Date.now() - startedAt;
-      const reportSummary = {
+      const reportSummary: Record<string, unknown> = {
         test: slug,
         status: success ? 'PASSED' : 'FAILED',
         timestamp: new Date().toISOString(),
@@ -145,6 +183,9 @@ export class ApiEngine {
         scenario: scenario.name,
         sourceRef: scenario.sourceRef,
       };
+      if (eventLedger) {
+        reportSummary.runId = eventLedger.runId;
+      }
       fs.writeFileSync(summaryPath(slug), JSON.stringify(reportSummary, null, 2), 'utf8');
 
       try {
@@ -183,6 +224,13 @@ export class ApiEngine {
       return { success, stepsExecuted };
     } finally {
       await requestContext.dispose();
+      if (fixtureSession) {
+        await fixtureSession.teardown({ failed: !success });
+      }
+      eventLedger?.appendLifecycle('api.finished', success ? 'passed' : 'failed', {
+        stepsExecuted,
+      });
+      eventLedger?.finalize();
     }
   }
 }

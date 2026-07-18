@@ -2518,7 +2518,8 @@ program
             env: runEnv,
             interactive: false,
             architecture: options.architecture as any,
-            forceBrowserUse: browserProvider.name !== 'local-playwright'
+            forceBrowserUse: browserProvider.name !== 'local-playwright',
+            fixturePath: metadataByFile.get(nlFile)?.fixture,
           });
           const result = await engine.execute();
           success = result.success;
@@ -2526,7 +2527,8 @@ program
         } else {
           const apiEngine = new ApiEngine({
             testFilePath: nlFile,
-            env: runEnv
+            env: runEnv,
+            fixturePath: metadataByFile.get(nlFile)?.fixture,
           });
           const result = await apiEngine.execute();
           success = result.success;
@@ -2744,11 +2746,13 @@ program
     let stepsExecuted: number | undefined;
 
     try {
+          const interactiveMeta = ScenarioMetadataParser.parse(fs.readFileSync(file, 'utf8'));
           const engine = new Engine({
             testFilePath: file,
             env: options.env,
             interactive: true,
-            architecture: options.architecture as any
+            architecture: options.architecture as any,
+            fixturePath: interactiveMeta.fixture,
           });
       const result = await engine.execute();
       success = result.success;

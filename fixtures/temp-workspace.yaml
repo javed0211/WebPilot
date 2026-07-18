@@ -1,0 +1,13 @@
+# Example: per-test temp directory for uploads / downloads.
+schemaVersion: 1
+name: temp-workspace
+
+seed:
+  provider: temp-dir
+  prefix: upload
+
+isolation:
+  strategy: per-run
+
+failureCleanup:
+  enabled: true

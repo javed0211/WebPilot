@@ -1,4 +1,5 @@
 import { AssertionCandidate } from '../assertions/AssertionCandidate';
+import type { SemanticPlan } from '../assertions/SemanticAssertion';
 
 export type TraceAction =
   | 'navigate'
@@ -40,6 +41,8 @@ export interface TraceStep {
   /** Human-meaningful target ("Products navigation link"), derived from locators. */
   semanticTarget?: string;
   assertions?: AssertionCandidate[];
+  /** Parsed semantic assertion plan when the intent uses the DSL. */
+  semanticPlan?: SemanticPlan;
 }
 
 export interface ExecutionTrace {

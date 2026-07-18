@@ -1,0 +1,28 @@
+# Example fixture manifest — static seed + optional auth state.
+# Reference from a scenario:
+#   fixture: fixtures/checkout.yaml
+#
+schemaVersion: 1
+name: checkout-user
+
+seed:
+  provider: static-json
+  path: fixtures/data/checkout-user.json
+
+# Optional: apply Playwright storage state if present under runtime/auth-state/
+# auth:
+#   provider: playwright-storage-state
+#   profile: standard-user
+#   ttlMinutes: 240
+
+isolation:
+  strategy: per-run
+
+failureCleanup:
+  enabled: true
+
+redaction:
+  fields:
+    - email
+    - password
+    - token

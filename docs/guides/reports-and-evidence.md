@@ -2,6 +2,8 @@
 
 WebPilot produces **rich execution evidence** — HTML dashboards, JSON artifacts, videos, traces, screenshots, and optional AI analysis.
 
+For the QA-governance roadmap (unified evidence bundle, risk score, heal ledger, locator verification in reports), see the implementation spec: **[11. Evidence-First Reports](../features/11-evidence-first-reports.md)**.
+
 ---
 
 ## Overview
@@ -14,6 +16,8 @@ Every `webpilot run` can generate:
 - Video and Playwright trace
 - JUnit XML for CI
 - Artifact manifest for upload
+
+**Planned (feature 11):** schema-versioned `EvidenceBundle` per run, governance strip (risk · completeness · heal count · codegen quality · cost), page-drift history, and CI gates on evidence grade.
 
 ---
 
@@ -175,7 +179,9 @@ See [API Testing](./api-testing.md).
 
 ## See also
 
+- [11. Evidence-First Reports (feature spec)](../features/11-evidence-first-reports.md)
 - [CI & Artifacts](./ci-and-artifacts.md)
 - [Flake Analyzer](./flake-analyzer.md)
+- [Selector Intelligence & Healing](./selector-intelligence-and-healing.md)
 - [ActHistory & Codegen Reuse](./act-history-and-codegen-reuse.md)
 - [REPORTING.md](../REPORTING.md)
