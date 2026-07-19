@@ -15,6 +15,8 @@ export interface EvidenceLocator {
   value?: string;
   name?: string;
   used?: string;
+  /** Planned/candidate locator shown for context — may differ from the failing attempt. */
+  planned?: string;
   verified?: boolean;
   verifiedBy?: string;
   matchCount?: number;
@@ -39,14 +41,23 @@ export interface EvidenceTimelineStep {
     elementIndex?: number | null;
   };
   locator?: EvidenceLocator | null;
+  /** Locators attempted during a failed resolve/action (replay). */
+  attemptedLocators?: string[];
   outcome: EvidenceOutcome;
   startedAt?: string;
   durationMs?: number;
   after?: EvidenceStepAfter | null;
-  assertion?: { kind?: string; nlStep?: string; strength?: string } | null;
+  assertion?: { kind?: string; nlStep?: string; strength?: string; expected?: string; actual?: string } | null;
   healed: boolean;
   screenshotPath?: string | null;
   error?: string | null;
+  /** Short human-readable failure reason without Playwright call logs. */
+  failureReason?: string | null;
+  /** API-specific fields */
+  httpMethod?: string;
+  httpStatus?: number;
+  expectedStatus?: number;
+  responsePreview?: string | null;
 }
 
 export interface EvidenceAssertionSummary {
@@ -61,7 +72,8 @@ export interface EvidenceLocatorSummary {
   total: number;
   verified: number;
   unverified: number;
-  verifiedRatio: number;
+  /** Null when no locators were recorded (e.g. API runs) — do not treat as 100%. */
+  verifiedRatio: number | null;
 }
 
 export interface EvidenceHealingRecord {

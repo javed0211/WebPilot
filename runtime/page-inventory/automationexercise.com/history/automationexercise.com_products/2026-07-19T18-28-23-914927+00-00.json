@@ -1,0 +1,2256 @@
+{
+  "schemaVersion": 2,
+  "pageKey": "automationexercise.com_products",
+  "url": "https://automationexercise.com/products#google_vignette",
+  "title": "Automation Exercise - All Products",
+  "capturedAt": "2026-07-19T18:28:23.913557+00:00",
+  "updatedAt": "2026-07-19T18:28:23.914927+00:00",
+  "fingerprint": "37bbea8b8afc1946",
+  "elementCount": 118,
+  "elements": [
+    {
+      "backendNodeId": 13455,
+      "tag": "iframe",
+      "axName": "Advertisement",
+      "attributes": {
+        "id": "aswift_1",
+        "name": "aswift_1",
+        "aria-label": "Advertisement"
+      },
+      "xpath": "html/body/section[2]/div/div/div[1]/div[2]/ins/div/iframe",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "aswift_1_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 82,
+      "tag": "a",
+      "axName": "0",
+      "attributes": {
+        "id": "hlink-0",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_1"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_1_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 83,
+      "tag": "a",
+      "axName": "1",
+      "attributes": {
+        "id": "hlink-1",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_1"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_1_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 158,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "_widget_18hbz_21 _bottom_right_18hbz_11"
+      },
+      "xpath": "html/body/div[2]/div/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_1"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_1_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 84,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "_oba_3vhty_5"
+      },
+      "xpath": "html/body/div[2]/div/div/div[1]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_1"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 52,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "s1i",
+        "class": "cr-si"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[2]/span[1]",
+      "ancestors": [
+        {
+          "tag": "p",
+          "id": "step1"
+        },
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 230,
+      "tag": "p",
+      "axName": null,
+      "attributes": {
+        "id": "step2",
+        "class": "cr-line"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 53,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "s2i",
+        "class": "cr-si"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[3]/span",
+      "ancestors": [
+        {
+          "tag": "p",
+          "id": "step2"
+        },
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 106,
+      "tag": "a",
+      "axName": "2",
+      "attributes": {
+        "id": "hlink-2",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_1"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_1_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 107,
+      "tag": "a",
+      "axName": "3",
+      "attributes": {
+        "id": "hlink-3",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[4]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_1"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_1_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 10647,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[5]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10636,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/4"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[5]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10649,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[6]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11378,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/5"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[6]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10651,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[7]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11432,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/6"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[7]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10653,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[8]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10654,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[8]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11486,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/7"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[8]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10655,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[9]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10656,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[9]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11540,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/8"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[9]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13463,
+      "tag": "div",
+      "axName": "New product launches",
+      "attributes": {
+        "role": "link",
+        "aria-label": "New product launches",
+        "class": "google-anno-skip google-anno-sc"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[10]/div/div[1]/div[1]/p/div",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13461,
+      "tag": "span",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[10]/div/div[1]/div[1]/p/div/span[1]",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13460,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[10]/div/div[1]/div[1]/p/div/span[1]/svg",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13462,
+      "tag": "span",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[10]/div/div[1]/div[1]/p/div/span[2]",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10657,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[10]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10658,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[10]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11594,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/11"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[10]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10659,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[11]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10660,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[11]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11648,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/12"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[11]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10661,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[12]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10662,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[12]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11702,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/13"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[12]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13469,
+      "tag": "div",
+      "axName": "V-Neck T-Shirts",
+      "attributes": {
+        "role": "link",
+        "aria-label": "V-Neck T-Shirts",
+        "class": "google-anno-skip google-anno-sc"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[13]/div/div[1]/div[1]/p/div",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13467,
+      "tag": "span",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[13]/div/div[1]/div[1]/p/div/span[1]",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13466,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[13]/div/div[1]/div[1]/p/div/span[1]/svg",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13468,
+      "tag": "span",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[13]/div/div[1]/div[1]/p/div/span[2]",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10663,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[13]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10664,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[13]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11756,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/14"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[13]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10665,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[14]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10666,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[14]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11810,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/15"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[14]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10667,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[15]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10668,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[15]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11864,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/16"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[15]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10669,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[16]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10670,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[16]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11918,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/18"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[16]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10671,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[17]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10672,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[17]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 11972,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/19"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[17]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10673,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[18]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10674,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[18]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 12026,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/20"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[18]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10675,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[19]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10676,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[19]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 12080,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/21"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[19]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13475,
+      "tag": "div",
+      "axName": "Saree collection",
+      "attributes": {
+        "role": "link",
+        "aria-label": "Saree collection",
+        "class": "google-anno-skip google-anno-sc"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[20]/div/div[1]/div[1]/p/div",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13473,
+      "tag": "span",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[20]/div/div[1]/div[1]/p/div/span[1]",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13472,
+      "tag": "svg",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[20]/div/div[1]/div[1]/p/div/span[1]/svg",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13474,
+      "tag": "span",
+      "axName": null,
+      "attributes": {},
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[20]/div/div[1]/div[1]/p/div/span[2]",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10677,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[20]/div/div[1]/div[1]/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10678,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[20]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 12134,
+      "tag": "a",
+      "axName": "View Product",
+      "attributes": {
+        "href": "/product_details/22"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[20]/div/div[2]/ul/li/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 10680,
+      "tag": "a",
+      "axName": "Add to cart",
+      "attributes": {
+        "class": "btn btn-default add-to-cart"
+      },
+      "xpath": "html/body/section[2]/div/div/div[2]/div/div[21]/div/div[1]/div[2]/div/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 14245,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[1]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14248,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[2]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14251,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[3]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14254,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[4]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14257,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[5]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14260,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[6]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14263,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[7]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14266,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[8]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14269,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[9]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14272,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[10]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14275,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[11]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 14278,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "wp-step-number"
+      },
+      "xpath": "html/body/div[4]/div[1]/ul/li[12]/span[1]",
+      "ancestors": [
+        {
+          "tag": "ul",
+          "id": "webpilot-steps-container"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-panel"
+        },
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 10709,
+      "tag": "button",
+      "axName": null,
+      "attributes": {
+        "id": "webpilot-details-btn",
+        "type": "button",
+        "class": "wp-btn"
+      },
+      "xpath": "html/body/div[4]/div[2]/div/div[2]/button",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 10710,
+      "tag": "a",
+      "axName": null,
+      "attributes": {
+        "id": "scrollUp",
+        "href": "#top"
+      },
+      "xpath": "html/body/a",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13559,
+      "tag": "iframe",
+      "axName": "Advertisement",
+      "attributes": {
+        "id": "aswift_7",
+        "name": "aswift_7",
+        "aria-label": "Advertisement"
+      },
+      "xpath": "html/body/ins[4]/div[1]/iframe",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "aswift_7_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 814,
+      "tag": "a",
+      "axName": "0",
+      "attributes": {
+        "id": "hlink-0",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_7"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_7_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 815,
+      "tag": "a",
+      "axName": "1",
+      "attributes": {
+        "id": "hlink-1",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_7"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_7_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 892,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "_widget_18hbz_21 _bottom_right_18hbz_11"
+      },
+      "xpath": "html/body/div[2]/div/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_7"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_7_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 816,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "_oba_3vhty_5"
+      },
+      "xpath": "html/body/div[2]/div/div/div[1]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_7"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 934,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "topTitle",
+        "class": "cr-top-title"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 965,
+      "tag": "p",
+      "axName": null,
+      "attributes": {
+        "id": "step2",
+        "class": "cr-line"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 49,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "s2i",
+        "class": "cr-si"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[3]/span",
+      "ancestors": [
+        {
+          "tag": "p",
+          "id": "step2"
+        },
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 838,
+      "tag": "a",
+      "axName": "2",
+      "attributes": {
+        "id": "hlink-2",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_7"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_7_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 839,
+      "tag": "a",
+      "axName": "3",
+      "attributes": {
+        "id": "hlink-3",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[4]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_7"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_7_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 13510,
+      "tag": "ins",
+      "axName": null,
+      "attributes": {
+        "class": "adsbygoogle adsbygoogle-noablate"
+      },
+      "xpath": "html/ins",
+      "ancestors": []
+    },
+    {
+      "backendNodeId": 13518,
+      "tag": "iframe",
+      "axName": "Advertisement",
+      "attributes": {
+        "id": "aswift_4",
+        "name": "aswift_4",
+        "aria-label": "Advertisement"
+      },
+      "xpath": "html/ins/div/iframe",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "aswift_4_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1064,
+      "tag": "div",
+      "axName": "Close ad",
+      "attributes": {
+        "id": "dismiss-button",
+        "role": "button",
+        "aria-label": "Close ad",
+        "class": "close-button-outer"
+      },
+      "xpath": "html/body/div/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "card"
+        },
+        {
+          "tag": "div",
+          "id": "ad_position_box"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_4"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_4_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 60,
+      "tag": "iframe",
+      "axName": "Advertisement",
+      "attributes": {
+        "id": "ad_iframe",
+        "name": "ad_iframe"
+      },
+      "xpath": "html/body/div/div/div[3]/iframe",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "creative"
+        },
+        {
+          "tag": "div",
+          "id": "card"
+        },
+        {
+          "tag": "div",
+          "id": "ad_position_box"
+        },
+        {
+          "tag": "iframe",
+          "id": "aswift_4"
+        },
+        {
+          "tag": "div",
+          "id": "aswift_4_host"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1133,
+      "tag": "a",
+      "axName": "0",
+      "attributes": {
+        "id": "hlink-0",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "ad_iframe"
+        },
+        {
+          "tag": "div",
+          "id": "creative"
+        },
+        {
+          "tag": "div",
+          "id": "card"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1135,
+      "tag": "a",
+      "axName": "1",
+      "attributes": {
+        "id": "hlink-1",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "ad_iframe"
+        },
+        {
+          "tag": "div",
+          "id": "creative"
+        },
+        {
+          "tag": "div",
+          "id": "card"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1138,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "_widget_18hbz_21 _bottom_right_18hbz_11"
+      },
+      "xpath": "html/body/div[2]/div/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "ad_iframe"
+        },
+        {
+          "tag": "div",
+          "id": "creative"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1139,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "_oba_3vhty_5"
+      },
+      "xpath": "html/body/div[2]/div/div/div[1]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "ad_iframe"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1188,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "cr",
+        "class": "cr"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1190,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "topTitle",
+        "class": "cr-top-title"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1193,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "ctaSec",
+        "class": "cr-cta-sec"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1195,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "btn",
+        "class": "cr-btn"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[2]/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "ctaSec"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1197,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "class": "cr-btn-inner"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[2]/div/div",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "btn"
+        },
+        {
+          "tag": "div",
+          "id": "ctaSec"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1199,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "btnText",
+        "class": "cr-btn-text"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[2]/div/div/span[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "btn"
+        },
+        {
+          "tag": "div",
+          "id": "ctaSec"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1205,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "subTextMac",
+        "class": "cr-btn-sub"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[2]/div/div/span[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "btn"
+        },
+        {
+          "tag": "div",
+          "id": "ctaSec"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1211,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "steps",
+        "class": "cr-steps"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1213,
+      "tag": "p",
+      "axName": null,
+      "attributes": {
+        "id": "titleEl",
+        "class": "cr-title"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1216,
+      "tag": "p",
+      "axName": null,
+      "attributes": {
+        "id": "step1",
+        "class": "cr-line"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[2]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 57,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "s1i",
+        "class": "cr-si"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[2]/span[1]",
+      "ancestors": [
+        {
+          "tag": "p",
+          "id": "step1"
+        },
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1218,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "class": "cr-hl"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[2]/span[2]",
+      "ancestors": [
+        {
+          "tag": "p",
+          "id": "step1"
+        },
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1221,
+      "tag": "p",
+      "axName": null,
+      "attributes": {
+        "id": "step2",
+        "class": "cr-line"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 58,
+      "tag": "span",
+      "axName": null,
+      "attributes": {
+        "id": "s2i",
+        "class": "cr-si"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[3]/p[3]/span",
+      "ancestors": [
+        {
+          "tag": "p",
+          "id": "step2"
+        },
+        {
+          "tag": "div",
+          "id": "steps"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1225,
+      "tag": "div",
+      "axName": null,
+      "attributes": {
+        "id": "iconWrap",
+        "class": "cr-icon"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[4]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 56,
+      "tag": "img",
+      "axName": null,
+      "attributes": {
+        "id": "logo"
+      },
+      "xpath": "html/body/div[2]/div/div/div[3]/div/div/div/div/div[4]/img",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "iconWrap"
+        },
+        {
+          "tag": "div",
+          "id": "cr"
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "id": "bWFpbg==",
+          "testid": "bWFpbg=="
+        },
+        {
+          "tag": "div",
+          "testid": "full-screen-step"
+        },
+        {
+          "tag": "div",
+          "id": "root"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1293,
+      "tag": "a",
+      "axName": "2",
+      "attributes": {
+        "id": "hlink-2",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[3]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "ad_iframe"
+        },
+        {
+          "tag": "div",
+          "id": "creative"
+        },
+        {
+          "tag": "div",
+          "id": "card"
+        }
+      ]
+    },
+    {
+      "backendNodeId": 1295,
+      "tag": "a",
+      "axName": "3",
+      "attributes": {
+        "id": "hlink-3",
+        "href": "#",
+        "class": "_hlink_ctyqq_1 _hlink_ctyqq_1"
+      },
+      "xpath": "html/body/div[2]/div/a[4]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "root"
+        },
+        {
+          "tag": "iframe",
+          "id": "ad_iframe"
+        },
+        {
+          "tag": "div",
+          "id": "creative"
+        },
+        {
+          "tag": "div",
+          "id": "card"
+        }
+      ]
+    }
+  ],
+  "archivedAt": "2026-07-19T18:28:28.234142+00:00",
+  "nextFingerprint": "0f0d2f9bc6c7fa01"
+}

@@ -40,7 +40,10 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepack": "npm run security:secrets:fix && npm run build",
+    "report-ui:install": "npm --prefix packages/report-ui install",
+    "report-ui:test": "npm --prefix packages/report-ui test",
+    "report-ui:build": "npm --prefix packages/report-ui run build",
+    "prepack": "npm run security:secrets:fix && npm run build && npm run report-ui:build",
     "webpilot": "node dist/src/cli/index.js",
     "webpilot:dev": "ts-node src/cli/index.ts",
     "doctor": "node dist/src/cli/index.js doctor",

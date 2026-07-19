@@ -26,8 +26,15 @@ export interface ActLocator {
   scope?: ActLocator;
   /** True when uniqueness was proven against a page inventory snapshot (matchCount===1). */
   verified?: boolean;
+  /** Proof source: snapshot | playwright | replay | inventory. */
+  verifiedBy?: string;
   /** Number of matches observed during DOM verification (1 when verified). */
   matchCount?: number;
+  /**
+   * When set, this candidate was prepended from page inventory reuse
+   * (`prefer` | `hint`) rather than generated from the interacted element.
+   */
+  inventoryPolicy?: string;
 }
 
 export interface ActStep {
@@ -125,4 +132,5 @@ export interface ActReplayResult {
   healedCount: number;
   videoPath?: string;
   screenshotPaths?: string[];
+  durationMs?: number;
 }

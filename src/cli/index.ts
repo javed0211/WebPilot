@@ -2617,9 +2617,14 @@ program
     
     if (options.report) {
       Logger.info('\nGenerating HTML report...');
+      const testDurations = Object.fromEntries(
+        pendingSummaries.map((s) => [s.test, s.durationMs])
+      );
       await generateExecutionReports({
         env: runEnv,
         testSlugs: pendingSummaries.map((s) => s.test),
+        durationMs: Date.now() - jobStart,
+        testDurations,
       });
       for (const summary of pendingSummaries) {
         CliDisplay.printJobSummary({

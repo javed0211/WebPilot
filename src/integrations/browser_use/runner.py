@@ -798,7 +798,18 @@ async def run_native_browser_use_scenario(
 
             snap = snapshot_from_browser_state(state)
             if snap and snap.get("pageKey"):
-                page_snapshots[snap["pageKey"]] = snap
+                # Keep a history of snapshots per page — later DOM rebuilds change
+                # backend_node_id and dismiss overlays (cookie Consent). End-of-run
+                # verification must be able to use the step-time snapshot, not only
+                # the final overwrite.
+                key = snap["pageKey"]
+                bucket = page_snapshots.get(key)
+                if isinstance(bucket, list):
+                    bucket.append(snap)
+                elif isinstance(bucket, dict):
+                    page_snapshots[key] = [bucket, snap]
+                else:
+                    page_snapshots[key] = [snap]
                 if snap.get("url"):
                     page_snapshots[str(snap["url"])] = snap
                 upsert_inventory(snap)

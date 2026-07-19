@@ -4,6 +4,7 @@
   "url": "https://en.wikipedia.org/wiki/Software_testing",
   "title": "Software testing - Wikipedia",
   "capturedAt": "2026-07-17T14:08:28.220654+00:00",
+  "updatedAt": "2026-07-19T19:15:38.766Z",
   "fingerprint": "58b4b812ae4f8520",
   "elementCount": 120,
   "elements": [
@@ -3219,15 +3220,45 @@
       ]
     }
   ],
-  "verifiedLocators": [],
+  "verifiedLocators": [
+    {
+      "kind": "role",
+      "value": "link",
+      "name": "Talk",
+      "filterText": "Talk",
+      "exact": true,
+      "scope": {
+        "kind": "css",
+        "value": "nav"
+      },
+      "verified": true,
+      "verifiedBy": "playwright",
+      "axName": "Talk",
+      "recordedAt": "2026-07-19T19:15:38.766Z"
+    },
+    {
+      "kind": "role",
+      "value": "link",
+      "name": "View history",
+      "filterText": "View history",
+      "exact": true,
+      "scope": {
+        "kind": "css",
+        "value": "main"
+      },
+      "verified": true,
+      "verifiedBy": "playwright",
+      "axName": "View history",
+      "recordedAt": "2026-07-19T19:15:38.448Z"
+    }
+  ],
   "domNodesSeen": 215,
   "axNodesSeen": 215,
   "interactiveCandidatesSeen": 215,
   "interactiveCandidatesStored": 120,
-  "verifiedControlsStored": 0,
   "snapshotQuality": "capped",
   "capHit": true,
   "captureCap": 120,
   "captureSource": "selector_map",
-  "updatedAt": "2026-07-17T14:08:39.053520+00:00"
+  "verifiedControlsStored": 2
 }

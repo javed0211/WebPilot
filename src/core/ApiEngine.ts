@@ -15,6 +15,7 @@ import { generateExecutionReports } from './ExecutionReportService';
 import { archiveCurrentRun } from './execution_report/history';
 import { ApiAuthPlan } from './api/types';
 import { ExecutionEventLedger } from './events/ExecutionEventLedger';
+import { eventBundlePath } from './events/EventPaths';
 import { resolveFeatureFlags, shouldRunFixtureLifecycle } from './lifecycle/FeatureFlags';
 import {
   FixtureLifecycleManager,
@@ -92,12 +93,18 @@ export class ApiEngine {
     }
 
     const envVars = this.loadEnvironment();
+    // Scenario @baseUrl / variables must win over environment defaults — otherwise
+    // a Petstore test silently hits DummyJSON (or whatever qa.apiBaseUrl is).
     const variables: Record<string, unknown> = {
       baseUrl: envVars.baseUrl,
       apiBaseUrl: envVars.apiBaseUrl,
-      ...scenario.variables,
       ...envVars,
+      ...scenario.variables,
     };
+    if (scenario.variables?.apiBaseUrl) {
+      variables.apiBaseUrl = scenario.variables.apiBaseUrl;
+      variables.baseUrl = scenario.variables.apiBaseUrl;
+    }
 
     // Inject auth secrets into variables for {{AUTH_TOKEN}} style headers
     const auth = this.resolveAuthPlan(scenario.auth);
@@ -117,6 +124,7 @@ export class ApiEngine {
       : null;
 
     let fixtureSession: FixtureLifecycleSession | null = null;
+    let ledgerFinalized = false;
     const content = fs.readFileSync(this.testFilePath, 'utf8');
     const meta = ScenarioMetadataParser.parse(content);
     const fixtureRef = this.fixturePath || meta.fixture;
@@ -170,21 +178,77 @@ export class ApiEngine {
       );
 
       const durationMs = Date.now() - startedAt;
+      const failedStep = result.steps.find((s) => !s.success);
+      const parseHttpCode = (error: string | undefined, label: 'Expected' | 'Received') => {
+        if (!error) return undefined;
+        const m = error.match(new RegExp(`${label}:\\s*(\\d+)`, 'i'));
+        return m ? Number(m[1]) : undefined;
+      };
+      const apiSteps = result.steps.map((s) => {
+        const expectedFromScenario = scenario.steps[s.stepIndex]?.assertions?.status;
+        const expected = expectedFromScenario ?? parseHttpCode(s.error, 'Expected');
+        const actual = s.status || parseHttpCode(s.error, 'Received') || 0;
+        return {
+          stepIndex: s.stepIndex,
+          stepName: s.stepName,
+          method: s.method,
+          url: s.url,
+          status: actual,
+          durationMs: s.durationMs,
+          success: s.success,
+          error: s.error,
+          responsePreview: s.responsePreview,
+          expectedStatus: expected,
+        };
+      });
+      const failedApi = apiSteps.find((s) => !s.success);
+      const statusReason = success
+        ? undefined
+        : failedApi
+          ? `${failedApi.method} ${failedApi.url}` +
+            (failedApi.expectedStatus != null
+              ? ` → expected HTTP ${failedApi.expectedStatus}, got ${failedApi.status}`
+              : ` → HTTP ${failedApi.status}`) +
+            (failedApi.url.includes('{')
+              ? ' (unresolved path parameter)'
+              : '') +
+            (failedApi.error
+              ? `: ${failedApi.error.split('\n')[0].replace(/Call log:.*/i, '').trim().slice(0, 160)}`
+              : '')
+          : `API suite failed after ${stepsExecuted} step(s)`;
       const reportSummary: Record<string, unknown> = {
         test: slug,
         status: success ? 'PASSED' : 'FAILED',
         timestamp: new Date().toISOString(),
         stepsExecuted,
         kind: 'api',
+        executionMode: 'api',
         summary: success
           ? `API suite passed (${stepsExecuted} steps)`
-          : `API suite failed after ${stepsExecuted} step(s)`,
+          : statusReason || `API suite failed after ${stepsExecuted} step(s)`,
+        statusReason,
+        failureContext: failedStep?.error || statusReason,
         durationMs,
         scenario: scenario.name,
         sourceRef: scenario.sourceRef,
+        apiBaseUrl: String(variables.apiBaseUrl || variables.baseUrl || ''),
+        apiSteps,
       };
       if (eventLedger) {
         reportSummary.runId = eventLedger.runId;
+        eventLedger.appendLifecycle('api.finished', success ? 'passed' : 'failed', {
+          stepsExecuted,
+          statusReason,
+        });
+        const bundle = eventLedger.finalize();
+        ledgerFinalized = true;
+        const bundlePath = eventBundlePath(slug, eventLedger.runId);
+        if (bundlePath) {
+          reportSummary.artifacts = {
+            eventBundle: path.relative(process.cwd(), bundlePath).replace(/\\/g, '/'),
+          };
+        }
+        void bundle;
       }
       fs.writeFileSync(summaryPath(slug), JSON.stringify(reportSummary, null, 2), 'utf8');
 
@@ -227,10 +291,12 @@ export class ApiEngine {
       if (fixtureSession) {
         await fixtureSession.teardown({ failed: !success });
       }
-      eventLedger?.appendLifecycle('api.finished', success ? 'passed' : 'failed', {
-        stepsExecuted,
-      });
-      eventLedger?.finalize();
+      if (eventLedger && !ledgerFinalized) {
+        eventLedger.appendLifecycle('api.finished', success ? 'passed' : 'failed', {
+          stepsExecuted,
+        });
+        eventLedger.finalize();
+      }
     }
   }
 }

@@ -2,21 +2,40 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SuiteExecutionReport } from './types';
 import { findCliInstallRoot } from '../../cli/ProjectContext';
-import { appendGovernanceOverlay } from './governanceOverlay';
 
 const SHELL_RELATIVE = path.join('resources', 'report-ui', 'shell.html');
+/** Temporary fallback while the React shell is validated in the field. */
+const SHELL_V2_RELATIVE = path.join('resources', 'report-ui', 'shell-v2.html');
 const DATA_SCRIPT_RE =
   /(<script[^>]*id="webpilot-report-data"[^>]*>)([\s\S]*?)(<\/script>)/;
 
 /**
- * Locate the committed report-ui shell. Checks the active project, the CLI
- * install root (for globally linked installs), then the dev build artifact.
+ * Locate the committed report-ui shell. Prefers the React single-file build
+ * (`shell.html`), then the vanilla shell-v2 fallback, then the Vite dist artifact.
  */
 function resolveShellPath(): string | null {
-  const candidates = [path.join(process.cwd(), SHELL_RELATIVE)];
+  const preferLegacy =
+    String(process.env.WEBPILOT_REPORT_UI || '').toLowerCase() === 'shell-v2';
+
+  const candidates = preferLegacy
+    ? [
+        path.join(process.cwd(), SHELL_V2_RELATIVE),
+        path.join(process.cwd(), SHELL_RELATIVE),
+      ]
+    : [
+        path.join(process.cwd(), SHELL_RELATIVE),
+        path.join(process.cwd(), SHELL_V2_RELATIVE),
+      ];
 
   try {
-    candidates.push(path.join(findCliInstallRoot(), SHELL_RELATIVE));
+    const installRoot = findCliInstallRoot();
+    if (preferLegacy) {
+      candidates.push(path.join(installRoot, SHELL_V2_RELATIVE));
+      candidates.push(path.join(installRoot, SHELL_RELATIVE));
+    } else {
+      candidates.push(path.join(installRoot, SHELL_RELATIVE));
+      candidates.push(path.join(installRoot, SHELL_V2_RELATIVE));
+    }
   } catch {
     /* not running from a linked CLI install; ignore */
   }
@@ -44,11 +63,11 @@ function injectReportData(report: SuiteExecutionReport): string | null {
   // Escape `</script>` so an embedded sequence cannot terminate the tag early.
   const json = JSON.stringify(report).replace(/<\/script>/gi, '<\\/script>');
 
-  const injected = shell.replace(
+  // Both the React shell and shell-v2 render evidence/governance natively.
+  return shell.replace(
     DATA_SCRIPT_RE,
     (_match, open: string, _old: string, close: string) => `${open}${json}${close}`
   );
-  return appendGovernanceOverlay(injected, report);
 }
 
 /**
@@ -57,7 +76,19 @@ function injectReportData(report: SuiteExecutionReport): string | null {
  * Returns null if the shell cannot be found, so callers can fall back.
  */
 export function renderReactSuiteHtml(report: SuiteExecutionReport): string | null {
-  return injectReportData(report);
+  return injectReportData(withFriendlySuiteName(report));
+}
+
+/**
+ * A single-test suite is really just that one test, but the CLI names the suite
+ * from the slug (e.g. `WebPilot — booking_search_hotels`). Prefer the test's
+ * human-readable title so the suite sidebar matches the per-test page.
+ */
+function withFriendlySuiteName(report: SuiteExecutionReport): SuiteExecutionReport {
+  if (report.testCases.length !== 1) return report;
+  const friendly = report.testCases[0].testName;
+  if (!friendly || friendly === report.suiteName) return report;
+  return { ...report, suiteName: friendly };
 }
 
 /**
@@ -87,7 +118,9 @@ function scopeReportToSingleTest(
       totalSteps: test.stepsExecuted,
       totalCostUsd: test.pricing.estimatedCostUsd,
       totalTokens: test.pricing.totalTokens,
+      totalDurationMs: test.durationMs || test.totalDurationMs,
     },
+    totalDurationMs: test.durationMs || test.totalDurationMs,
     historyOverview: {
       totalRuns: runs.length,
       promptTokens: runs.reduce((n, run) => n + run.pricing.promptTokens, 0),

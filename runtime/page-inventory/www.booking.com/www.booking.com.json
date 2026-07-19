@@ -2,374 +2,44 @@
   "schemaVersion": 2,
   "pageKey": "www.booking.com",
   "url": "https://www.booking.com/",
-  "title": "Booking.com | Official site | The best hotels, flights, car rentals & accommodations",
-  "capturedAt": "2026-07-17T10:35:59.752Z",
-  "updatedAt": "2026-07-17T10:35:59.754Z",
-  "fingerprint": "96141f42af95c2dc",
-  "elementCount": 40,
+  "title": "booking.com",
+  "capturedAt": "2026-07-19T18:03:24.890231+00:00",
+  "updatedAt": "2026-07-19T18:04:42.700878+00:00",
+  "fingerprint": "a7a9c0f38452ff8f",
+  "elementCount": 2,
   "elements": [
     {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Skip to main content",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Booking.com",
-      "attributes": {
-        "data-testid": "header-booking-logo"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "button",
-      "axName": "Prices in U.S. Dollar",
-      "attributes": {
-        "data-testid": "header-currency-picker-trigger"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "button",
-      "axName": "Language: English (US)",
-      "attributes": {
-        "data-testid": "header-language-picker-trigger"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "img",
-      "axName": null,
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Customer support",
-      "attributes": {
-        "data-testid": "header-help-center"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "List your property",
-      "attributes": {
-        "data-testid": "header-custom-action-button"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Register an account",
-      "attributes": {
-        "data-testid": "header-sign-up-button"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Sign in",
-      "attributes": {
-        "data-testid": "header-sign-in-button"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "ul",
-      "axName": "Stays Flights Flight + Hotel Car rental Cruises Attractions Airport taxis",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "li",
-      "axName": "Stays",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Stays",
-      "attributes": {
-        "id": "accommodations"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "li",
-      "axName": "Flights",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Flights",
-      "attributes": {
-        "id": "flights"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "li",
-      "axName": "Flight + Hotel",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Flight + Hotel",
-      "attributes": {
-        "id": "packages"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "li",
-      "axName": "Car rental",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Car rental",
-      "attributes": {
-        "id": "cars"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "li",
-      "axName": "Cruises",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Cruises",
-      "attributes": {
-        "id": "cruises"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "li",
-      "axName": "Attractions",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Attractions",
-      "attributes": {
-        "id": "attractions"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "li",
-      "axName": "Airport taxis",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Airport taxis",
-      "attributes": {
-        "id": "airport_taxis"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "a",
-      "axName": "Learn more about the card",
-      "attributes": {
-        "data-testid": "herobanner-cta"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "form",
-      "axName": "Search properties",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "input",
-      "axName": "Enter destination",
-      "attributes": {
-        "placeholder": "Where are you going?",
-        "id": "searchbox-horizontal-destination-input"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "button",
-      "axName": null,
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "span",
-      "axName": "Clear",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "button",
-      "axName": "Select dates Check-in date — Check-out date",
-      "attributes": {
-        "data-testid": "searchbox-dates-container"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "button",
-      "axName": "Number of travelers and rooms. Currently selected: 2 adults · 0 children · 1 roo",
-      "attributes": {
-        "data-testid": "occupancy-config"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "button",
-      "axName": "Search",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "input",
-      "axName": null,
-      "attributes": {
-        "id": ":Rnarcp:"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "input",
-      "axName": null,
-      "attributes": {
-        "id": ":R17arcp:"
-      },
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "img",
-      "axName": null,
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "img",
-      "axName": null,
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "img",
-      "axName": null,
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
-      "tag": "img",
-      "axName": null,
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
-    },
-    {
-      "backendNodeId": null,
+      "backendNodeId": 51,
       "tag": "div",
-      "axName": "Offers",
+      "axName": null,
       "attributes": {
-        "id": ":Rj6dcp:"
+        "id": "webpilot-panel",
+        "class": "wp-panel"
       },
-      "xpath": null,
-      "ancestors": []
+      "xpath": "html/body/div[4]/div[1]",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
     },
     {
-      "backendNodeId": null,
-      "tag": "div",
-      "axName": "Earn 6% in Travel Credits on stays with the Genius Rewards Visa® Plus get $150 i",
-      "attributes": {},
-      "xpath": null,
-      "ancestors": []
+      "backendNodeId": 10,
+      "tag": "button",
+      "axName": null,
+      "attributes": {
+        "id": "webpilot-details-btn",
+        "type": "button",
+        "class": "wp-btn"
+      },
+      "xpath": "html/body/div[4]/div[2]/div/div[2]/button",
+      "ancestors": [
+        {
+          "tag": "div",
+          "id": "webpilot-agent-ui"
+        }
+      ]
     }
   ],
   "verifiedLocators": [
@@ -445,13 +115,13 @@
       "recordedAt": "2026-07-17T10:33:49.250Z"
     }
   ],
-  "domNodesSeen": 40,
-  "axNodesSeen": 40,
-  "interactiveCandidatesSeen": 40,
-  "interactiveCandidatesStored": 40,
+  "domNodesSeen": 2,
+  "axNodesSeen": 2,
+  "interactiveCandidatesSeen": 2,
+  "interactiveCandidatesStored": 2,
   "snapshotQuality": "complete",
   "capHit": false,
   "captureCap": 120,
-  "captureSource": "heal_page_state",
+  "captureSource": "selector_map",
   "verifiedControlsStored": 5
 }

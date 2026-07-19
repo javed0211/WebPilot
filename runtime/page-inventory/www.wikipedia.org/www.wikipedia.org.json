@@ -1,9 +1,10 @@
 {
   "schemaVersion": 2,
-  "pageKey": null,
+  "pageKey": "www.wikipedia.org",
   "url": "https://www.wikipedia.org/",
   "title": "wikipedia.org",
   "capturedAt": null,
+  "updatedAt": "2026-07-19T19:15:37.860Z",
   "fingerprint": null,
   "elementCount": 45,
   "elements": [
@@ -996,10 +997,26 @@
         "value": "main"
       },
       "verified": true,
-      "verifiedBy": "snapshot",
+      "verifiedBy": "playwright",
       "matchCount": 1,
       "axName": "Search",
-      "recordedAt": "2026-07-17T14:08:39.063640+00:00"
+      "recordedAt": "2026-07-19T19:15:37.860Z"
+    },
+    {
+      "kind": "text",
+      "value": "Search Wikipedia",
+      "tag": "input",
+      "filterText": "Search Wikipedia",
+      "exact": true,
+      "scope": {
+        "kind": "css",
+        "value": "main"
+      },
+      "verified": true,
+      "verifiedBy": "playwright",
+      "matchCount": 1,
+      "axName": null,
+      "recordedAt": "2026-07-19T19:15:37.427Z"
     },
     {
       "kind": "css",
@@ -1015,10 +1032,9 @@
   "axNodesSeen": 45,
   "interactiveCandidatesSeen": 45,
   "interactiveCandidatesStored": 45,
-  "verifiedControlsStored": 2,
   "snapshotQuality": "complete",
   "capHit": false,
   "captureCap": 120,
   "captureSource": "selector_map",
-  "updatedAt": "2026-07-17T14:08:39.063636+00:00"
+  "verifiedControlsStored": 3
 }

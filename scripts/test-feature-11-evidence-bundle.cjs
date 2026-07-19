@@ -559,8 +559,9 @@ function assert(condition, name, detail = '') {
     ],
   });
   assert(html.includes('wp-gov-root'), 'F11 react overlay injects root');
-  assert(html.includes('Heal Ledger') || html.includes('renderTest'), 'F11 overlay script present');
+  assert(html.includes('Evidence &amp; Governance') || html.includes('Heal Ledger') || html.includes('renderTest'), 'F11 overlay script present');
   assert(html.includes('wp-gov-boot'), 'F11 overlay boot script present');
+  assert(html.includes('wp-gov-card'), 'F11 overlay uses light-theme card styles');
 }
 
 // Coverage governance penalty + regression quarantine

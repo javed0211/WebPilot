@@ -51,8 +51,53 @@ function asOutcome(status: unknown): EvidenceOutcome {
 function primaryLocator(step: ActStep): ActLocator | undefined {
   const locs = step.locators || [];
   if (!locs.length) return undefined;
-  const verified = locs.find((l) => l.verified);
-  return verified || locs[0];
+
+  // Prefer verified candidates generated for this element (not page-wide inventory reuse).
+  const elementVerified = locs.find((l) => l.verified && !l.inventoryPolicy);
+  if (elementVerified) return elementVerified;
+
+  const generated = locs.filter((l) => !l.inventoryPolicy);
+  if (generated.length) {
+    return generated.find((l) => l.verified) || generated[0];
+  }
+
+  // Inventory reuse is only valid when it matches this control's accessible name.
+  const ax = (step as ActStep & { element?: { ax_name?: string } }).element?.ax_name;
+  if (ax) {
+    const needle = String(ax).trim().toLowerCase();
+    const inventoryMatch = locs.find((l) => {
+      if (!l.verified || !l.inventoryPolicy) return false;
+      const name = String(l.name || l.filterText || l.value || '')
+        .trim()
+        .toLowerCase();
+      return name === needle || name.includes(needle);
+    });
+    if (inventoryMatch) return inventoryMatch;
+  }
+
+  // Only unrelated inventory leftovers remain — omit rather than mis-attribute.
+  return undefined;
+}
+
+function stripCallLog(error?: string | null): string | null {
+  if (!error) return null;
+  return error.replace(/\s*Call log:[\s\S]*$/i, '').replace(/\s+/g, ' ').trim() || null;
+}
+
+function extractAttemptedLocators(error?: string | null): string[] {
+  if (!error) return [];
+  const tried = error.match(/\(tried:\s*([^)]+)\)/i);
+  if (tried?.[1]) {
+    return tried[1]
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  const waiting = error.match(/waiting for\s+([^\n]+)/i);
+  if (waiting?.[1]) return [waiting[1].trim()];
+  const resolved = error.match(/locator resolved to[^\n]*\n\s*-\s*([^\n]+)/i);
+  if (resolved?.[1]) return [resolved[1].trim()];
+  return [];
 }
 
 function buildTimeline(
@@ -76,13 +121,25 @@ function buildTimeline(
     }
 
     const assertionItem = assertionByIndex.get(step.index);
-    const used =
-      result?.locatorUsed ||
-      (loc
+    const planned =
+      loc
         ? loc.kind === 'role'
           ? `getByRole('${loc.value}'${loc.name ? `, { name: '${loc.name}' }` : ''})`
           : `${loc.kind}=${loc.value || loc.name || ''}`
-        : step.selector || undefined);
+        : undefined;
+    // Only treat locatorUsed as the action locator when the step succeeded.
+    const used = result?.ok ? result.locatorUsed || planned : result?.locatorUsed || undefined;
+    const attemptedLocators = result?.ok ? undefined : extractAttemptedLocators(result?.error);
+    const failureReason = result?.ok ? null : stripCallLog(result?.error);
+    // Avoid treating the serialized candidate JSON array as a "used" locator.
+    const selectorFallback =
+      !used &&
+      !planned &&
+      typeof step.selector === 'string' &&
+      step.selector.trim() &&
+      !step.selector.trim().startsWith('[')
+        ? step.selector
+        : undefined;
 
     return {
       index: step.index ?? i,
@@ -100,14 +157,20 @@ function buildTimeline(
             kind: loc.kind,
             value: loc.value,
             name: loc.name,
-            used,
-            verified: loc.verified,
-            verifiedBy: loc.verified ? 'inventory' : undefined,
+            used: used || planned,
+            planned,
+            // Proof belongs to the planned candidate and only when the step succeeded.
+            verified: Boolean(loc.verified && result?.ok),
+            verifiedBy:
+              loc.verified && result?.ok
+              ? loc.verifiedBy || (loc.inventoryPolicy ? 'inventory' : 'snapshot')
+              : undefined,
             matchCount: loc.matchCount,
           }
-        : used
-          ? { used, verified: false }
+        : selectorFallback
+          ? { used: selectorFallback, verified: false }
           : null,
+      attemptedLocators,
       outcome,
       after: step.url ? { url: step.url, inventoryChanged: false } : null,
       assertion: assertionItem
@@ -116,6 +179,61 @@ function buildTimeline(
       healed,
       screenshotPath: result?.screenshotPath ?? null,
       error: result?.error ?? null,
+      failureReason,
+    };
+  });
+}
+
+function buildApiTimeline(
+  apiSteps: Array<{
+    stepIndex?: number;
+    stepName?: string;
+    method?: string;
+    url?: string;
+    status?: number;
+    durationMs?: number;
+    success?: boolean;
+    error?: string;
+    responsePreview?: string;
+    expectedStatus?: number;
+  }>
+): EvidenceTimelineStep[] {
+  return apiSteps.map((step, i) => {
+    const index = typeof step.stepIndex === 'number' ? step.stepIndex : i;
+    const ok = step.success !== false && !step.error;
+    const expected = step.expectedStatus;
+    const actual = step.status;
+    const failureReason = ok
+      ? null
+      : stripCallLog(step.error) ||
+        (expected != null && actual != null
+          ? `Expected HTTP ${expected}, received ${actual}`
+          : `Request failed with HTTP ${actual ?? 'unknown'}`);
+    return {
+      index,
+      nlStep: step.stepName || `${step.method || 'REQUEST'} ${step.url || ''}`.trim(),
+      action: (step.method || 'request').toLowerCase(),
+      url: step.url ?? null,
+      pageTitle: null,
+      locator: null,
+      outcome: ok ? 'PASSED' : 'FAILED',
+      durationMs: step.durationMs,
+      assertion:
+        expected != null
+          ? {
+              kind: 'status',
+              expected: String(expected),
+              actual: actual != null ? String(actual) : undefined,
+            }
+          : null,
+      healed: false,
+      screenshotPath: null,
+      error: step.error ?? null,
+      failureReason,
+      httpMethod: step.method,
+      httpStatus: actual,
+      expectedStatus: expected,
+      responsePreview: step.responsePreview ?? null,
     };
   });
 }
@@ -128,7 +246,7 @@ function summarizeLocators(timeline: EvidenceTimelineStep[]): EvidenceLocatorSum
     total,
     verified,
     unverified: Math.max(0, total - verified),
-    verifiedRatio: total > 0 ? verified / total : 1,
+    verifiedRatio: total > 0 ? verified / total : null,
   };
 }
 
@@ -237,13 +355,32 @@ export class EvidenceBundleBuilder {
           : [];
     const nlSteps = history.nlSteps || [];
     const healingRecords = history.runLog?.healing || [];
-    const timeline = buildTimeline(
-      steps,
-      nlSteps,
-      healingRecords,
-      history.assertionPlan,
-      stepResults
-    );
+    const apiSteps = Array.isArray(summary.apiSteps)
+      ? (summary.apiSteps as Array<Record<string, unknown>>)
+      : [];
+    const isApi = String(summary.kind || '').toLowerCase() === 'api' || apiSteps.length > 0;
+    const timeline = isApi
+      ? buildApiTimeline(
+          apiSteps.map((s) => ({
+            stepIndex: typeof s.stepIndex === 'number' ? s.stepIndex : undefined,
+            stepName: typeof s.stepName === 'string' ? s.stepName : undefined,
+            method: typeof s.method === 'string' ? s.method : undefined,
+            url: typeof s.url === 'string' ? s.url : undefined,
+            status: typeof s.status === 'number' ? s.status : undefined,
+            durationMs: typeof s.durationMs === 'number' ? s.durationMs : undefined,
+            success: typeof s.success === 'boolean' ? s.success : undefined,
+            error: typeof s.error === 'string' ? s.error : undefined,
+            responsePreview: typeof s.responsePreview === 'string' ? s.responsePreview : undefined,
+            expectedStatus: typeof s.expectedStatus === 'number' ? s.expectedStatus : undefined,
+          }))
+        )
+      : buildTimeline(
+          steps,
+          nlSteps,
+          healingRecords,
+          history.assertionPlan,
+          stepResults
+        );
 
     const runId =
       options.runId ||

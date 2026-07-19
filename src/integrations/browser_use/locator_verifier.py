@@ -158,15 +158,24 @@ def element_matches_locator(el: dict[str, Any], locator: dict[str, Any]) -> bool
 
 
 def _is_target(el: dict[str, Any], target: dict[str, Any]) -> bool:
+    """True when inventory element is the same control the agent interacted with.
+
+    backend_node_id is authoritative when equal, but it is session-scoped and
+    changes across navigations/re-renders. A mismatch must fall through to
+    stable fingerprints (id / testid / href / ax+tag) — otherwise unique CSS
+    locators stay UNVERIFIED after a later page snapshot overwrites the step-time DOM.
+    """
     t_backend = target.get("backend_node_id") or target.get("backendNodeId")
     e_backend = el.get("backendNodeId") or el.get("backend_node_id")
     if t_backend is not None and e_backend is not None:
         try:
-            return int(t_backend) == int(e_backend)
+            if int(t_backend) == int(e_backend):
+                return True
         except (TypeError, ValueError):
-            return str(t_backend) == str(e_backend)
+            if str(t_backend) == str(e_backend):
+                return True
 
-    # Fingerprint fallback when backend ids absent (heal snapshots)
+    # Fingerprint fallback (also used when backend ids differ across snapshots)
     t_attrs = target.get("attributes") or {}
     e_attrs = _attrs(el)
     for key in ("id", "data-testid", "href"):

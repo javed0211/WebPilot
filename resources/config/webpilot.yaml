@@ -147,7 +147,7 @@ intelligentRunner:
 browser:
   target: "chrome" # chrome (Google Chrome), chromium, msedge — WebPilot agent channel
   headless: false
-  video: "retain-on-failure" # off | on | retain-on-failure — Playwright .webm only
+  video: "on" # off | on | retain-on-failure — Playwright .webm for every ActHistory evidence replay
   # BA discovery never uses ffmpeg. Playwright records ActHistory evidence video for the HTML report
   # (always when on; on failure when retain-on-failure). Generated specs use playwright.config.ts.
   screenshots: "only-on-failure" # off, on, only-on-failure — report media for failed steps only

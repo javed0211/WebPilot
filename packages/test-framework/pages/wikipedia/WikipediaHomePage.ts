@@ -39,7 +39,21 @@ export class WikipediaHomePage extends BasePage {
   }
 
   public async assertSearchWikipedia(): Promise<void> {
-    await expect(this.page.getByText('Search Wikipedia').filter({ visible: true }).first()).toBeVisible();
+    // The 'Search Wikipedia' text is inside a label for the search input on the homepage only.
+    // On /wiki/* pages, the search box is in the header with a different structure.
+    // So, scope to the homepage main content region.
+    const url = await this.page.url();
+    if (url === 'https://www.wikipedia.org/') {
+      // On homepage, the label is present in the main content
+      await expect(
+        this.page.locator('main label[for="searchInput"]').getByText('Search Wikipedia', { exact: true })
+      ).toBeVisible();
+    } else {
+      // On /wiki/* pages, the search box is in the header with placeholder 'Search Wikipedia'
+      await expect(
+        this.page.locator('header input[placeholder="Search Wikipedia"]')
+      ).toBeVisible();
+    }
   }
 
   public async assertPageUrlContainsSoftwareTesting(): Promise<void> {

@@ -103,6 +103,7 @@ export class Engine {
   private executor!: ExecutionAgent;
   private validator!: ValidationAgent;
   private healer!: HealingAgent;
+  private runStartedAt = 0;
 
   constructor(options: EngineOptions) {
     this.testFilePath = options.testFilePath;
@@ -210,10 +211,36 @@ export class Engine {
     }
   }
 
+  /** Patch summary with execution provenance without clobbering artifacts. */
+  private patchSummaryProvenance(
+    slug: string,
+    patch: {
+      executionMode?: string;
+      statusReason?: string;
+      failureContext?: string;
+      status?: string;
+    }
+  ): void {
+    try {
+      const p = summaryPath(slug);
+      if (!fs.existsSync(p)) return;
+      const summary = JSON.parse(fs.readFileSync(p, 'utf8')) as Record<string, unknown>;
+      if (patch.executionMode) summary.executionMode = patch.executionMode;
+      if (patch.statusReason) summary.statusReason = patch.statusReason;
+      if (patch.failureContext) summary.failureContext = patch.failureContext;
+      if (patch.status) summary.status = patch.status;
+      if (patch.statusReason && !summary.summary) summary.summary = patch.statusReason;
+      fs.writeFileSync(p, JSON.stringify(summary, null, 2), 'utf8');
+    } catch {
+      // best-effort
+    }
+  }
+
   /**
    * Main execution trigger
    */
   public async execute(): Promise<EngineRunResult> {
+    this.runStartedAt = Date.now();
     UsageTracker.reset();
     Logger.info('Initializing execution session');
 
@@ -308,10 +335,16 @@ export class Engine {
             heal: isReplayHealEnabled(),
           });
           if (!replay.success) {
-            Logger.error(
+            const reason =
               replay.failure ||
-                'ActHistory browser replay failed — not treating as pass; use --force-discovery to rediscover'
-            );
+              'ActHistory browser replay failed — browser-use discovery was not run; use --force-discovery to rediscover';
+            Logger.error(reason);
+            this.patchSummaryProvenance(slug, {
+              executionMode: 'act-history-replay',
+              statusReason: reason,
+              failureContext: reason,
+              status: 'FAILED',
+            });
             return { success: false, stepsExecuted: replay.stepsExecuted || 0 };
           }
           Logger.success(
@@ -341,15 +374,29 @@ export class Engine {
             });
             if (!codegenResult.success) {
               Logger.error(codegenResult.summary);
+              this.patchSummaryProvenance(slug, {
+                executionMode: 'act-history-replay',
+                statusReason: `Browser ActHistory replay passed, but codegen validation failed: ${codegenResult.summary}`,
+                failureContext: codegenResult.summary,
+                status: 'FAILED',
+              });
               return { success: false, stepsExecuted: adapted?.steps.length || replay.stepsExecuted || 0 };
             }
             Logger.success(codegenResult.summary);
             await this.mergeCodegenIntoReport(slug, codegenResult);
             this.finalizeJobUsage(slug);
+            this.patchSummaryProvenance(slug, {
+              executionMode: 'act-history-replay',
+              status: 'PASSED',
+            });
             return { success: true, stepsExecuted: adapted?.steps.length || replay.stepsExecuted || 0 };
           }
 
           this.finalizeJobUsage(slug);
+          this.patchSummaryProvenance(slug, {
+            executionMode: 'act-history-replay',
+            status: 'PASSED',
+          });
           return { success: true, stepsExecuted: replay.stepsExecuted || 0 };
         }
       }
@@ -848,12 +895,19 @@ export class Engine {
       }
       
       const usage = UsageTracker.getSnapshot();
+      const statusReason = !success
+        ? String(codegenSummary || this.fallbackReason || 'Run failed')
+        : undefined;
       const reportSummary: Record<string, unknown> = {
         test: testName,
         status: success ? 'PASSED' : 'FAILED',
         timestamp: new Date().toISOString(),
         stepsExecuted: executionHistory.length,
+        kind: 'web',
+        executionMode: 'local-playwright',
         summary: codegenSummary,
+        statusReason,
+        durationMs: this.runStartedAt ? Date.now() - this.runStartedAt : undefined,
         tokens: usage.totalTokens,
         promptTokens: usage.promptTokens,
         completionTokens: usage.completionTokens,
@@ -870,6 +924,8 @@ export class Engine {
       
       if (this.fallbackReason) {
         reportSummary.failureContext = this.fallbackReason;
+      } else if (statusReason) {
+        reportSummary.failureContext = statusReason;
       }
       if (reportCodegen) {
         reportSummary.codegen = reportCodegen;

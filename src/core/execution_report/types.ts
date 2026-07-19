@@ -83,8 +83,19 @@ export interface TestCaseReport {
   testName: string;
   testFile?: string;
   status: string;
+  /** web | api — drives report surfaces and AI analysis. */
+  kind?: 'web' | 'api' | string;
+  /** How the run executed: browser-use-discovery | act-history-replay | api | hybrid */
+  executionMode?: string;
+  /** Short explanation of overall status (e.g. codegen failed after browser passed). */
+  statusReason?: string;
+  /** Raw failure detail from replay/API runner. */
+  failureContext?: string;
   timestamp: string;
   stepsExecuted: number;
+  /** Wall-clock duration for this test run (ms). */
+  durationMs?: number;
+  totalDurationMs?: number;
   nlSteps: string[];
   executionSteps: ReportStep[];
   urlSequence: string[];
@@ -135,6 +146,7 @@ export interface SuiteExecutionReport {
     totalSteps: number;
     totalCostUsd: number;
     totalTokens: number;
+    totalDurationMs?: number;
   };
   historyOverview: {
     totalRuns: number;
@@ -145,4 +157,5 @@ export interface SuiteExecutionReport {
     llmCalls: number;
   };
   suiteAiAnalysis?: string;
+  totalDurationMs?: number;
 }

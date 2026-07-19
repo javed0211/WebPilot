@@ -51,7 +51,10 @@ export interface GenerateReportOptions {
   env?: string;
   testSlugs?: string[];
   testFilePath?: string;
+  /** Wall-clock suite duration (ms). Preferred for overview Total time. */
   durationMs?: number;
+  /** Per-test wall-clock durations keyed by slug. */
+  testDurations?: Record<string, number>;
   skipAi?: boolean;
 }
 
@@ -79,12 +82,15 @@ function enrichSummaryMeta(
 }
 
 function buildTestAiPayload(t: TestCaseReport): Record<string, string> {
-  const sample = t.executionSteps
+  const kind = String(t.kind || (t.executionMode === 'api' ? 'api' : 'web')).toLowerCase();
+  const sample = (t.evidenceTimeline?.length ? t.evidenceTimeline : t.executionSteps)
     .slice(0, 15)
-    .map(
-      (s) =>
-        `${s.index}. [${s.action}] ${s.url || s.selector || ''} — ${(s.description || '').slice(0, 120)}`
-    )
+    .map((s: any) => {
+      if (s.httpMethod || kind === 'api') {
+        return `${s.index ?? ''}. [${(s.httpMethod || s.action || 'request').toUpperCase()}] ${s.url || ''} → HTTP ${s.httpStatus ?? '—'} expected ${s.expectedStatus ?? '—'} — ${(s.failureReason || s.error || s.nlStep || s.description || '').toString().slice(0, 160)}`;
+      }
+      return `${s.index}. [${s.action}] ${s.url || s.selector || ''} — ${(s.description || s.nlStep || s.error || '').toString().slice(0, 120)}`;
+    })
     .join('\n');
 
   const insights = t.runtimeInsights.map((i) => `- [${i.type}] ${i.message}`).join('\n') || 'None';
@@ -96,12 +102,16 @@ function buildTestAiPayload(t: TestCaseReport): Record<string, string> {
   return {
     test_slug: t.slug,
     status: t.status,
+    execution_kind: kind,
+    execution_mode: String(t.executionMode || kind || 'unknown'),
     steps_executed: String(t.stepsExecuted),
     agent_success: String(t.isAgentSuccessful ?? 'unknown'),
+    status_reason: t.statusReason || 'None',
+    failure_context: t.failureContext || 'None',
     url_sequence: t.urlSequence.join(' → ') || 'None',
     nl_steps: nl,
     runtime_insights: insights,
-    codegen_summary: codegen,
+    codegen_summary: codegen || 'None',
     llm_calls: String(t.pricing.llmCalls),
     total_tokens: String(t.pricing.totalTokens),
     prompt_tokens: String(t.pricing.promptTokens),
@@ -127,7 +137,7 @@ async function analyzeSuite(llm: LLMClient, report: SuiteExecutionReport): Promi
   const table = report.testCases
     .map(
       (t) =>
-        `- ${t.slug}: ${t.status}, ${t.stepsExecuted} steps, $${t.pricing.estimatedCostUsd.toFixed(4)}, agent ok=${t.isAgentSuccessful}`
+        `- ${t.slug}: ${t.status}, kind=${t.kind || 'web'}, mode=${t.executionMode || '—'}, ${t.stepsExecuted} steps, $${t.pricing.estimatedCostUsd.toFixed(4)}, agent ok=${t.isAgentSuccessful}, reason=${(t.statusReason || t.failureContext || '—').toString().slice(0, 120)}`
     )
     .join('\n');
 
@@ -217,7 +227,7 @@ export async function generateExecutionReports(
       enrichSummaryMeta(slug, {
         env: options.env,
         testFilePath: options.testFilePath,
-        durationMs: options.durationMs,
+        durationMs: options.testDurations?.[slug] ?? options.durationMs,
       });
     }
   }
@@ -230,6 +240,17 @@ export async function generateExecutionReports(
     env: options.env,
     testSlugs: options.testSlugs,
   });
+
+  if (options.durationMs != null && Number.isFinite(options.durationMs)) {
+    report.overview.totalDurationMs = Math.max(0, Math.round(options.durationMs));
+    report.totalDurationMs = report.overview.totalDurationMs;
+  } else {
+    const summed = report.testCases.reduce((n, t) => n + (t.durationMs || t.totalDurationMs || 0), 0);
+    if (summed > 0) {
+      report.overview.totalDurationMs = summed;
+      report.totalDurationMs = summed;
+    }
+  }
 
   for (const t of report.testCases) {
     if (t.status === 'PASSED' || t.flakeAnalysis) continue;
@@ -327,20 +348,31 @@ export async function generateExecutionReports(
     }
   }
 
+  // Prefer the React report-ui shell (evidence + analytics rendered natively).
+  // Fall back to the built-in HTML renderer when the shell is missing, or when
+  // WEBPILOT_REPORT_UI=html is set. WEBPILOT_REPORT_UI=shell-v2 selects the
+  // temporary vanilla fallback shell.
+  const preferHtml = String(process.env.WEBPILOT_REPORT_UI || '').toLowerCase() === 'html';
   const suiteHtmlPath = suiteIndexHtmlPath();
-  const reactHtml = renderReactSuiteHtml(report);
-  if (reactHtml) {
-    fs.writeFileSync(suiteHtmlPath, reactHtml, 'utf8');
-  } else {
-    console.warn(
-      '\x1b[33m[ExecutionReport] report-ui shell not found; using built-in HTML renderer.\x1b[0m'
-    );
+  if (preferHtml) {
     fs.writeFileSync(suiteHtmlPath, renderSuiteHtml(report), 'utf8');
+  } else {
+    const reactHtml = renderReactSuiteHtml(report);
+    if (reactHtml) {
+      fs.writeFileSync(suiteHtmlPath, reactHtml, 'utf8');
+    } else {
+      console.warn(
+        '\x1b[33m[ExecutionReport] report-ui shell not found; using built-in HTML renderer.\x1b[0m'
+      );
+      fs.writeFileSync(suiteHtmlPath, renderSuiteHtml(report), 'utf8');
+    }
   }
 
   const testHtmlPaths: string[] = [];
   for (const t of report.testCases) {
-    const html = renderReactTestHtml(report, t.slug) ?? renderTestHtml(report, t.slug);
+    const html = preferHtml
+      ? renderTestHtml(report, t.slug)
+      : renderReactTestHtml(report, t.slug) ?? renderTestHtml(report, t.slug);
     if (!html) continue;
     const p = testReportHtmlPath(t.slug);
     fs.writeFileSync(p, html, 'utf8');

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-07-17T14:07:05.380Z",
+  "lastUpdated": "2026-07-19T19:16:46.755Z",
   "classes": [
     {
       "name": "BookingHomePage",
@@ -77,6 +77,121 @@
         },
         {
           "name": "assertDestinationIsLondonAndAccommodationResults",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "WikipediaHomePage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "WikipediaHomePage",
+      "urlPattern": "https://www.wikipedia.org/",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaHomePage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "goto",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "fillSearchWikipedia",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "clickSearchButton",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertWikipediaHomepageLoadsSuccessfully",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertSearchWikipedia",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertPageUrlContainsSoftwareTesting",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertPageUrlContainsTalk",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "WikipediaSoftwareTestingPage",
+      "extendsClass": "BasePage",
+      "pageIdentity": "WikipediaSoftwareTestingPage",
+      "urlPattern": "https://en.wikipedia.org/wiki/Software_testing",
+      "filePath": "/Users/oldguard/Desktop/WebPilot/packages/test-framework/pages/wikipedia/WikipediaSoftwareTestingPage.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "assertSoftwareTesting",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertFromWikipediaTheFreeEncyclopedia",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertArticle",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertWikipedia",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertThisPageWasLastEdited",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertCategories",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertReferencesSection",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertExternalLinksSection",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertRevisionHistory",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "assertSeeAlsoSection",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "captureCaptureScreenshotOfTheSoftwareTestingHeading",
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "capturePageScreenshot",
           "parameters": [],
           "returnType": "Promise<void>"
         }

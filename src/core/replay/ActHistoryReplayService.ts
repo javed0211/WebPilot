@@ -163,12 +163,28 @@ function persistReplayArtifacts(
     if (extras?.stepResultsPath) artifacts.stepResults = extras.stepResultsPath;
 
     summary.artifacts = artifacts;
-    summary.status = result.success ? 'PASSED' : 'FAILED';
+    // Preserve an existing pipeline statusReason (e.g. codegen failure) — replay
+    // artifacts must not silently flip an overall FAILED into PASSED.
+    const priorReason = typeof summary.statusReason === 'string' ? summary.statusReason : '';
+    const priorFailed =
+      String(summary.status || '').toUpperCase() === 'FAILED' &&
+      /codegen|validation/i.test(priorReason);
+    if (!priorFailed) {
+      summary.status = result.success ? 'PASSED' : 'FAILED';
+    }
+    summary.executionMode =
+      typeof summary.executionMode === 'string' ? summary.executionMode : 'act-history-replay';
     summary.stepsExecuted = result.stepsExecuted;
     summary.timestamp = new Date().toISOString();
+    if (typeof summary.durationMs !== 'number' && typeof result.durationMs === 'number') {
+      summary.durationMs = result.durationMs;
+    }
     if (extras?.runId) summary.runId = extras.runId;
     if (!result.success && result.failure) {
       summary.failureContext = result.failure;
+      if (!summary.statusReason) {
+        summary.statusReason = `ActHistory replay failed: ${result.failure}`;
+      }
     }
     fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2), 'utf8');
   } catch (err) {
@@ -245,6 +261,7 @@ export class ActHistoryReplayService {
     const headed = BrowserProviderRegistry.resolveHeaded();
     let result: ActReplayResult;
     let healing: ActHealingRecord[] = [];
+    const replayStartedAt = Date.now();
     try {
       const run = await runner.run(slug, doc, {
         headed,
@@ -291,7 +308,7 @@ export class ActHistoryReplayService {
           );
         },
       });
-      result = run.result;
+      result = { ...run.result, durationMs: Date.now() - replayStartedAt };
       healing = run.healing;
     } catch (err) {
       ledger?.appendLifecycle('replay.crashed', 'failed', {

@@ -249,23 +249,38 @@ function renderGovernanceStrip(t: TestCaseReport, _baseHref: string): string {
   const risk = t.risk;
   const comp = t.completeness;
   const evidenceLink = t.evidenceRef
-    ? `<a class="table-review-link" href="${esc(hrefFromReportsHtml(t.evidenceRef))}" style="margin-left:auto">Evidence JSON</a>`
+    ? `<a class="table-review-link" href="${esc(hrefFromReportsHtml(t.evidenceRef))}">Open Evidence JSON</a>`
     : '';
+  const metaBits = [
+    typeof t.healingCount === 'number' ? `healed ${t.healingCount}` : '',
+    t.codegenQuality ? `codegen ${t.codegenQuality}` : '',
+    t.evidenceLocators
+      ? `verified ${t.evidenceLocators.verified}/${t.evidenceLocators.total}`
+      : '',
+    `$${t.pricing.estimatedCostUsd.toFixed(4)}`,
+  ].filter(Boolean);
 
   return `
-    <div class="info-block" style="margin:12px 0 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-      ${risk ? `<span class="status-pill ${riskPillClass(risk.level)}">risk ${esc(risk.level)} (${risk.score})</span>` : ''}
-      ${comp ? `<span class="status-pill ${completenessPillClass(comp.grade)}">completeness ${esc(comp.grade)} (${comp.score})</span>` : ''}
-      ${typeof t.healingCount === 'number' ? `<span style="font-size:12px;color:var(--text-2)">healed ${t.healingCount}</span>` : ''}
-      ${t.codegenQuality ? `<span style="font-size:12px;color:var(--text-2)">codegen ${esc(t.codegenQuality)}</span>` : ''}
-      ${t.evidenceLocators ? `<span style="font-size:12px;color:var(--text-2)">verified ${t.evidenceLocators.verified}/${t.evidenceLocators.total}</span>` : ''}
-      <span style="font-size:12px;color:var(--brand);font-weight:600">$${t.pricing.estimatedCostUsd.toFixed(4)}</span>
-      ${evidenceLink}
+    <div class="info-block" style="margin:12px 0 16px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3)">Evidence &amp; Governance</div>
+        ${evidenceLink}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        ${risk ? `<span class="status-pill ${riskPillClass(risk.level)}">risk ${esc(risk.level)} (${risk.score})</span>` : ''}
+        ${comp ? `<span class="status-pill ${completenessPillClass(comp.grade)}">completeness ${esc(comp.grade)} (${comp.score})</span>` : ''}
+        ${metaBits.map((b) => `<span style="font-size:12px;color:var(--text-2)">${esc(b)}</span>`).join('')}
+      </div>
       ${
         risk?.factors?.length
-          ? `<div style="flex-basis:100%;font-size:11px;color:var(--text-3)">Factors: ${esc(
-              risk.factors.map((f) => `${f.id}(+${f.weight})`).join(', ')
+          ? `<div style="margin-top:10px;font-size:12px;color:var(--text-2)">Risk factors: ${esc(
+              risk.factors.map((f) => `${f.id} (+${f.weight})`).join(', ')
             )}</div>`
+          : ''
+      }
+      ${
+        comp?.warnings?.length
+          ? `<div style="margin-top:6px;font-size:12px;color:var(--text-3)">Warnings: ${esc(comp.warnings.join('; '))}</div>`
           : ''
       }
     </div>`;
@@ -375,7 +390,7 @@ function renderLocatorVerification(t: TestCaseReport): string {
     .join('');
   return `
   <div class="info-block" style="margin-bottom:14px">
-    <div class="section-title">Locator Verification · ${locs.verified}/${locs.total} verified (${(locs.verifiedRatio * 100).toFixed(0)}%)</div>
+    <div class="section-title">Locator Verification · ${locs.verified}/${locs.total} verified (${locs.verifiedRatio == null ? 'n/a' : (locs.verifiedRatio * 100).toFixed(0) + '%'})</div>
     <table style="width:100%;border-collapse:collapse;margin-top:8px">
       <thead>
         <tr style="text-align:left;font-size:11px;color:var(--text-3)">
@@ -981,6 +996,7 @@ export function renderSuiteHtml(report: SuiteExecutionReport, baseHref = ''): st
                 <th>Test Case ID</th>
                 <th>Status</th>
                 <th>Steps</th>
+                <th>Evidence</th>
                 <th>Outcome Details</th>
                 <th></th>
               </tr>
@@ -995,11 +1011,20 @@ export function renderSuiteHtml(report: SuiteExecutionReport, baseHref = ''): st
                       : t.codegenSummary).substring(0, 80)
                     : 'Test passed successfully.')
                   : 'Test failed. Check details for more info.';
+                const evidenceCell =
+                  t.risk || t.completeness
+                    ? `<div style="display:flex;flex-wrap:wrap;gap:4px">
+                        ${t.risk ? `<span class="status-pill ${riskPillClass(t.risk.level)}" style="font-size:10px">risk ${esc(t.risk.level)}</span>` : ''}
+                        ${t.completeness ? `<span class="status-pill ${completenessPillClass(t.completeness.grade)}" style="font-size:10px">grade ${esc(t.completeness.grade)}</span>` : ''}
+                        ${t.evidenceLocators ? `<span style="font-size:11px;color:var(--text-2)">loc ${t.evidenceLocators.verified}/${t.evidenceLocators.total}</span>` : ''}
+                      </div>`
+                    : `<span style="font-size:11px;color:var(--text-3)">—</span>`;
                 return `<tr class="test-table-row" data-slug="${esc(t.slug)}">
                   <td><span style="font-size:12.5px;font-weight:600;color:var(--text)">${esc(t.slug)}</span></td>
                   <td><span class="status-pill ${isPass ? 'status-passed' : 'status-failed'}">${esc(t.status)}</span></td>
                   <td>${t.stepsExecuted}</td>
-                  <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(outcomeText)}">${esc(outcomeText)}</td>
+                  <td>${evidenceCell}</td>
+                  <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(outcomeText)}">${esc(outcomeText)}</td>
                   <td>
                     ${multiTest
                       ? `<a class="table-review-link" href="${esc(t.slug)}-report.html">Full Report ${ICON_EXT_LINK.replace('<svg ', '<svg width="11" height="11" ')}</a>`

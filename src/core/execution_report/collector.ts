@@ -232,14 +232,49 @@ export function collectTestCaseReport(slug: string): TestCaseReport | null {
 
   const failureContext =
     typeof summary.failureContext === 'string' ? summary.failureContext : undefined;
+  const statusReason =
+    typeof summary.statusReason === 'string'
+      ? summary.statusReason
+      : typeof summary.summary === 'string' && String(summary.status).toUpperCase() === 'FAILED'
+        ? summary.summary
+        : undefined;
+  const kind =
+    typeof summary.kind === 'string'
+      ? summary.kind
+      : Array.isArray(summary.apiSteps)
+        ? 'api'
+        : 'web';
+  const executionMode =
+    typeof summary.executionMode === 'string'
+      ? summary.executionMode
+      : kind === 'api'
+        ? 'api'
+        : undefined;
+
+  const durationRaw =
+    typeof summary.durationMs === 'number'
+      ? summary.durationMs
+      : typeof summary.totalDurationMs === 'number'
+        ? summary.totalDurationMs
+        : undefined;
+  const durationMs =
+    durationRaw != null && Number.isFinite(durationRaw) && durationRaw >= 0
+      ? Math.round(durationRaw)
+      : undefined;
 
   const baseReport: TestCaseReport = {
     slug,
     testName: String(summary.testName ?? ctx?.testName ?? slug),
     testFile: summary.testFile as string | undefined,
     status: String(summary.status ?? 'UNKNOWN'),
+    kind,
+    executionMode,
+    statusReason,
+    failureContext,
     timestamp: String(summary.timestamp ?? ''),
     stepsExecuted: Number(summary.stepsExecuted ?? executionSteps.length),
+    durationMs,
+    totalDurationMs: durationMs,
     nlSteps,
     executionSteps,
     urlSequence,
@@ -348,6 +383,10 @@ export function collectSuiteReport(options: {
   const passed = testCases.filter((t) => t.status === 'PASSED').length;
   const failed = testCases.length - passed;
   const allRuns = testCases.flatMap((testCase) => testCase.runHistory);
+  const totalDurationMs = testCases.reduce(
+    (n, t) => n + (t.durationMs || t.totalDurationMs || 0),
+    0
+  );
 
   return {
     generatedAt: new Date().toISOString(),
@@ -364,6 +403,7 @@ export function collectSuiteReport(options: {
       totalSteps: testCases.reduce((n, t) => n + t.stepsExecuted, 0),
       totalCostUsd: testCases.reduce((n, t) => n + t.pricing.estimatedCostUsd, 0),
       totalTokens: testCases.reduce((n, t) => n + t.pricing.totalTokens, 0),
+      totalDurationMs: totalDurationMs > 0 ? totalDurationMs : undefined,
     },
     historyOverview: {
       totalRuns: allRuns.length,
@@ -373,5 +413,6 @@ export function collectSuiteReport(options: {
       totalCostUsd: allRuns.reduce((n, run) => n + run.pricing.estimatedCostUsd, 0),
       llmCalls: allRuns.reduce((n, run) => n + run.pricing.llmCalls, 0),
     },
+    totalDurationMs: totalDurationMs > 0 ? totalDurationMs : undefined,
   };
 }

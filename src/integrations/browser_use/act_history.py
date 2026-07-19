@@ -413,8 +413,11 @@ def _prefer_inventory_locators(
     """Phase 3: prepend inventory-verified locators for known page+axName (token save).
 
     Reuse policy: complete=prefer, partial/capped=hint, failed=ignore.
+
+    Requires a non-empty accessible_name so we never attach unrelated page-level
+    verified locators (e.g. searchbox-dates-container) to a different control.
     """
-    if not page_url:
+    if not page_url or not (accessible_name or "").strip():
         return generated
     try:
         from .page_inventory import inventory_reuse_policy, load_inventory, lookup_verified_locators
@@ -423,16 +426,9 @@ def _prefer_inventory_locators(
         policy = inventory_reuse_policy(inv)
         if policy == "ignore":
             return generated
-        known = lookup_verified_locators(page_url, accessible_name or None, min_policy="hint")
+        known = lookup_verified_locators(page_url, accessible_name.strip(), min_policy="hint")
     except Exception:
         return generated
-    if not known:
-        try:
-            from .page_inventory import lookup_verified_locators as lookup
-
-            known = lookup(page_url, None, min_policy="hint")[:3] if not accessible_name else []
-        except Exception:
-            known = []
     if not known:
         return generated
 
@@ -601,21 +597,64 @@ def _page_meta_from_history_item(item: Any) -> tuple[str | None, str | None]:
     return (str(url) if url else None, str(title) if title else None)
 
 
-def _snapshot_for_url(
+def _snapshot_entries_for_url(
     page_url: str | None,
-    page_snapshots: dict[str, dict[str, Any]] | None,
-) -> dict[str, Any] | None:
+    page_snapshots: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Return candidate snapshots for a URL (newest last). Supports list or single dict."""
     if not page_snapshots or not page_url:
-        return None
+        return []
     from .page_inventory import page_key_from_url
 
     key = page_key_from_url(page_url)
-    if key and key in page_snapshots:
-        return page_snapshots[key]
-    # Exact URL fallback
-    if page_url in page_snapshots:
-        return page_snapshots[page_url]
-    return None
+    entries: list[dict[str, Any]] = []
+    for candidate in (key, page_url):
+        if not candidate or candidate not in page_snapshots:
+            continue
+        raw = page_snapshots[candidate]
+        if isinstance(raw, list):
+            entries.extend(s for s in raw if isinstance(s, dict))
+        elif isinstance(raw, dict):
+            entries.append(raw)
+    # Deduplicate by object identity / captured fingerprint while preserving order
+    seen: set[int] = set()
+    out: list[dict[str, Any]] = []
+    for snap in entries:
+        ident = id(snap)
+        if ident in seen:
+            continue
+        seen.add(ident)
+        out.append(snap)
+    return out
+
+
+def _snapshot_for_url(
+    page_url: str | None,
+    page_snapshots: dict[str, Any] | None,
+    *,
+    target: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Pick the best in-memory snapshot for verification.
+
+    Prefer a snapshot that still contains the interacted element's backend_node_id
+    (step-time DOM). Fall back to the latest snapshot for the page.
+    """
+    entries = _snapshot_entries_for_url(page_url, page_snapshots)
+    if not entries:
+        return None
+    if target:
+        t_backend = target.get("backend_node_id") or target.get("backendNodeId")
+        if t_backend is not None:
+            for snap in reversed(entries):
+                for el in snap.get("elements") or []:
+                    e_backend = el.get("backendNodeId") or el.get("backend_node_id")
+                    try:
+                        if e_backend is not None and int(e_backend) == int(t_backend):
+                            return snap
+                    except (TypeError, ValueError):
+                        if str(e_backend) == str(t_backend):
+                            return snap
+    return entries[-1]
 
 
 def _apply_locator_verification(
@@ -623,12 +662,12 @@ def _apply_locator_verification(
     *,
     element_dict: dict[str, Any] | None,
     page_url: str | None,
-    page_snapshots: dict[str, dict[str, Any]] | None,
+    page_snapshots: dict[str, Any] | None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """Prefer DOM-verified unique locators; soft-rank originals if none verify."""
     if not locators or not element_dict:
         return locators, False
-    snapshot = _snapshot_for_url(page_url, page_snapshots)
+    snapshot = _snapshot_for_url(page_url, page_snapshots, target=element_dict)
     if not snapshot:
         # Try persisted inventory for this URL (cross-run / Phase 3)
         try:
@@ -643,6 +682,14 @@ def _apply_locator_verification(
     from .locator_verifier import verify_locators
 
     verified = verify_locators(locators, target=element_dict, snapshot=snapshot)
+    if not verified:
+        # Retry against older in-memory snapshots for this page (overlays / rebuilds)
+        for snap in reversed(_snapshot_entries_for_url(page_url, page_snapshots)):
+            if snap is snapshot:
+                continue
+            verified = verify_locators(locators, target=element_dict, snapshot=snap)
+            if verified:
+                break
     if verified:
         # Keep a few unverified fallbacks after proven ones
         verified_keys = {

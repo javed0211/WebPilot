@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>WebPilot · Execution Report</title>
+  <style>
+    :root {
+      --bg:#f3f2ef; --side:#eae9e5; --panel:#fbfaf8; --panel-2:#f5f4f1;
+      --ink:#17191d; --muted:#626872; --faint:#8a9099; --line:#d8d7d2;
+      --accent:#3157d5; --accent-soft:#e8ecfb; --ok:#17734c; --ok-soft:#e3f1e9;
+      --warn:#9b6413; --warn-soft:#f8ecd3; --bad:#b23a3a; --bad-soft:#f7e3e1;
+      --critical:#7e2032; --shadow:0 10px 32px rgba(20,24,32,.08);
+      --sans:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --mono:ui-monospace,"SFMono-Regular","SF Mono",Menlo,Consolas,monospace;
+    }
+    html[data-theme="dark"] {
+      --bg:#0d1118; --side:#111720; --panel:#151c26; --panel-2:#101721;
+      --ink:#edf0f5; --muted:#a5aebb; --faint:#7f8997; --line:#29313c;
+      --accent:#7893ff; --accent-soft:#1e2c55; --ok:#62c896; --ok-soft:#15372c;
+      --warn:#e5ad52; --warn-soft:#3b2d16; --bad:#ef7f79; --bad-soft:#402221;
+      --critical:#ff92aa; --shadow:0 14px 36px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    html{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+    body{margin:0;min-height:100vh}
+    button,a{font:inherit}
+    a{color:var(--accent)}
+    button{color:inherit}
+    :focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 42%,transparent);outline-offset:2px}
+    .app{min-height:100vh}
+    .sidebar{position:fixed;inset:0 auto 0 0;width:260px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:20}
+    .brand{height:70px;display:flex;align-items:center;gap:11px;padding:0 20px;border-bottom:1px solid var(--line)}
+    .brand-mark{width:27px;height:27px;position:relative;border:2px solid var(--accent);transform:rotate(45deg);border-radius:5px}
+    .brand-mark:after{content:"";position:absolute;inset:5px;border:2px solid var(--accent);border-radius:2px}
+    .brand strong{display:block;font-size:15px;letter-spacing:-.02em}
+    .brand small{display:block;margin-top:2px;color:var(--faint);font:10px var(--mono);letter-spacing:.09em;text-transform:uppercase}
+    .nav{padding:16px 12px 12px}
+    .nav a,.test-nav a{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--muted);border-radius:7px}
+    .nav a{height:36px;padding:0 10px;margin:2px 0;font-weight:600;font-size:13px}
+    .nav a:hover,.nav a.active,.test-nav a:hover,.test-nav a.active{background:var(--panel);color:var(--ink)}
+    .nav-ico{width:16px;text-align:center;font:12px var(--mono);color:var(--faint)}
+    .side-label{padding:15px 22px 8px;color:var(--faint);font:10px var(--mono);letter-spacing:.1em;text-transform:uppercase;border-top:1px solid var(--line)}
+    .test-nav{padding:0 12px;overflow:auto;flex:1}
+    .test-nav a{padding:10px;margin:2px 0;align-items:flex-start}
+    .test-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex:none;background:var(--bad)}
+    .test-dot.pass{background:var(--ok)}
+    .test-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;line-height:1.35}
+    .test-meta{display:block;margin-top:3px;color:var(--faint);font:10px var(--mono);text-transform:uppercase}
+    .side-foot{padding:14px 18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .theme-btn,.mobile-btn{border:1px solid var(--line);background:var(--panel);border-radius:7px;cursor:pointer;height:32px;padding:0 10px}
+    .theme-btn:hover,.mobile-btn:hover{border-color:var(--accent)}
+    .side-foot span{font:10px var(--mono);color:var(--faint)}
+    main{margin-left:260px;min-height:100vh}
+    .topbar{height:70px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 30px;position:sticky;top:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);z-index:10}
+    .crumb{color:var(--muted);font-size:12px}.crumb strong{color:var(--ink)}
+    .top-actions{display:flex;gap:8px;align-items:center}
+    .run-id{font:10px var(--mono);color:var(--faint);border:1px solid var(--line);padding:6px 8px;border-radius:5px}
+    .mobile-btn{display:none}
+    #view{max-width:1280px;margin:auto;padding:34px 38px 70px}
+    .eyebrow{font:10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+    h1,h2,h3,p{margin-top:0}
+    h1{font-size:32px;line-height:1.08;letter-spacing:-.035em;margin-bottom:10px}
+    h2{font-size:16px;letter-spacing:-.015em;margin-bottom:6px}
+    h3{font-size:13px;margin-bottom:8px}
+    .muted{color:var(--muted)} .mono{font-family:var(--mono)} .tabular{font-variant-numeric:tabular-nums}
+    .hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin-bottom:20px}
+    .hero-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}
+    .chip,.status,.action,.grade,.risk,.mini-chip{display:inline-flex;align-items:center;gap:5px;border-radius:5px;font-weight:700;white-space:nowrap}
+    .chip{border:1px solid var(--line);background:var(--panel);padding:5px 8px;font-size:11px}
+    .verdict{text-align:right;flex:none}
+    .verdict .word{font:700 29px var(--mono);letter-spacing:-.04em}
+    .verdict .word.pass{color:var(--ok)}.verdict .word.fail{color:var(--bad)}
+    .verdict small{display:block;color:var(--faint);font:10px var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+    .kpis{display:grid;grid-template-columns:repeat(7,minmax(105px,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+    .kpi{padding:10px 12px;border-right:1px solid var(--line);min-width:0}.kpi:last-child{border:0}
+    .kpi label{display:block;color:var(--muted);font-size:10px;margin-bottom:5px}
+    .kpi b{font:650 20px var(--mono);letter-spacing:-.04em}.kpi:first-child b{font-size:24px;color:var(--accent)}
+    .kpi small{color:var(--faint);font:10px var(--mono);margin-left:5px}
+    .delta{display:block!important;margin:4px 0 0!important;font:9px var(--mono)!important;color:var(--faint)!important}
+    .delta.up{color:var(--ok)!important}.delta.down{color:var(--bad)!important}.delta.neutral{color:var(--faint)!important}
+    .execution-strip{display:grid;grid-template-columns:repeat(6,auto) minmax(170px,1fr);border:1px solid var(--line);background:var(--panel);border-radius:7px;margin-bottom:10px;overflow:hidden}
+    .execution-stat{padding:8px 11px;border-right:1px solid var(--line);white-space:nowrap}
+    .execution-stat:last-child{border-right:0}.execution-stat label{display:block;color:var(--faint);font:8px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+    .execution-stat b{font:600 11px var(--mono)}.execution-context{text-align:right}
+    .governance{position:relative;background:#0f1624;color:#e9eef8;border-radius:9px;overflow:hidden;margin-bottom:24px;box-shadow:var(--shadow);border-top:3px solid #7fd7a8}
+    .governance.medium{border-top-color:#ecba62}.governance.high,.governance.critical{border-top-color:#f28b84}
+    html[data-theme="dark"] .governance{background:#060b13;box-shadow:0 0 0 1px #2b3547,var(--shadow)}
+    .gov-layout{display:grid;grid-template-columns:minmax(0,1.8fr) repeat(3,minmax(125px,.7fr));align-items:stretch}
+    .gov-main{display:grid;grid-template-columns:auto 1fr;gap:18px;padding:14px 18px;align-items:center}
+    .gov-main h2{margin:4px 0 0;font-size:15px;letter-spacing:-.02em}
+    .gov-copy{margin:12px 0 0;color:#aab6c8;font-size:12px}
+    .stack-bar{display:flex;height:8px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.08);margin:10px 0 7px}
+    .stack-bar i{display:block;height:100%}
+    .stack-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font:9px var(--mono)}
+    .stack-legend span{display:inline-flex;align-items:center;gap:6px;color:#aab6c8}
+    .stack-legend i{width:8px;height:8px;border-radius:2px;flex:none}
+    .stack-legend b{color:#e9eef8}
+    .gov-metrics{display:contents}
+    .gov-metrics div{padding:14px 16px;border-left:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;justify-content:center}
+    .gov-metrics div:last-child{border-right:0}
+    .gov-metrics label{display:block;color:#93a0b4;font-size:10px;margin-bottom:7px;letter-spacing:.06em}
+    .gov-metrics b{font:650 19px var(--mono)}.gov-metrics small{display:block;color:#8f9bad;margin-top:3px;font-size:9px}
+    .governance .dial-value b{color:#f2f5fa}.governance .dial-value small{color:#93a0b4}
+    .governance .risk-dial path{stroke:#28334a}.governance .risk-dial line{stroke:#54617a}
+    .governance .risk-dial.low path.on{stroke:#7fd7a8}.governance .risk-dial.medium path.on{stroke:#ecba62}.governance .risk-dial.high path.on,.governance .risk-dial.critical path.on{stroke:#f28b84}
+    .section-head{display:flex;justify-content:space-between;align-items:flex-end;margin:0 0 12px}
+    .section-head p{margin:0;color:var(--muted);font-size:12px}
+    .table-wrap{border:1px solid var(--line);border-radius:9px;overflow:auto;background:var(--panel)}
+    table{border-collapse:collapse;width:100%;font-size:12px}
+    th{text-align:left;padding:10px 14px;color:var(--faint);font:10px var(--mono);letter-spacing:.06em;text-transform:uppercase;background:var(--panel-2);border-bottom:1px solid var(--line)}
+    td{padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+    tr:last-child td{border-bottom:0}.click-row{cursor:pointer}.click-row:hover td{background:color-mix(in srgb,var(--accent) 4%,var(--panel))}
+    .status,.grade,.risk,.action{padding:4px 7px;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+    .status.pass,.verified{color:var(--ok);background:var(--ok-soft)}.status.fail,.unverified{color:var(--bad);background:var(--bad-soft)}
+    .risk.low{color:var(--ok);background:var(--ok-soft)}.risk.medium{color:var(--warn);background:var(--warn-soft)}.risk.high,.risk.critical{color:var(--bad);background:var(--bad-soft)}
+    .grade{color:var(--accent);background:var(--accent-soft)}
+    .meter{width:80px;height:5px;border-radius:3px;background:var(--line);overflow:hidden}.meter i{display:block;height:100%;background:var(--ok)}
+    .detail-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:26px}
+    .back{display:inline-block;font-size:11px;text-decoration:none;margin-bottom:15px}
+    .evidence-link{display:inline-flex;border:1px solid var(--line);background:var(--panel);padding:8px 10px;border-radius:7px;text-decoration:none;font-size:11px}
+    .gov-panel{border:1px solid var(--line);background:var(--panel);border-radius:9px;margin-bottom:28px;overflow:hidden}
+    .gov-panel-top{display:grid;grid-template-columns:1.35fr 1fr 1fr;border-bottom:1px solid var(--line)}
+    .risk-block{display:flex;gap:24px;align-items:center;padding:24px;border-right:1px solid var(--line)}
+    .risk-dial{flex:none;position:relative;display:grid;place-items:center}
+    .risk-dial svg{position:absolute;inset:0;width:100%;height:100%}
+    .risk-dial path{fill:none;stroke:var(--line);stroke-width:8;stroke-linecap:butt}
+    .risk-dial path.on{stroke:var(--ok)}
+    .risk-dial.medium path.on{stroke:var(--warn)}
+    .risk-dial.high path.on,.risk-dial.critical path.on{stroke:var(--bad)}
+    .risk-dial line{stroke:var(--faint);stroke-width:1.4}
+    .dial-value{text-align:center}.dial-value b{display:block;font:700 31px var(--mono);letter-spacing:-.06em}.dial-value small{font:9px var(--mono);color:var(--faint);text-transform:uppercase}
+    .factor-list{flex:1}.factor{margin:10px 0}.factor-line{display:flex;justify-content:space-between;gap:12px;font:11px var(--mono);margin-bottom:5px}
+    .factor-line b{color:var(--bad)}.factor-bar{height:4px;background:var(--line)}.factor-bar i{display:block;height:100%;background:var(--bad)}
+    .grade-block,.verify-block{padding:24px}
+    .grade-letter{font:750 46px var(--mono);color:var(--accent);line-height:1}.metric-big{font:700 30px var(--mono)}
+    .warning-list{padding-left:16px;color:var(--warn);font-size:11px;line-height:1.5;margin:11px 0 0}
+    .verify-ring{height:7px;background:var(--line);margin:13px 0 8px}.verify-ring i{display:block;height:100%;background:var(--ok)}
+    .gov-strip{display:grid;grid-template-columns:repeat(3,1fr)}.gov-strip div{padding:15px 20px;border-right:1px solid var(--line)}.gov-strip div:last-child{border:0}
+    .gov-strip label{display:block;color:var(--faint);font-size:10px;margin-bottom:5px}.gov-strip b{font:650 14px var(--mono)}
+    .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:22px;overflow-x:auto}
+    .tabs button{border:0;background:transparent;padding:10px 13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-size:11px;font-weight:650}
+    .tabs button.active{color:var(--accent);border-color:var(--accent)}
+    .panel{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:20px;margin-bottom:20px}
+    .timeline{position:relative}.timeline:before{content:"";position:absolute;left:18px;top:20px;bottom:20px;width:1px;background:var(--line)}
+    .event{display:grid;grid-template-columns:37px 1fr;gap:12px;position:relative;padding:9px 0}
+    .event-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);margin:13px 0 0 14px;z-index:1;box-shadow:0 0 0 4px var(--panel)}
+    .event.error .event-dot{background:var(--bad)}.event-body{border:1px solid var(--line);border-radius:7px;padding:13px 15px}
+    .event.error .event-body{border-color:color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad-soft) 35%,var(--panel))}
+    .event-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.event-top .index{font:10px var(--mono);color:var(--faint)}
+    .action{--ac:#64748b;background:color-mix(in srgb,var(--ac) 13%,transparent);color:var(--ac)}
+    .action.navigate{--ac:#5052c9}.action.click{--ac:#2b6cb8}.action.input{--ac:#0f766e}.action.wait{--ac:#64748b}.action.screenshot{--ac:#7a4fb0}.action.scroll{--ac:#6d7c2b}
+    .action.assert{--ac:var(--warn)}.action.error{--ac:var(--bad)}
+    html[data-theme="dark"] .action.navigate{--ac:#9b9df2}
+    html[data-theme="dark"] .action.click{--ac:#7db3ec}
+    html[data-theme="dark"] .action.input{--ac:#56c4ba}
+    html[data-theme="dark"] .action.wait{--ac:#94a3b8}
+    html[data-theme="dark"] .action.screenshot{--ac:#b894e8}
+    html[data-theme="dark"] .action.scroll{--ac:#b0bf5f}
+    .locator{font:11px/1.5 var(--mono);padding:7px 9px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;overflow-wrap:anywhere;margin-top:8px}
+    .locator-state,.mini-chip{font:9px var(--mono);padding:3px 5px;border-radius:4px}
+    .error-text{color:var(--bad);font:11px/1.5 var(--mono);margin:10px 0 0}
+    .empty{padding:42px 20px;text-align:center;border:1px dashed var(--line);border-radius:9px;color:var(--muted)}
+    .empty b{display:block;color:var(--ink);margin-bottom:5px}
+    .root-summary{font-size:15px;line-height:1.6;max-width:780px}.finding{border-left:3px solid var(--ok);padding:10px 13px;margin:12px 0;background:var(--panel-2)}
+    .finding.uncited{border-left-color:var(--warn)}.finding p{margin:0 0 9px}.cite{font:9px var(--mono);padding:3px 5px;background:var(--accent-soft);color:var(--accent);border-radius:3px;margin-right:5px}
+    .analysis{line-height:1.65;max-width:850px}.analysis h2{margin-top:20px}.analysis code{font:12px var(--mono);background:var(--panel-2);padding:2px 4px;border-radius:3px}
+    .ai-brief{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;border-left:3px solid var(--accent);padding:14px 16px;margin-bottom:24px}
+    .ai-brief .analysis{font-size:12px;line-height:1.45;max-height:72px;overflow:hidden}.ai-brief .analysis p{margin-bottom:0}.ai-brief .analysis h2{font-size:13px;margin:0 0 4px}
+    .text-link{font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}
+    .ai-excerpt{display:block;max-width:390px;color:var(--muted);font-size:10px;line-height:1.35;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .analytics-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:14px;margin-bottom:22px}
+    .chart-panel{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:18px;min-width:0}
+    .chart-panel h2{margin-bottom:3px}.chart-note{color:var(--muted);font-size:11px;margin-bottom:18px}
+    .health-chart{height:190px;display:flex;align-items:flex-end;gap:10px;border-bottom:1px solid var(--line);padding:10px 4px 0}
+    .health-col{height:100%;flex:1;min-width:30px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:7px}
+    .health-stack{width:min(52px,75%);height:140px;display:flex;flex-direction:column;justify-content:flex-end;background:var(--panel-2);border:1px solid var(--line)}
+    .health-stack i{display:block;width:100%}.health-stack .failed{background:var(--bad)}.health-stack .retry{background:var(--warn)}.health-stack .passed{background:var(--ok)}
+    .health-label{font:9px var(--mono);color:var(--faint);white-space:nowrap}
+    .trend-rows{display:grid;gap:12px}.trend-row{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:center}
+    .trend-row label{font:9px var(--mono);color:var(--faint)}.trend-track{height:7px;background:var(--line);overflow:hidden}.trend-track i{display:block;height:100%;background:var(--accent)}
+    .trend-pair{display:grid;gap:4px}.trend-track.cost{height:4px}.trend-track.cost i{background:var(--warn)}
+    .trend-row b{font:10px var(--mono);font-weight:600;min-width:80px;text-align:right}
+    .stability{display:grid;gap:9px}.stability-row{display:grid;grid-template-columns:minmax(130px,1fr) auto;gap:16px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+    .stability-cells{display:flex;gap:4px}.stability-cell{width:22px;height:22px;border-radius:4px;background:var(--line);border:1px solid color-mix(in srgb,var(--line) 80%,transparent)}
+    .stability-cell.pass{background:var(--ok)}.stability-cell.fail{background:var(--bad)}
+    .analysis-links{display:grid;gap:8px;margin-top:20px}.analysis-link{display:flex;justify-content:space-between;gap:20px;padding:12px 0;border-top:1px solid var(--line);text-decoration:none;color:var(--ink)}
+    .analysis-link span{color:var(--accent);font-size:11px}
+    .overview-analytics{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);gap:12px;margin-bottom:12px}
+    .overview-chart{height:128px}.overview-chart .health-stack{height:86px;width:min(42px,70%)}
+    .cause-list{display:grid;gap:8px}.cause-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+    .cause-row:first-child{border-top:0}.cause-row span{font-size:11px;line-height:1.35}.cause-row b{font:11px var(--mono);color:var(--bad)}
+    .tri-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+    .mini-analytic{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:14px;min-width:0}
+    .mini-analytic h3{margin-bottom:3px}.mini-analytic>p{font-size:10px;color:var(--muted);margin-bottom:13px}
+    .rank-list{display:grid;gap:9px}.rank-item{min-width:0}.rank-item-line{display:flex;justify-content:space-between;gap:10px;font-size:11px;margin-bottom:5px}
+    .rank-item-line span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rank-item-line b{font:10px var(--mono);white-space:nowrap}
+    .microbar{height:4px;background:var(--line)}.microbar i{display:block;height:100%;background:var(--accent)}
+    .insights-band{border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:linear-gradient(90deg,var(--accent-soft),var(--panel) 45%);border-radius:8px;margin-bottom:12px;overflow:hidden}
+    .insights-flow{display:grid;grid-template-columns:1.25fr repeat(6,1fr)}
+    .flow-lead,.insight-metric{padding:13px 14px;border-right:1px solid var(--line)}.insight-metric:last-child{border-right:0}
+    .flow-path{font:650 12px/1.5 var(--mono);margin-top:5px}.flow-path span{color:var(--accent)}
+    .insight-metric label{display:block;color:var(--faint);font:8px/1.35 var(--mono);letter-spacing:.05em;text-transform:uppercase;min-height:22px}
+    .insight-metric b{display:block;font:650 17px var(--mono);margin-top:4px}
+    .ranked{margin-bottom:24px}.rank-tabs{display:flex;gap:5px;padding:10px 12px;border:1px solid var(--line);border-bottom:0;background:var(--panel);border-radius:8px 8px 0 0}
+    .rank-tabs button{border:1px solid var(--line);background:var(--panel-2);color:var(--muted);padding:5px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer}
+    .rank-tabs button.active{background:var(--accent);border-color:var(--accent);color:white}
+    .artifact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.artifact{min-height:120px;border:1px dashed var(--line);background:var(--panel-2);display:grid;place-items:center;text-align:center;padding:15px;color:var(--muted);font:10px/1.5 var(--mono);border-radius:7px;overflow:hidden}
+    .artifact img{width:100%;height:180px;object-fit:cover;cursor:zoom-in}.artifact video{width:100%}
+    .env-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.fact{border-top:2px solid var(--accent);background:var(--panel);padding:18px;border-radius:0 0 8px 8px;border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+    .fact dl{margin:18px 0 0}.fact dl div{display:flex;justify-content:space-between;gap:15px;padding:9px 0;border-top:1px solid var(--line)}.fact dt{color:var(--muted)}.fact dd{margin:0;text-align:right;font:11px var(--mono);overflow-wrap:anywhere}
+    dialog{border:0;padding:0;background:#090c11;color:white;max-width:min(1100px,92vw);box-shadow:0 24px 80px #000;border-radius:8px}dialog::backdrop{background:rgba(3,6,10,.84)}dialog img{display:block;max-width:90vw;max-height:86vh}dialog button{position:absolute;right:10px;top:10px;background:#111a;border:1px solid #fff5;color:#fff;padding:6px 9px;border-radius:5px;cursor:pointer}
+    @media(max-width:1180px){.insights-flow{grid-template-columns:1.2fr repeat(3,1fr)}.insight-metric:nth-child(n+5){border-top:1px solid var(--line)}}
+    @media(max-width:1100px){.gov-layout{grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(105px,.6fr))}.stack-legend span:nth-child(n+3){display:none}.execution-strip{grid-template-columns:repeat(6,1fr)}.execution-context{grid-column:1/-1;text-align:left;border-top:1px solid var(--line)}}
+    @media(max-width:980px){.sidebar{transform:translateX(-100%);transition:transform .15s ease}.sidebar.open{transform:none;box-shadow:var(--shadow)}main{margin-left:0}.mobile-btn{display:inline-block}.gov-panel-top{grid-template-columns:1fr 1fr}.risk-block{grid-column:1/-1;border-right:0;border-bottom:1px solid var(--line)}}
+    @media(max-width:768px){#view{padding:24px 17px 50px}.topbar{padding:0 16px}.hero,.detail-head{display:block}.verdict{text-align:left;margin-top:16px}.kpis{grid-template-columns:repeat(7,minmax(105px,1fr));overflow-x:auto}.kpi{border-bottom:0}.kpi:last-child{grid-column:auto}.execution-strip{grid-template-columns:repeat(3,1fr)}.execution-stat:nth-child(n+4){border-top:1px solid var(--line)}.execution-context{grid-column:1/-1}.gov-layout{display:block}.gov-main{grid-template-columns:auto 1fr}.gov-metrics{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,.1)}.gov-metrics div{border-left:0;border-right:1px solid rgba(255,255,255,.1);padding:12px}.gov-metrics div:last-child{border-right:0}.tabs{flex-wrap:wrap;border-bottom:0;gap:6px}.tabs button{border:1px solid var(--line);border-radius:6px;padding:7px 10px}.tabs button.active{background:var(--accent-soft);border-color:var(--accent)}.gov-panel-top{display:block}.risk-block{align-items:flex-start}.grade-block,.verify-block{border-top:1px solid var(--line)}.gov-strip{grid-template-columns:1fr}.gov-strip div{border-right:0;border-bottom:1px solid var(--line)}.env-grid,.artifact-grid,.analytics-grid,.overview-analytics,.tri-grid{grid-template-columns:1fr}.insights-flow{grid-template-columns:1fr 1fr}.flow-lead{grid-column:1/-1}.ai-brief{grid-template-columns:1fr}.run-id{display:none}h1{font-size:27px}}
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div><strong>WebPilot</strong><small>Execution recorder</small></div></div>
+      <nav class="nav" aria-label="Report views">
+        <a href="#overview" data-route="overview"><span class="nav-ico">◫</span>Overview</a>
+        <a href="#trends" data-route="trends"><span class="nav-ico">⌁</span>Trends</a>
+        <a href="#ai-analysis" data-route="ai-analysis" id="ai-nav"><span class="nav-ico">AI</span>AI analysis</a>
+        <a href="#environment" data-route="environment"><span class="nav-ico">⌁</span>Environment</a>
+        <a href="#logs" data-route="logs"><span class="nav-ico">≡</span>Test logs</a>
+      </nav>
+      <div class="side-label">Test cases</div>
+      <nav class="test-nav" id="test-nav" aria-label="Test cases"></nav>
+      <div class="side-foot"><span>REPORT · V2</span><button class="theme-btn" id="theme" type="button" aria-label="Switch color theme">Dark</button></div>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div style="display:flex;align-items:center;gap:11px"><button class="mobile-btn" id="menu" type="button" aria-label="Open menu">Menu</button><div class="crumb">Report / <strong id="crumb">Overview</strong></div></div>
+        <div class="top-actions"><span class="run-id" id="run-id"></span></div>
+      </header>
+      <div id="view" tabindex="-1"></div>
+    </main>
+  </div>
+  <dialog id="lightbox"><button type="button" aria-label="Close image">Close</button><img alt="Artifact preview"></dialog>
+  <script type="application/json" id="webpilot-report-data">{}</script>
+  <script>
+  (() => {
+    "use strict";
+    const $ = (q, root=document) => root.querySelector(q);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const n = (value, fallback=0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const arr = value => Array.isArray(value) ? value : [];
+    const money = value => "$" + n(value).toFixed(n(value) < 1 ? 3 : 2);
+    const num = value => n(value).toLocaleString();
+    const date = value => { const d = new Date(value); return Number.isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString([], {dateStyle:"medium",timeStyle:"short"}); };
+    const safePath = value => { const s=String(value||""); return /^(?:javascript|data|vbscript):/i.test(s.trim()) ? "#" : s; };
+    const cap = value => { const s=String(value||"unknown"); return s.charAt(0).toUpperCase()+s.slice(1); };
+    const step=(index,action,nlStep,extra={})=>({index,action,nlStep,outcome:"passed",...extra});
+    const loc=(value,verified)=>({kind:value.startsWith("getBy")?"role":"css",value,used:true,verified,verifiedBy:verified?"inventory":undefined,matchCount:verified?1:undefined});
+    const bookingTimeline=[
+      step(1,"navigate","Open the storefront",{url:"https://www.booking.com",pageTitle:"Booking.com"}),
+      step(2,"click","Accept cookie preferences",{locator:loc('css=button[id="onetrust-accept-btn-handler"]',false)}),
+      step(3,"input","Enter destination: Amsterdam",{locator:loc('input[name="ss"]',true)}),
+      step(4,"click","Open date selector",{locator:loc('button[data-testid="date-display-field-start"]',true)}),
+      step(5,"click","Choose check-in date",{locator:loc('span[data-date="2026-08-14"]',false)}),
+      step(6,"click","Choose check-out date",{locator:loc('span[data-date="2026-08-17"]',false)}),
+      step(7,"click","Set guests and rooms",{locator:loc('button[data-testid="occupancy-config"]',true)}),
+      step(8,"click","Submit the search",{locator:loc("getByRole('button', { name: 'Search' })",true)}),
+      step(9,"wait","Wait for available properties",{locator:loc('[data-testid="property-card"]',true)}),
+      step(10,"assert","Confirm Amsterdam results",{locator:loc("h1",true),assertion:{kind:"visible",nlStep:"Confirm Amsterdam results"}})
+    ];
+    const checkoutTimeline=[
+      step(1,"navigate","Open checkout",{url:"https://shop.example.test/checkout",pageTitle:"Checkout"}),
+      step(2,"click","Continue as guest",{locator:loc("getByRole('button', { name: 'Continue as guest' })",true)}),
+      step(3,"input","Enter guest email",{locator:loc('input[name="email"]',true)}),
+      step(4,"input","Enter full name",{locator:loc('input[name="fullName"]',true)}),
+      step(5,"input","Enter shipping address",{locator:loc("#address-line1",false)}),
+      step(6,"click","Select standard shipping",{locator:loc('css=label[for="ship-standard"]',false)}),
+      step(7,"click","Continue to payment",{locator:loc("getByRole('button', { name: 'Continue to payment' })",true)}),
+      step(8,"click","Place guest order",{locator:loc("getByRole('button', { name: 'Place order' })",true),healed:true}),
+      step(9,"wait","Wait for confirmation",{locator:loc("#order-confirmation",false)}),
+      step(10,"assert","Confirm order success",{locator:loc("#order-confirmation",false),outcome:"failed",assertion:{kind:"visible",nlStep:"Confirm order success"},error:"Expected confirmation element to be visible after 15,000ms"})
+    ];
+    const pricing = {promptTokens:2760,completionTokens:1040,totalTokens:3800,estimatedCostUsd:.011,llmCalls:4,model:"gpt-4.1-mini",provider:"openai"};
+    const runPrice=(promptTokens,completionTokens,estimatedCostUsd,llmCalls=4)=>({promptTokens,completionTokens,totalTokens:promptTokens+completionTokens,estimatedCostUsd,llmCalls,model:"gpt-4.1-mini",provider:"openai"});
+    const sample = {
+      generatedAt:"2026-07-19T09:28:34.000Z",suiteName:"Commerce critical paths",
+      suiteAiAnalysis:"## Release briefing\nThe booking path remains stable across recent runs. The checkout failure is **grounded in captured evidence** after a selector heal and should block release until the missing confirmation state is explained.\n\n- Booking search passed its last three executions\n- Checkout regressed in the current run after two passes\n- Preserve the cited evidence events with the incident",
+      environment:{name:"Staging",baseUrl:"https://staging.example.test"},
+      browser:{target:"chromium",headless:true,viewport:{width:1440,height:900}},
+      framework:{name:"WebPilot",version:"2.11.0"},
+      overview:{total:2,executed:2,passed:1,failed:1,skipped:0,cancelled:0,passRate:50,retryRate:50,totalSteps:20,totalDurationMs:78400,totalCostUsd:.026,totalTokens:8420},
+      historyOverview:{totalRuns:4,promptTokens:6020,completionTokens:2400,totalTokens:8420,totalCostUsd:.026,llmCalls:9},
+      testCases:[
+        {slug:"booking_search_hotels",testName:"Booking search · hotels",status:"PASSED",timestamp:"2026-07-19T09:21:03.000Z",stepsExecuted:10,
+          nlSteps:["Open Booking.com","Search Amsterdam hotels","Verify results"],executionSteps:[],urlSequence:["https://www.booking.com"],runtimeInsights:[{type:"info",message:"All assertions passed."}],
+          codegenSummary:"Stable role locators generated.",artifacts:{screenshots:["artifacts/booking-results.png"],video:"artifacts/booking.webm",trace:"artifacts/booking-trace.zip"},pricing,
+          runHistory:[
+            {runId:"run-0042",timestamp:"2026-07-19T09:21:03.000Z",status:"PASSED",stepsExecuted:10,executionMode:"evidence",pricing:runPrice(2760,1040,.011)},
+            {runId:"run-0041",timestamp:"2026-07-18T16:04:00.000Z",status:"PASSED",stepsExecuted:10,executionMode:"evidence",pricing:runPrice(2510,930,.010)},
+            {runId:"run-0040",timestamp:"2026-07-17T14:42:00.000Z",status:"PASSED",stepsExecuted:10,retryCount:1,executionMode:"evidence",pricing:runPrice(2630,970,.0105)},
+            {runId:"run-0039",timestamp:"2026-07-16T11:18:00.000Z",status:"FAILED",stepsExecuted:9,executionMode:"evidence",pricing:runPrice(2890,1120,.012)}
+          ],
+          aiAnalysis:"## Assessment\nThe search flow completed successfully.\n- Search results rendered\n- Destination was preserved\n- Primary assertion passed with `h1` evidence",
+          evidenceRef:"runtime/reports/evidence/booking_search_hotels.json",risk:{score:24,level:"low",factors:[{id:"unverified-locators",weight:9,detail:"Three used locators lack inventory verification."},{id:"weak-assertions-only",weight:15,detail:"Assertions prove visibility but not result quality."}]},
+          completeness:{grade:"B",score:84,missing:[],warnings:["3 unverified locator(s) (ratio 0.57)"]},healingCount:0,codegenQuality:"good",
+          evidenceLocators:{total:7,verified:4,unverified:3,verifiedRatio:.57},evidenceTimeline:bookingTimeline,evidenceHealing:[],evidenceDrift:[],
+          rootCauseAnalysis:{status:"not-required",summary:"No failure required root-cause analysis.",findings:[]}},
+        {slug:"checkout_guest_flow",testName:"Checkout · guest flow",status:"FAILED",timestamp:"2026-07-19T09:25:46.000Z",stepsExecuted:10,
+          nlSteps:["Open checkout","Enter guest details","Place order","Verify confirmation"],executionSteps:[],urlSequence:["https://shop.example.test/checkout"],runtimeInsights:[{type:"error",message:"Confirmation assertion timed out."}],
+          codegenSummary:["One selector was healed.","Confirmation locator needs review."],artifacts:{screenshots:["artifacts/checkout-failure.png"],video:"artifacts/checkout.webm",trace:"artifacts/checkout-trace.zip"},
+          pricing:{...pricing,totalTokens:4620,estimatedCostUsd:.015,llmCalls:5},runHistory:[
+            {runId:"run-0042",timestamp:"2026-07-19T09:25:46.000Z",status:"FAILED",stepsExecuted:10,retryCount:1,executionMode:"evidence",pricing:runPrice(3260,1360,.015,5)},
+            {runId:"run-0041",timestamp:"2026-07-18T16:09:00.000Z",status:"PASSED",stepsExecuted:10,retryCount:0,executionMode:"evidence",pricing:runPrice(3010,1210,.013,5)},
+            {runId:"run-0040",timestamp:"2026-07-17T14:47:00.000Z",status:"PASSED",stepsExecuted:10,executionMode:"evidence",pricing:runPrice(2980,1180,.013,5)},
+            {runId:"run-0039",timestamp:"2026-07-16T11:23:00.000Z",status:"FAILED",stepsExecuted:8,executionMode:"evidence",pricing:runPrice(3140,1290,.014,5)}
+          ],
+          aiAnalysis:"## Failure analysis\nThe order action completed after a selector heal, but the **confirmation element never appeared**.\n- Review backend order processing\n- Preserve `evt-000123` with the incident",
+          evidenceRef:"runtime/reports/evidence/checkout_guest_flow.json",risk:{score:72,level:"high",factors:[{id:"assertion-failed",weight:30,detail:"The final success assertion failed."},{id:"healing-used",weight:10,detail:"A selector was replaced during execution."},{id:"page-drift",weight:22,detail:"Checkout DOM fingerprint changed."},{id:"unverified-locators",weight:10,detail:"Four used locators were not verified."}]},
+          completeness:{grade:"C",score:68,missing:["confirmation screenshot"],warnings:["4 unverified locator(s) (ratio 0.56)"]},healingCount:1,codegenQuality:"weak",
+          evidenceLocators:{total:9,verified:5,unverified:4,verifiedRatio:.56},evidenceTimeline:checkoutTimeline,
+          evidenceHealing:[{stepIndex:8,brokenSelector:"#btn-old",healedSelector:"getByRole('button', { name: 'Place order' })",confidence:.82,classification:"refactor",committed:true}],
+          evidenceDrift:[{pageKey:"checkout",previousFingerprint:"sha256:2f04…b891",currentFingerprint:"sha256:7ac1…90e3",added:8,removed:3,changed:4}],
+          rootCauseAnalysis:{status:"grounded",summary:"The checkout submitted after a high-confidence selector heal, but no confirmation state was observed before timeout.",findings:[{claim:"The primary order button was renamed during a checkout refactor.",citedEventIds:["evt-000123","evt-000124"],confidence:.91},{claim:"A downstream order service may have delayed the confirmation.",citedEventIds:[],confidence:.44}],missingEvidence:["Network response body for POST /orders"]}}
+      ]
+    };
+    let injected={};
+    try { injected=JSON.parse($("#webpilot-report-data").textContent||"{}"); } catch(e) { console.warn("Invalid injected report JSON; using sample.",e); }
+    const report = injected && Object.keys(injected).length ? injected : sample;
+    report.testCases=arr(report.testCases);
+
+    const hasEvidence = t => !!(t.risk || t.completeness || t.evidenceLocators || t.evidenceTimeline || t.evidenceHealing || t.evidenceDrift || t.rootCauseAnalysis);
+    const pill = (type,text,cls="") => `<span class="${type} ${esc(cls)}">${esc(text)}</span>`;
+    const statusPill = s => pill("status",s||"UNKNOWN",String(s).toLowerCase()==="passed"?"pass":"fail");
+    const sectionHead = (title,copy="") => `<div class="section-head"><div><h2>${esc(title)}</h2>${copy?`<p>${esc(copy)}</p>`:""}</div></div>`;
+    const empty = (title,copy) => `<div class="empty"><b>${esc(title)}</b>${esc(copy)}</div>`;
+    const safeMarkdown = value => {
+      let s=esc(value||"");
+      s=s.replace(/^### (.+)$/gm,"<h3>$1</h3>").replace(/^## (.+)$/gm,"<h2>$1</h2>").replace(/^# (.+)$/gm,"<h2>$1</h2>")
+        .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/`([^`]+)`/g,"<code>$1</code>")
+        .replace(/(?:^|\n)(?:- .+(?:\n|$))+/g,block=>"<ul>"+block.trim().split("\n").map(x=>`<li>${x.replace(/^- /,"")}</li>`).join("")+"</ul>")
+        .replace(/\n{2,}/g,"</p><p>").replace(/\n/g,"<br>");
+      return `<p>${s}</p>`;
+    };
+    const excerpt = value => String(value||"").replace(/[#*`_[\]()]/g,"").replace(/\s+/g," ").trim().slice(0,180);
+    const evidenceHref = ref => "../"+String(ref||"").replace(/^runtime\/reports\//,"");
+    const polar=(r,deg)=>{const a=(deg-90)*Math.PI/180;return [60+r*Math.cos(a),60+r*Math.sin(a)];};
+    const arcPath=(r,a0,a1)=>{const [x0,y0]=polar(r,a0),[x1,y1]=polar(r,a1);return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${a1-a0>180?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;};
+    // 270° instrument arc: 30 discrete segments filled by score, tick marks at 25/50/75.
+    function riskDial(score,level,size){
+      const start=-135,sweep=270,segments=30,gapDeg=2.4,segSweep=sweep/segments;
+      const filled=Math.max(0,Math.min(100,n(score)))/100*sweep;
+      let marks="";
+      for(let i=0;i<segments;i++){const a0=start+i*segSweep;marks+=`<path class="${i*segSweep+segSweep/2<=filled?"on":""}" d="${arcPath(47,a0,a0+segSweep-gapDeg)}"/>`;}
+      [25,50,75].forEach(v=>{const a=start+v/100*sweep,[x0,y0]=polar(36,a),[x1,y1]=polar(41,a);marks+=`<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}"/>`;});
+      return `<div class="risk-dial ${esc(level||"low")}" style="width:${size}px;height:${size}px" role="img" aria-label="Risk score ${n(score)} of 100, ${esc(level||"unknown")} risk"><svg viewBox="0 0 120 120" aria-hidden="true">${marks}</svg><div class="dial-value"><b>${n(score)}</b><small>${esc(level||"unknown")} risk</small></div></div>`;
+    }
+    const GOV_HEX={low:"#7fd7a8",medium:"#ecba62",high:"#f28b84",critical:"#f28b84"};
+    function suiteGov(){
+      const tests=report.testCases.filter(hasEvidence); if(!tests.length) return "";
+      const order={low:1,medium:2,high:3,critical:4};
+      const worstTest=tests.filter(t=>t.risk).sort((a,b)=>(order[b.risk.level]||0)-(order[a.risk.level]||0)||n(b.risk.score)-n(a.risk.score))[0];
+      const worst=worstTest?.risk, level=worst?.level||"low", hex=GOV_HEX[level]||GOV_HEX.low;
+      const grades=tests.map(t=>t.completeness?.grade).filter(Boolean).sort().reverse(), lowest=grades[0]||"—";
+      const locAgg=tests.reduce((a,t)=>({v:a.v+n(t.evidenceLocators?.verified),t:a.t+n(t.evidenceLocators?.total)}),{v:0,t:0}), ratio=locAgg.t?locAgg.v/locAgg.t:0;
+      const healed=tests.reduce((a,t)=>a+n(t.healingCount),0);
+      const factors=arr(worst?.factors), total=factors.reduce((a,f)=>a+n(f.weight),0);
+      const alpha=i=>Math.max(.34,1-i*.18).toFixed(2);
+      return `<section class="governance ${esc(level)}" aria-label="Governance summary">
+        <div class="gov-layout">
+          <div class="gov-main">
+            ${worst?riskDial(worst.score,level,92):""}
+            <div>
+              <span class="eyebrow" style="color:#8fa3c5">Evidence governance · worst-case risk</span>
+              <h2>${worstTest?esc(worstTest.testName||worstTest.slug):"No risk scores recorded"}</h2>
+              ${factors.length?`<div class="stack-bar" role="img" aria-label="Risk factor weights">${factors.map((f,i)=>`<i style="width:${total?(n(f.weight)/total*100).toFixed(1):0}%;background:${hex};opacity:${alpha(i)}" title="${esc(f.id)} +${n(f.weight)}"></i>`).join("")}</div>
+              <div class="stack-legend">${factors.map((f,i)=>`<span><i style="background:${hex};opacity:${alpha(i)}"></i>${esc(f.id)} <b>+${n(f.weight)}</b></span>`).join("")}</div>`:`<p class="gov-copy">No weighted risk factors were recorded for this suite.</p>`}
+            </div>
+          </div>
+          <div class="gov-metrics">
+            <div><label>LOWEST GRADE</label><b>${esc(lowest)}</b><small>Evidence completeness</small></div>
+            <div><label>VERIFIED</label><b>${Math.round(ratio*100)}%</b><small>${locAgg.v} of ${locAgg.t} locators</small></div>
+            <div><label>HEALED</label><b>${healed}</b><small>Across this suite</small></div>
+          </div>
+        </div></section>`;
+    }
+    const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj||{},key);
+    const dash=value=>value==null||Number.isNaN(Number(value))?"—":num(value);
+    const duration=value=>{
+      if(value==null||!Number.isFinite(Number(value)))return "—";
+      const ms=Number(value),seconds=Math.round(ms/1000);
+      if(seconds<60)return `${seconds}s`;
+      const minutes=Math.floor(seconds/60),rest=seconds%60;
+      return `${minutes}m ${rest}s`;
+    };
+    function historyStats(t,dropLatest=false){
+      const history=arr(t.runHistory).slice().sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+      if(dropLatest)history.pop();
+      let transitions=0,failed=0,retries=0,retryKnown=false,actions=0,tokens=0;
+      history.forEach((h,i)=>{
+        if(String(h.status).toUpperCase()==="FAILED")failed++;
+        if(i&&String(history[i-1].status).toUpperCase()!==String(h.status).toUpperCase())transitions++;
+        const raw=h.retryCount??h.retries??(Number.isFinite(Number(h.attempts))?Math.max(0,Number(h.attempts)-1):undefined);
+        if(raw!=null){retryKnown=true;retries+=n(raw);}
+        actions+=n(h.stepsExecuted);tokens+=n(h.pricing?.totalTokens);
+      });
+      return {history,runs:history.length,transitions,failed,retries,retryKnown,actions,tokens,failRate:history.length?failed/history.length*100:0,volatility:history.length>1?transitions/(history.length-1)*100:0,avgActions:history.length?actions/history.length:0};
+    }
+    function deltaMarkup(current,previous,{suffix="",inverse=false,digits=0,neutral=false}={}){
+      if(current==null||previous==null)return `<span class="delta neutral">— vs prior</span>`;
+      const d=n(current)-n(previous),rounded=Math.abs(d).toFixed(digits),sign=d>0?"+":d<0?"−":"";
+      const good=neutral||d===0?"neutral":((d>0)!==inverse?"up":"down");
+      return `<span class="delta ${good}">${sign}${rounded}${suffix} vs prior</span>`;
+    }
+    function executionStrip(){
+      const o=report.overview||{},totalTime=o.totalDurationMs??report.totalDurationMs;
+      const browser=[report.browser?.target,report.browser?.headless===true?"headless":report.browser?.headless===false?"headed":null].filter(Boolean).join(" · ");
+      return `<section class="execution-strip" aria-label="Execution status">
+        <div class="execution-stat"><label>Executed</label><b>${dash(o.executed??o.total??report.testCases.length)}</b></div>
+        <div class="execution-stat"><label>Passed</label><b>${dash(o.passed)}</b></div>
+        <div class="execution-stat"><label>Failed</label><b>${dash(o.failed)}</b></div>
+        <div class="execution-stat"><label>Skipped</label><b>${own(o,"skipped")?dash(o.skipped):"—"}</b></div>
+        <div class="execution-stat"><label>Cancelled</label><b>${own(o,"cancelled")?dash(o.cancelled):"—"}</b></div>
+        <div class="execution-stat"><label>Total time</label><b>${duration(totalTime)}</b></div>
+        <div class="execution-stat execution-context"><label>Runtime</label><b>${esc(report.environment?.name||"Unknown")} · ${esc(browser||"Browser not recorded")}</b></div>
+      </section>`;
+    }
+    function overviewKpis(){
+      const o=report.overview||{},runs=aggregateRuns(),latest=runs.at(-1),previous=runs.at(-2);
+      const flaky=report.testCases.filter(t=>historyStats(t).transitions>0).length,priorFlaky=report.testCases.filter(t=>historyStats(t,true).transitions>0).length;
+      const retryCurrent=own(o,"retryRate")?n(o.retryRate):latest?.retryKnown?(latest.retryCount/Math.max(latest.total,1)*100):null;
+      const retryPrevious=previous?.retryKnown?(previous.retryCount/Math.max(previous.total,1)*100):null;
+      const prevPass=previous?.total?previous.passed/previous.total*100:null;
+      return `<section class="kpis" aria-label="Run metrics">
+        <div class="kpi"><label>Pass rate</label><b>${n(o.passRate)}%</b>${deltaMarkup(o.passRate,prevPass,{suffix:" pts",digits:0})}</div>
+        <div class="kpi"><label>Failed</label><b>${dash(o.failed)}</b>${deltaMarkup(o.failed,previous?.failed,{inverse:true})}</div>
+        <div class="kpi"><label>Flaky</label><b>${flaky}</b>${deltaMarkup(flaky,priorFlaky,{inverse:true})}</div>
+        <div class="kpi"><label>Actions</label><b>${dash(o.totalSteps)}</b>${deltaMarkup(o.totalSteps,previous?.actions,{neutral:true})}</div>
+        <div class="kpi"><label>Retry</label><b>${retryCurrent==null?"—":`${Math.round(retryCurrent)}%`}</b>${deltaMarkup(retryCurrent,retryPrevious,{suffix:" pts",inverse:true})}</div>
+        <div class="kpi"><label>Tokens</label><b>${num(o.totalTokens)}</b>${deltaMarkup(o.totalTokens,previous?.tokens,{neutral:true})}</div>
+        <div class="kpi"><label>Cost</label><b>${money(o.totalCostUsd)}</b>${deltaMarkup(o.totalCostUsd,previous?.cost,{digits:3,neutral:true})}</div>
+      </section>`;
+    }
+    function failureCauses(){
+      const causes=new Map();
+      const add=text=>{const clean=String(text||"").trim();if(clean)causes.set(clean,(causes.get(clean)||0)+1);};
+      report.testCases.filter(t=>String(t.status).toUpperCase()==="FAILED").forEach(t=>{
+        arr(t.evidenceTimeline).filter(e=>e.error).forEach(e=>add(e.error));
+        const findings=arr(t.rootCauseAnalysis?.findings);
+        if(findings.length)findings.forEach(f=>add(f.claim));else add(t.rootCauseAnalysis?.summary);
+      });
+      return [...causes].map(([text,count])=>({text,count})).sort((a,b)=>b.count-a.count||a.text.localeCompare(b.text)).slice(0,4);
+    }
+    function compactHealth(){
+      const runs=aggregateRuns().slice(-6);
+      if(!runs.length)return empty("No execution snapshots","Run history is required for the health trend.");
+      const shortDate=ts=>ts?new Date(ts).toLocaleDateString([], {month:"short",day:"numeric"}):"—";
+      return `<div class="health-chart overview-chart" role="img" aria-label="Recent pass, retry, and fail snapshots">${runs.map(r=>`<div class="health-col" title="${esc(r.label)}: ${r.passed} pass, ${r.retry} retry, ${r.failed} fail"><div class="health-stack"><i class="failed" style="height:${r.total?r.failed/r.total*100:0}%"></i><i class="retry" style="height:${r.total?r.retry/r.total*100:0}%"></i><i class="passed" style="height:${r.total?r.passed/r.total*100:0}%"></i></div><span class="health-label">${esc(shortDate(r.timestamp))}</span></div>`).join("")}</div>`;
+    }
+    function topList(items,valueLabel,barValue){
+      const max=Math.max(...items.map(barValue),1);
+      return items.length?`<div class="rank-list">${items.slice(0,3).map(item=>`<div class="rank-item"><div class="rank-item-line"><span>${esc(item.testName||item.slug)}</span><b>${esc(valueLabel(item))}</b></div><div class="microbar"><i style="width:${Math.max(3,barValue(item)/max*100)}%"></i></div></div>`).join("")}</div>`:empty("No data","No test metrics are available.");
+    }
+    function compactTriad(){
+      const volatility=report.testCases.map(t=>({...t,_stats:historyStats(t)})).sort((a,b)=>b._stats.volatility-a._stats.volatility);
+      const slow=report.testCases.slice().sort((a,b)=>n(b.durationMs??b.totalDurationMs??b.stepsExecuted)-n(a.durationMs??a.totalDurationMs??a.stepsExecuted));
+      const consumers=report.testCases.slice().sort((a,b)=>n(b.pricing?.totalTokens)-n(a.pricing?.totalTokens));
+      return `<div class="tri-grid">
+        <section class="mini-analytic"><h3>Flaky analysis</h3><p>Status volatility across recorded runs</p>${topList(volatility,x=>x._stats.runs>1?`${Math.round(x._stats.volatility)}%`:"—",x=>x._stats.volatility)}</section>
+        <section class="mini-analytic"><h3>Slowest tests</h3><p>${report.testCases.some(t=>t.durationMs!=null||t.totalDurationMs!=null)?"Longest runtime":"Longest by action count"}</p>${topList(slow,x=>x.durationMs!=null||x.totalDurationMs!=null?duration(x.durationMs??x.totalDurationMs):`${n(x.stepsExecuted)} actions`,x=>n(x.durationMs??x.totalDurationMs??x.stepsExecuted))}</section>
+        <section class="mini-analytic"><h3>Token consumption</h3><p>Top current-run token consumers</p>${topList(consumers,x=>x.pricing?.totalTokens==null?"—":`${num(x.pricing.totalTokens)} tokens`,x=>n(x.pricing?.totalTokens))}</section>
+      </div>`;
+    }
+    function insightsBand(){
+      const findings=report.testCases.flatMap(t=>arr(t.rootCauseAnalysis?.findings)).filter(f=>Number.isFinite(Number(f.confidence)));
+      const confidence=findings.length?Math.round(findings.reduce((a,f)=>a+n(f.confidence),0)/findings.length*100):null;
+      const heals=report.testCases.flatMap(t=>arr(t.evidenceHealing)),learned=heals.filter(h=>h.committed).length;
+      const preventable=report.testCases.filter(t=>String(t.status).toUpperCase()==="FAILED"&&arr(t.evidenceHealing).some(h=>h.classification==="refactor")).length;
+      let recovered=0;report.testCases.forEach(t=>{const h=historyStats(t).history;for(let i=1;i<h.length;i++)if(String(h[i-1].status).toUpperCase()==="FAILED"&&String(h[i].status).toUpperCase()==="PASSED")recovered++;});
+      const generated=report.overview?.generatedTests??report.generatedTests, saved=report.overview?.estimatedHoursSaved??report.estimatedHoursSaved;
+      const diagnosed=report.testCases.filter(t=>t.rootCauseAnalysis).length,rerun=report.testCases.filter(t=>arr(t.runHistory).length>1).length;
+      return `<section class="insights-band"><div class="insights-flow">
+        <div class="flow-lead"><span class="eyebrow">AI insights</span><div class="flow-path">Execution <span>→</span> Diagnosis (${diagnosed}) <span>→</span> Repair (${heals.length}) <span>→</span> Re-run (${rerun})</div></div>
+        <div class="insight-metric"><label>Root cause confidence</label><b>${confidence==null?"—":`${confidence}%`}</b></div>
+        <div class="insight-metric"><label>Preventable failures</label><b>${preventable}</b></div>
+        <div class="insight-metric"><label>Recovered executions</label><b>${recovered}</b></div>
+        <div class="insight-metric"><label>Learned selectors</label><b>${learned}</b></div>
+        <div class="insight-metric"><label>Generated tests</label><b>${generated==null?"—":num(generated)}</b></div>
+        <div class="insight-metric"><label>Estimated hours saved</label><b>${saved==null?"—":`${n(saved).toFixed(1)}h`}</b></div>
+      </div></section>`;
+    }
+    function rankedData(mode){
+      const rows=report.testCases.map(t=>({test:t,stats:historyStats(t)}));
+      if(mode==="slowest")return rows.sort((a,b)=>b.stats.avgActions-a.stats.avgActions);
+      if(mode==="tokens")return rows.sort((a,b)=>b.stats.tokens-a.stats.tokens);
+      return rows.sort((a,b)=>b.stats.failRate-a.stats.failRate);
+    }
+    function rankedRows(mode="failed"){
+      return rankedData(mode).map(({test:t,stats:s})=>`<tr><td><a href="#test-${esc(t.slug)}"><strong>${esc(t.testName||t.slug)}</strong></a></td><td class="mono">${s.runs}</td><td class="mono">${s.runs?`${Math.round(s.failRate)}%`:"—"}</td><td class="mono">${s.retryKnown&&s.runs?`${Math.round(s.retries/s.runs*100)}%`:"—"}</td><td class="mono">${s.runs?s.avgActions.toFixed(1):"—"}</td><td class="mono">${s.runs?num(s.tokens):"—"}</td></tr>`).join("");
+    }
+    function rankedTable(){
+      if(!report.testCases.length)return "";
+      return `<section class="ranked"><div class="rank-tabs" role="tablist" aria-label="Rank test results"><button class="active" type="button" data-rank="failed" aria-selected="true">Most Failed</button><button type="button" data-rank="slowest" aria-selected="false">Slowest</button><button type="button" data-rank="tokens" aria-selected="false">Top Tokens</button></div><div class="table-wrap" style="border-radius:0 0 8px 8px"><table><thead><tr><th>Test</th><th>Runs</th><th>Fail %</th><th>Retry</th><th>Avg actions</th><th>Tokens</th></tr></thead><tbody id="rank-body">${rankedRows()}</tbody></table></div></section>`;
+    }
+    function overviewAnalytics(){
+      const causes=failureCauses();
+      return `<div class="overview-analytics">
+        <section class="chart-panel"><h2>Execution health trend</h2><p class="chart-note">Recent snapshots · <span style="color:var(--ok)">pass</span> / <span style="color:var(--warn)">retry</span> / <span style="color:var(--bad)">fail</span></p>${compactHealth()}</section>
+        <section class="chart-panel"><h2>Top failure causes</h2><p class="chart-note">Grouped from failed evidence and root-cause findings</p>${causes.length?`<div class="cause-list">${causes.map(c=>`<div class="cause-row"><span>${esc(c.text)}</span><b>${c.count}</b></div>`).join("")}</div>`:empty("No failure causes detected","All recorded tests passed or no failure evidence was captured.")}</section>
+      </div>${compactTriad()}${insightsBand()}${rankedTable()}`;
+    }
+    function renderOverview(){
+      const o=report.overview||{},failed=n(o.failed),allPassed=n(o.total)>0&&failed===0;
+      return `<section class="hero"><div><span class="eyebrow">Suite execution report</span><h1>${esc(report.suiteName||"Untitled test suite")}</h1><div class="hero-meta">${pill("chip",report.environment?.name||"Unknown environment")}<span>${esc(date(report.generatedAt))}</span></div></div><div class="verdict"><small>Run verdict</small><div class="word ${allPassed?"pass":"fail"}">${allPassed?"PASSED":"ACTION REQUIRED"}</div></div></section>
+        ${executionStrip()}${overviewKpis()}${suiteGov()}${report.suiteAiAnalysis?`<section class="panel ai-brief"><div><span class="eyebrow">AI briefing</span><div class="analysis">${safeMarkdown(report.suiteAiAnalysis)}</div></div><a class="text-link" href="#ai-analysis">Read full briefing →</a></section>`:""}${overviewAnalytics()}${sectionHead("Test results",`${report.testCases.length} recorded test case${report.testCases.length===1?"":"s"}`)}
+        ${report.testCases.length?`<div class="table-wrap"><table><thead><tr><th>Status</th><th>Test case</th><th>Steps</th><th>Risk</th><th>Grade</th><th>Verified</th><th>Cost</th><th></th></tr></thead><tbody>${report.testCases.map(t=>`<tr class="click-row" tabindex="0" data-href="#test-${esc(t.slug)}"><td>${statusPill(t.status)}</td><td><strong>${esc(t.testName||t.slug)}</strong><span class="test-meta">${esc(date(t.timestamp))}</span>${t.aiAnalysis?`<span class="ai-excerpt">${esc(excerpt(t.aiAnalysis))}</span>`:""}</td><td class="mono">${n(t.stepsExecuted)}</td><td>${t.risk?pill("risk",`${t.risk.score} · ${t.risk.level}`,t.risk.level):"—"}</td><td>${t.completeness?pill("grade",t.completeness.grade):"—"}</td><td>${t.evidenceLocators?`<div class="meter" title="${Math.round(n(t.evidenceLocators.verifiedRatio)*100)}% verified"><i style="width:${Math.round(n(t.evidenceLocators.verifiedRatio)*100)}%"></i></div>`:"—"}</td><td class="mono">${money(t.pricing?.estimatedCostUsd)}</td><td><a href="#test-${esc(t.slug)}" aria-label="Open ${esc(t.testName||t.slug)}">→</a></td></tr>`).join("")}</tbody></table></div>`:empty("No test results","This report contains no test cases.")}`;
+    }
+    function govPanel(t){
+      if(!hasEvidence(t)) return empty("Evidence not available","This run predates evidence and governance capture.");
+      const r=t.risk||{}, c=t.completeness||{}, l=t.evidenceLocators||{}, factors=arr(r.factors);
+      return `<section class="gov-panel"><div class="gov-panel-top">
+        <div class="risk-block">${riskDial(r.score,r.level,126)}<div class="factor-list"><span class="eyebrow">Risk factors</span>${factors.length?factors.map(f=>`<div class="factor" title="${esc(f.detail)}"><div class="factor-line"><span>${esc(f.id)}</span><b>+${n(f.weight)}</b></div><div class="factor-bar"><i style="width:${Math.min(100,n(f.weight)*2.5)}%"></i></div><small class="muted">${esc(f.detail)}</small></div>`).join(""):`<p class="muted">No factors recorded.</p>`}</div></div>
+        <div class="grade-block"><span class="eyebrow">Completeness</span><div class="grade-letter">${esc(c.grade||"—")}</div><p class="muted"><span class="mono">${n(c.score)} / 100</span> evidence score</p>${arr(c.warnings).length?`<ul class="warning-list">${arr(c.warnings).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</div>
+        <div class="verify-block"><span class="eyebrow">Locator proof</span><div class="metric-big">${Math.round(n(l.verifiedRatio)*100)}%</div><div class="verify-ring"><i style="width:${Math.round(n(l.verifiedRatio)*100)}%"></i></div><p class="muted">${n(l.verified)} verified · ${n(l.unverified)} unverified</p></div></div>
+        <div class="gov-strip"><div><label>HEALED SELECTORS</label><b>${n(t.healingCount)}</b></div><div><label>CODEGEN QUALITY</label><b>${esc(cap(t.codegenQuality||"unknown"))}</b></div><div><label>EVIDENCE STATUS</label><b>${esc(cap(t.rootCauseAnalysis?.status||"captured"))}</b></div></div></section>`;
+    }
+    const detailTabs = [
+      ["timeline","Evidence timeline"],["locators","Locators"],["healing","Heal ledger"],["drift","Page drift"],["root","Root cause"],["analysis","AI analysis"],["artifacts","Artifacts"],["history","Run history"],["cost","LLM cost"]
+    ];
+    function timelineView(t){
+      const list=arr(t.evidenceTimeline); if(!list.length) return empty("No evidence timeline","Step-level evidence was not captured for this run.");
+      const actionCls=a=>["navigate","click","input","wait","assert","screenshot","scroll"].includes(String(a))?String(a):"";
+      return `<div class="timeline">${list.map(e=>`<article class="event ${e.error?"error":""}"><span class="event-dot"></span><div class="event-body"><div class="event-top"><span class="index">STEP ${n(e.index)}</span>${pill("action",e.action||"event",actionCls(e.action)+(e.error?" error":""))}${e.healed?pill("mini-chip","HEALED","unverified"):""}${e.assertion?pill("mini-chip",`ASSERT · ${e.assertion.kind}`,"verified"):""}</div><strong>${esc(e.nlStep||e.action||"Recorded event")}</strong>${e.url?`<div class="mono muted" style="margin-top:6px;font-size:10px;overflow-wrap:anywhere">${esc(e.url)}</div>`:""}${e.locator?`<div class="locator"><span class="locator-state ${e.locator.verified?"verified":"unverified"}">${e.locator.verified?"VERIFIED":"UNVERIFIED"}</span> <span class="mono">${esc(e.locator.kind||"locator")}</span> ${esc(e.locator.used||e.locator.value||e.locator.name||e.locator.kind)}${e.locator.verifiedBy?` <span class="muted">· ${esc(e.locator.verifiedBy)} · ${n(e.locator.matchCount)} match</span>`:""}</div>`:""}${e.error?`<p class="error-text">${esc(e.error)}</p>`:""}</div></article>`).join("")}</div>`;
+    }
+    function locatorView(t){
+      const list=arr(t.evidenceTimeline).filter(e=>e.locator); if(!list.length)return empty("No locator records","Locator verification was not captured.");
+      const locValue=e=>{const loc=e.locator||{}; return loc.used||(loc.kind==="role"?`getByRole('${loc.value||""}'${loc.name?`, { name: '${loc.name}' }`:""})`:loc.value||loc.name||loc.kind||"—");};
+      return `<div class="table-wrap"><table><thead><tr><th>Step</th><th>Type</th><th>Locator</th><th>Status</th><th>Proof</th></tr></thead><tbody>${list.map(e=>`<tr><td class="mono">${n(e.index)}</td><td class="mono">${esc(e.locator.kind||"—")}</td><td class="mono" style="max-width:510px;overflow-wrap:anywhere">${esc(locValue(e))}</td><td>${pill("locator-state",e.locator.verified?"VERIFIED":"UNVERIFIED",e.locator.verified?"verified":"unverified")}</td><td class="mono">${e.locator.verifiedBy?`${esc(e.locator.verifiedBy)} · ${n(e.locator.matchCount)} match`:"No proof"}</td></tr>`).join("")}</tbody></table></div>`;
+    }
+    function healingView(t){const list=arr(t.evidenceHealing);return list.length?`<div class="table-wrap"><table><thead><tr><th>Step</th><th>Broken selector</th><th>Healed selector</th><th>Confidence</th><th>Classification</th><th>Committed</th></tr></thead><tbody>${list.map(x=>`<tr><td class="mono">${n(x.stepIndex)}</td><td class="mono">${esc(x.brokenSelector)}</td><td class="mono">${esc(x.healedSelector)}</td><td>${Math.round(n(x.confidence)*100)}%</td><td>${pill("chip",x.classification)}</td><td>${x.committed?"Yes":"No"}</td></tr>`).join("")}</tbody></table></div>`:empty("No selector healing","The run used its recorded locators without repair.");}
+    function driftView(t){const list=arr(t.evidenceDrift);return list.length?`<div class="table-wrap"><table><thead><tr><th>Page</th><th>Previous fingerprint</th><th>Current fingerprint</th><th>Added</th><th>Removed</th><th>Changed</th></tr></thead><tbody>${list.map(x=>`<tr><td><strong>${esc(x.pageKey)}</strong></td><td class="mono">${esc(x.previousFingerprint)}</td><td class="mono">${esc(x.currentFingerprint)}</td><td>${n(x.added)}</td><td>${n(x.removed)}</td><td>${n(x.changed)}</td></tr>`).join("")}</tbody></table></div>`:empty("No page drift recorded","No fingerprint changes were attached to this run.");}
+    function rootView(t){const r=t.rootCauseAnalysis;if(!r)return empty("No root-cause analysis","A grounded analysis was not produced for this run.");return `<div class="panel"><div class="event-top">${pill("chip",r.status||"unknown")}</div><p class="root-summary">${esc(r.summary)}</p>${arr(r.findings).map(f=>`<div class="finding ${arr(f.citedEventIds).length?"":"uncited"}"><p>${esc(f.claim)}</p><div>${arr(f.citedEventIds).length?arr(f.citedEventIds).map(id=>`<span class="cite">${esc(id)}</span>`).join(""):pill("mini-chip","UNCITED","unverified")} <span class="muted mono">${Math.round(n(f.confidence)*100)}% confidence</span></div></div>`).join("")}${arr(r.missingEvidence).length?`<h3 style="margin-top:20px">Missing evidence</h3><ul class="warning-list">${arr(r.missingEvidence).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</div>`;}
+    function analysisView(t){return t.aiAnalysis?`<div class="panel analysis">${safeMarkdown(t.aiAnalysis)}</div>`:empty("No AI analysis","This test has no generated analysis.");}
+    function artifactsView(t){const a=t.artifacts||{}, shots=arr(a.screenshots), any=shots.length||a.video||a.trace;if(!any)return empty("No artifacts","No media or traces were attached.");return `<div class="artifact-grid">${a.video?`<div class="artifact"><video controls preload="metadata"><source src="${esc(safePath(a.video))}">Video unavailable.</video><span>${esc(a.video)}</span></div>`:""}${shots.map(src=>`<div class="artifact"><img src="${esc(safePath(src))}" alt="Execution screenshot" data-full="${esc(safePath(src))}" onerror="this.remove();this.parentElement.insertAdjacentHTML('afterbegin','<span>Screenshot unavailable</span>')"><span>${esc(src)}</span></div>`).join("")}${a.trace?`<a class="artifact" href="${esc(safePath(a.trace))}"><strong>Open trace archive</strong><span>${esc(a.trace)}</span></a>`:""}</div>`;}
+    function historyView(t){const list=arr(t.runHistory);return list.length?`<div class="table-wrap"><table><thead><tr><th>Run</th><th>Timestamp</th><th>Status</th><th>Mode</th><th>Steps</th><th>Tokens</th><th>Cost</th></tr></thead><tbody>${list.map(x=>`<tr><td class="mono">${esc(x.runId)}</td><td>${esc(date(x.timestamp))}</td><td>${statusPill(x.status)}</td><td>${esc(x.executionMode||"—")}</td><td>${n(x.stepsExecuted)}</td><td class="mono">${num(x.pricing?.totalTokens)}</td><td class="mono">${money(x.pricing?.estimatedCostUsd)}</td></tr>`).join("")}</tbody></table></div>`:empty("No run history","Prior executions are not available.");}
+    function costView(t){const p=t.pricing||{};return `<div class="panel"><div class="kpis" style="margin:0"><div class="kpi"><label>Total tokens</label><b>${num(p.totalTokens)}</b></div><div class="kpi"><label>Prompt</label><b>${num(p.promptTokens)}</b></div><div class="kpi"><label>Completion</label><b>${num(p.completionTokens)}</b></div><div class="kpi"><label>LLM calls</label><b>${num(p.llmCalls)}</b></div><div class="kpi"><label>Estimated cost</label><b>${money(p.estimatedCostUsd)}</b></div></div><p class="muted mono" style="margin:15px 0 0">${esc(p.provider||"Unknown provider")} · ${esc(p.model||"Unknown model")}</p></div>`;}
+    const tabRenderer=(key,t)=>({timeline:timelineView,locators:locatorView,healing:healingView,drift:driftView,root:rootView,analysis:analysisView,artifacts:artifactsView,history:historyView,cost:costView}[key]||timelineView)(t);
+    function renderDetail(t,initialTab="timeline"){
+      if(!t)return empty("Test not found","The requested test does not exist in this report.");
+      const active=detailTabs.some(x=>x[0]===initialTab)?initialTab:"timeline";
+      return `<a class="back" href="#overview">← Back to overview</a><section class="detail-head"><div><div class="event-top">${statusPill(t.status)}<span class="muted">${esc(date(t.timestamp))}</span></div><h1>${esc(t.testName||t.slug)}</h1><p class="muted">${n(t.stepsExecuted)} steps · ${money(t.pricing?.estimatedCostUsd)} estimated cost</p>${t.aiAnalysis?`<span class="ai-excerpt">${esc(excerpt(t.aiAnalysis))}</span>`:""}</div>${t.evidenceRef?`<a class="evidence-link" href="${esc(safePath(evidenceHref(t.evidenceRef)))}">Open Evidence JSON ↗</a>`:""}</section>${govPanel(t)}
+        <div class="tabs" role="tablist" aria-label="Test detail sections">${detailTabs.map(x=>`<button type="button" role="tab" data-tab="${x[0]}" class="${x[0]===active?"active":""}" aria-selected="${x[0]===active}">${x[1]}</button>`).join("")}</div><section id="tab-content">${tabRenderer(active,t)}</section>`;
+    }
+    function aggregateRuns(){
+      const runs=new Map();
+      report.testCases.forEach(t=>arr(t.runHistory).forEach((h,index)=>{
+        const key=String(h.runId||h.timestamp||`${t.slug||"test"}-${index}`);
+        const ts=new Date(h.timestamp).getTime();
+        if(!runs.has(key))runs.set(key,{key,label:h.runId||date(h.timestamp),timestamp:Number.isFinite(ts)?ts:0,passed:0,retry:0,failed:0,total:0,actions:0,tokens:0,cost:0,retryCount:0,retryKnown:false});
+        const r=runs.get(key), status=String(h.status||"").toUpperCase();
+        const rawRetry=h.retryCount??h.retries??(Number.isFinite(Number(h.attempts))?Math.max(0,Number(h.attempts)-1):undefined),retries=rawRetry==null?0:n(rawRetry);
+        r.timestamp=Math.max(r.timestamp,Number.isFinite(ts)?ts:0);r.total++;r.actions+=n(h.stepsExecuted);
+        if(rawRetry!=null){r.retryKnown=true;r.retryCount+=retries;}
+        if(status==="FAILED")r.failed++;else if(retries>0)r.retry++;else if(status==="PASSED")r.passed++;
+        r.tokens+=n(h.pricing?.totalTokens);r.cost+=n(h.pricing?.estimatedCostUsd);
+      }));
+      return [...runs.values()].sort((a,b)=>a.timestamp-b.timestamp);
+    }
+    function renderTrends(){
+      const runs=aggregateRuns();
+      if(!runs.length)return `<section class="hero"><div><span class="eyebrow">Execution analytics</span><h1>Trends</h1><p class="muted">Health, usage, and stability from recorded run history.</p></div></section>${empty("No historical runs","Trend analytics appear after tests include runHistory records.")}`;
+      const maxTokens=Math.max(...runs.map(r=>r.tokens),1),maxCost=Math.max(...runs.map(r=>r.cost),.0001);
+      const shortDate=ts=>ts?new Date(ts).toLocaleDateString([], {month:"short",day:"numeric"}):"Unknown";
+      return `<section class="hero"><div><span class="eyebrow">Execution analytics</span><h1>Trends</h1><p class="muted">Computed from ${runs.length} recorded suite runs across ${report.testCases.length} tests.</p></div></section>
+        <div class="analytics-grid">
+          <section class="chart-panel"><h2>Execution health</h2><p class="chart-note">Pass/retry/fail composition by run date</p><div class="health-chart" role="img" aria-label="Pass, retry, and fail totals by run">${runs.map(r=>`<div class="health-col" title="${esc(r.label)}: ${r.passed} passed, ${r.retry} retried, ${r.failed} failed"><div class="health-stack"><i class="failed" style="height:${r.total?r.failed/r.total*100:0}%"></i><i class="retry" style="height:${r.total?r.retry/r.total*100:0}%"></i><i class="passed" style="height:${r.total?r.passed/r.total*100:0}%"></i></div><span class="health-label">${esc(shortDate(r.timestamp))}</span></div>`).join("")}</div></section>
+          <section class="chart-panel"><h2>Token & cost trend</h2><p class="chart-note"><span style="color:var(--accent)">Tokens</span> · <span style="color:var(--warn)">Estimated cost</span></p><div class="trend-rows">${runs.map(r=>`<div class="trend-row"><label>${esc(shortDate(r.timestamp))}</label><div class="trend-pair"><div class="trend-track" title="${num(r.tokens)} tokens"><i style="width:${r.tokens/maxTokens*100}%"></i></div><div class="trend-track cost" title="${money(r.cost)} estimated cost"><i style="width:${r.cost/maxCost*100}%"></i></div></div><b>${num(r.tokens)} · ${money(r.cost)}</b></div>`).join("")}</div></section>
+        </div>
+        <section class="chart-panel"><h2>Per-test stability</h2><p class="chart-note">Oldest to newest recorded status</p><div class="stability">${report.testCases.map(t=>{const history=arr(t.runHistory).slice().sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));return `<div class="stability-row"><div><strong>${esc(t.testName||t.slug)}</strong><span class="test-meta">${history.length} recorded run${history.length===1?"":"s"}</span></div><div class="stability-cells">${history.length?history.map(h=>`<span class="stability-cell ${String(h.status).toUpperCase()==="PASSED"?"pass":"fail"}" title="${esc(date(h.timestamp))} · ${esc(h.status||"unknown")}"></span>`).join(""):`<span class="muted">No history</span>`}</div></div>`}).join("")}</div></section>`;
+    }
+    function renderSuiteAnalysis(){
+      const tests=report.testCases.filter(t=>t.aiAnalysis);
+      return `<section class="hero"><div><span class="eyebrow">Model-assisted triage</span><h1>AI analysis</h1><p class="muted">Generated findings grounded in this execution report.</p></div></section>
+        ${report.suiteAiAnalysis?`<section class="panel analysis">${safeMarkdown(report.suiteAiAnalysis)}</section>`:empty("No suite analysis","This run does not include suite-level AI analysis.")}
+        ${tests.length?`<section class="panel"><h2>Test analyses</h2><p class="muted">Open the full analysis attached to each test.</p><div class="analysis-links">${tests.map(t=>`<a class="analysis-link" href="#test-${esc(t.slug)}?tab=analysis"><div><strong>${esc(t.testName||t.slug)}</strong><span class="ai-excerpt">${esc(excerpt(t.aiAnalysis))}</span></div><span>Open analysis →</span></a>`).join("")}</div></section>`:""}`;
+    }
+    function renderEnvironment(){
+      const groups=[["Environment",[["Name",report.environment?.name],["Base URL",report.environment?.baseUrl]]],["Browser",[["Target",report.browser?.target],["Mode",report.browser?.headless?"Headless":"Headed"],["Viewport",report.browser?.viewport?`${report.browser.viewport.width} × ${report.browser.viewport.height}`:"Not recorded"]]],["Framework",[["Name",report.framework?.name],["Version",report.framework?.version],["Generated",date(report.generatedAt)]]]];
+      return `<section class="hero"><div><span class="eyebrow">Execution context</span><h1>Environment & runtime</h1><p class="muted">The exact platform facts attached to this report.</p></div></section><div class="env-grid">${groups.map(g=>`<section class="fact"><h2>${g[0]}</h2><dl>${g[1].map(x=>`<div><dt>${x[0]}</dt><dd>${esc(x[1]||"Not provided")}</dd></div>`).join("")}</dl></section>`).join("")}</div>`;
+    }
+    function renderLogs(){
+      return `<section class="hero"><div><span class="eyebrow">Recorded executions</span><h1>Test logs</h1><p class="muted">Open a test to inspect its timeline and diagnostic evidence.</p></div></section>${report.testCases.length?`<div class="table-wrap"><table><thead><tr><th>Time</th><th>Test</th><th>Status</th><th>Runtime insight</th><th></th></tr></thead><tbody>${report.testCases.map(t=>`<tr><td class="mono">${esc(date(t.timestamp))}</td><td><strong>${esc(t.testName||t.slug)}</strong></td><td>${statusPill(t.status)}</td><td>${esc(arr(t.runtimeInsights)[0]?.message||"No diagnostic message")}</td><td><a href="#test-${esc(t.slug)}">Inspect →</a></td></tr>`).join("")}</tbody></table></div>`:empty("No logs","No test executions were recorded.")}`;
+    }
+    const view=$("#view"), crumb=$("#crumb");
+    function bindCommon(){
+      document.querySelectorAll(".click-row").forEach(row=>{const go=()=>location.hash=row.dataset.href;row.addEventListener("click",e=>{if(!e.target.closest("a"))go()});row.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}})});
+      document.querySelectorAll(".artifact img").forEach(img=>img.addEventListener("click",()=>{const d=$("#lightbox");$("img",d).src=img.dataset.full;d.showModal()}));
+      document.querySelectorAll("[data-rank]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("[data-rank]").forEach(b=>{b.classList.toggle("active",b===btn);b.setAttribute("aria-selected",String(b===btn))});const body=$("#rank-body");if(body)body.innerHTML=rankedRows(btn.dataset.rank)}));
+    }
+    function route(){
+      const hash=(location.hash||"#overview").slice(1),[path,query=""]=hash.split("?"),params=new URLSearchParams(query),isTest=path.startsWith("test-"),slug=isTest?path.slice(5):"",t=report.testCases.find(x=>String(x.slug)===slug);
+      if(isTest){view.innerHTML=renderDetail(t,params.get("tab")||"timeline");crumb.textContent=t?.testName||"Test detail";bindTabs(t);}
+      else if(path==="trends"){view.innerHTML=renderTrends();crumb.textContent="Trends";}
+      else if(path==="ai-analysis"){view.innerHTML=renderSuiteAnalysis();crumb.textContent="AI analysis";}
+      else if(path==="environment"){view.innerHTML=renderEnvironment();crumb.textContent="Environment";}
+      else if(path==="logs"){view.innerHTML=renderLogs();crumb.textContent="Test logs";}
+      else{view.innerHTML=renderOverview();crumb.textContent="Overview";}
+      document.querySelectorAll("[data-route],.test-nav a").forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+path||(path==="overview"&&a.dataset.route==="overview")));
+      bindCommon(); view.focus({preventScroll:true}); window.scrollTo(0,0); $("#sidebar").classList.remove("open");
+    }
+    function bindTabs(t){
+      if(!t)return;
+      document.querySelectorAll("[data-tab]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("[data-tab]").forEach(b=>{b.classList.toggle("active",b===btn);b.setAttribute("aria-selected",String(b===btn))});$("#tab-content").innerHTML=tabRenderer(btn.dataset.tab,t);bindCommon()}));
+    }
+    $("#test-nav").innerHTML=report.testCases.map(t=>`<a href="#test-${esc(t.slug)}"><span class="test-dot ${String(t.status).toUpperCase()==="PASSED"?"pass":""}"></span><span class="test-name">${esc(t.testName||t.slug)}<span class="test-meta">${esc(t.status)} · ${n(t.stepsExecuted)} steps</span></span></a>`).join("");
+    if(!report.suiteAiAnalysis&&!report.testCases.some(t=>t.aiAnalysis))$("#ai-nav").hidden=true;
+    $("#run-id").textContent="RUN · "+new Date(report.generatedAt||Date.now()).toISOString().replace(/[-:]/g,"").slice(0,13);
+    const preferred=localStorage.getItem("webpilot-report-theme")||((matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");
+    document.documentElement.dataset.theme=preferred; $("#theme").textContent=preferred==="dark"?"Light":"Dark";
+    $("#theme").addEventListener("click",()=>{const next=document.documentElement.dataset.theme==="dark"?"light":"dark";document.documentElement.dataset.theme=next;localStorage.setItem("webpilot-report-theme",next);$("#theme").textContent=next==="dark"?"Light":"Dark"});
+    $("#menu").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
+    $("#lightbox button").addEventListener("click",()=>$("#lightbox").close()); $("#lightbox").addEventListener("click",e=>{if(e.target===$("#lightbox"))e.target.close()});
+    addEventListener("hashchange",route); if(!location.hash) history.replaceState(null,"","#overview"); route();
+  })();
+  </script>
+</body>
+</html>

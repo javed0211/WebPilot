@@ -58,8 +58,13 @@ export class CompletenessGrader {
         missing.push('verified-locator-ratio');
       }
     } else if (timelineLen > 0) {
-      warnings.push('No locator metadata on timeline steps');
-      missing.push('locator-verification');
+      const looksApi = (partial.timeline || []).some(
+        (s) => typeof (s as { httpMethod?: string }).httpMethod === 'string'
+      );
+      if (!looksApi) {
+        warnings.push('No locator metadata on timeline steps');
+        missing.push('locator-verification');
+      }
     }
 
     const hasMedia =
