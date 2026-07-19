@@ -141,6 +141,9 @@ function scoreTestAgainstCriterion(
     evidence.push(test.lastStatus === 'PASSED' ? 'execution-pass' : 'execution-fail');
   }
 
+  const rawScore = Number(score.toFixed(2));
+  const { adjusted, penalty, reasons } = applyGovernancePenalty(rawScore, test);
+
   return {
     matchedSteps,
     evidence: {
@@ -149,9 +152,54 @@ function scoreTestAgainstCriterion(
       evidence,
       lastStatus: test.lastStatus,
       flakeScore: test.flakeScore,
-      score: Number(score.toFixed(2)),
+      rawScore,
+      score: adjusted,
+      governancePenalty: penalty > 0 ? penalty : undefined,
+      penaltyReasons: reasons.length ? reasons : undefined,
+      evidenceRef: test.governance?.evidenceRef,
     },
   };
+}
+
+/**
+ * Soft-penalize coverage credit using Feature 11 risk/completeness.
+ * Match threshold still uses raw semantic score so weak-evidence tests stay visible.
+ */
+function applyGovernancePenalty(
+  rawScore: number,
+  test: TestArtifact
+): { adjusted: number; penalty: number; reasons: string[] } {
+  const g = test.governance;
+  if (!g) return { adjusted: rawScore, penalty: 0, reasons: [] };
+
+  const reasons: string[] = [];
+  let penalty = 0;
+
+  if (typeof g.riskScore === 'number' && g.riskScore > 0) {
+    const riskPen = (g.riskScore / 100) * 0.2;
+    penalty += riskPen;
+    reasons.push(
+      `runtime-risk ${g.riskLevel || g.riskScore} (−${riskPen.toFixed(2)})`
+    );
+    for (const factor of g.riskFactors || []) {
+      if (['healing-used', 'unverified-locators', 'codegen-degraded', 'page-drift'].includes(factor)) {
+        reasons.push(factor);
+      }
+    }
+  }
+
+  if (typeof g.completenessScore === 'number') {
+    const thin = Math.max(0, (100 - g.completenessScore) / 100) * 0.15;
+    if (thin > 0) {
+      penalty += thin;
+      reasons.push(
+        `completeness ${g.completenessGrade || g.completenessScore} (−${thin.toFixed(2)})`
+      );
+    }
+  }
+
+  const adjusted = Math.max(0, Number((rawScore - penalty).toFixed(2)));
+  return { adjusted, penalty: Number(penalty.toFixed(2)), reasons };
 }
 
 function criterionStatus(tests: TestEvidence[]): { status: CoverageState; score: number } {

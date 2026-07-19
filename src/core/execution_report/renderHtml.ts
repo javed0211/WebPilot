@@ -1,6 +1,13 @@
 import { SuiteExecutionReport, TestCaseReport, ReportStep } from './types';
+import type { RootCauseAnalysis } from './RootCauseTypes';
+import type {
+  EvidenceHealingRecord,
+  EvidencePageDrift,
+  EvidenceTimelineStep,
+} from '../evidence/types';
 import { REPORT_LOGO_HREF, REPORT_SCRIPTS, REPORT_STYLES } from './reportTheme';
 import { browserProviderDisplayName } from '../browserProviders/BrowserProvider';
+import { hrefFromReportsHtml } from '../ReportPaths';
 
 /* ── Utilities ──────────────────────────────────────────────────── */
 
@@ -191,6 +198,227 @@ function renderAiBriefingCard(text: string): string {
   return summaryHtml + (items.length > 0 ? `<div>${itemsHtml}</div>` : '');
 }
 
+function renderRootCauseCard(rca: RootCauseAnalysis): string {
+  const statusClass =
+    rca.status === 'grounded' ? 'status-passed' : 'status-failed';
+  const findings =
+    rca.findings.length === 0
+      ? `<p style="font-size:12px;color:var(--text-3);margin:8px 0 0">No citation-validated findings.</p>`
+      : `<ul style="padding-left:16px;margin:8px 0 0;font-size:12px">
+          ${rca.findings
+            .map(
+              (f) => `<li style="margin:6px 0">
+                <strong>${esc(f.findingId)}</strong> · ${esc(f.claimType)}
+                <div>${esc(f.claim)}</div>
+                <div style="font-family:monospace;color:var(--text-3);margin-top:2px">
+                  cause: ${f.causeEventIds.map((id) => `<code>${esc(id)}</code>`).join(', ')}
+                </div>
+              </li>`
+            )
+            .join('')}
+        </ul>`;
+  const missing =
+    rca.missingEvidence?.length
+      ? `<p style="font-size:11px;color:var(--text-3);margin:8px 0 0">Missing: ${esc(
+          rca.missingEvidence.join(', ')
+        )}</p>`
+      : '';
+
+  return `
+    <div style="margin-bottom:12px">
+      <span class="status-pill ${statusClass}">${esc(rca.status)}</span>
+      ${rca.runId ? `<span style="font-size:11px;color:var(--text-3);margin-left:8px">${esc(rca.runId)}</span>` : ''}
+      ${findings}
+      ${missing}
+    </div>`;
+}
+
+function riskPillClass(level?: string): string {
+  if (level === 'low') return 'status-passed';
+  if (level === 'critical' || level === 'high') return 'status-failed';
+  return 'status-failed';
+}
+
+function completenessPillClass(grade?: string): string {
+  if (grade === 'A' || grade === 'B') return 'status-passed';
+  return 'status-failed';
+}
+
+function renderGovernanceStrip(t: TestCaseReport, _baseHref: string): string {
+  if (!t.risk && !t.completeness) return '';
+  const risk = t.risk;
+  const comp = t.completeness;
+  const evidenceLink = t.evidenceRef
+    ? `<a class="table-review-link" href="${esc(hrefFromReportsHtml(t.evidenceRef))}" style="margin-left:auto">Evidence JSON</a>`
+    : '';
+
+  return `
+    <div class="info-block" style="margin:12px 0 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      ${risk ? `<span class="status-pill ${riskPillClass(risk.level)}">risk ${esc(risk.level)} (${risk.score})</span>` : ''}
+      ${comp ? `<span class="status-pill ${completenessPillClass(comp.grade)}">completeness ${esc(comp.grade)} (${comp.score})</span>` : ''}
+      ${typeof t.healingCount === 'number' ? `<span style="font-size:12px;color:var(--text-2)">healed ${t.healingCount}</span>` : ''}
+      ${t.codegenQuality ? `<span style="font-size:12px;color:var(--text-2)">codegen ${esc(t.codegenQuality)}</span>` : ''}
+      ${t.evidenceLocators ? `<span style="font-size:12px;color:var(--text-2)">verified ${t.evidenceLocators.verified}/${t.evidenceLocators.total}</span>` : ''}
+      <span style="font-size:12px;color:var(--brand);font-weight:600">$${t.pricing.estimatedCostUsd.toFixed(4)}</span>
+      ${evidenceLink}
+      ${
+        risk?.factors?.length
+          ? `<div style="flex-basis:100%;font-size:11px;color:var(--text-3)">Factors: ${esc(
+              risk.factors.map((f) => `${f.id}(+${f.weight})`).join(', ')
+            )}</div>`
+          : ''
+      }
+    </div>`;
+}
+
+function miniBadge(label: string, ok?: boolean | null): string {
+  const color =
+    ok === true ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--text-3)';
+  return `<span style="font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:${color};border:1px solid currentColor;border-radius:3px;padding:1px 5px;margin-left:4px">${esc(label)}</span>`;
+}
+
+function renderEvidenceTimelineItem(s: EvidenceTimelineStep): string {
+  const actionType = (s.action || 'custom').toLowerCase();
+  const badgeClass =
+    {
+      click: 'tl-badge-click',
+      input: 'tl-badge-input',
+      navigate: 'tl-badge-nav',
+      nav: 'tl-badge-nav',
+      wait: 'tl-badge-wait',
+      assert: 'tl-badge-assert',
+    }[actionType] || 'tl-badge-wait';
+  const dotClass =
+    {
+      click: 'tl-click',
+      input: 'tl-input',
+      navigate: 'tl-nav',
+      nav: 'tl-nav',
+      wait: 'tl-wait',
+      assert: 'tl-assert',
+    }[actionType] || '';
+
+  const locatorUsed = s.locator?.used || s.locator?.name || '';
+  const badges = [
+    s.outcome === 'PASSED' || s.outcome === 'FAILED'
+      ? miniBadge(s.outcome === 'PASSED' ? 'ok' : 'fail', s.outcome === 'PASSED')
+      : '',
+    s.locator
+      ? miniBadge(s.locator.verified ? 'verified' : 'unverified', Boolean(s.locator.verified))
+      : '',
+    s.healed ? miniBadge('healed', false) : '',
+    s.assertion ? miniBadge('assert', true) : '',
+  ]
+    .filter(Boolean)
+    .join('');
+
+  return `
+  <div class="timeline-item">
+    <div class="timeline-dot ${dotClass}"></div>
+    <div class="timeline-card">
+      <div class="timeline-action">
+        <span class="tl-step-num">Step ${s.index}</span>
+        <span class="tl-badge ${badgeClass}">${esc(s.action)}</span>
+        ${badges}
+        ${locatorUsed ? `<code style="font-size:10px;color:var(--text-2);background:var(--surface-2);padding:1px 4px;border-radius:3px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;margin-left:4px" title="${esc(locatorUsed)}">${esc(locatorUsed)}</code>` : ''}
+      </div>
+      <div class="tl-desc">${esc(s.nlStep || s.error || s.url || '')}</div>
+    </div>
+  </div>`;
+}
+
+function renderHealLedger(records?: EvidenceHealingRecord[]): string {
+  if (!records?.length) return '';
+  const rows = records
+    .map(
+      (h) => `<tr>
+        <td style="padding:6px 8px;font-size:12px">#${h.stepIndex}</td>
+        <td style="padding:6px 8px;font-size:11px;font-family:monospace;word-break:break-all">${esc(h.brokenSelector || '—')}</td>
+        <td style="padding:6px 8px;font-size:11px;font-family:monospace;word-break:break-all">${esc(h.healedSelector || '—')}</td>
+        <td style="padding:6px 8px;font-size:12px">${h.confidence != null ? h.confidence.toFixed(2) : '—'}</td>
+        <td style="padding:6px 8px;font-size:11px;color:var(--text-3)">${esc(h.classification || '—')}${h.committed === false ? ' · not committed' : ''}</td>
+      </tr>`
+    )
+    .join('');
+  return `
+  <div class="info-block" style="margin-bottom:14px">
+    <div class="section-title">Heal Ledger</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px">
+      <thead>
+        <tr style="text-align:left;font-size:11px;color:var(--text-3)">
+          <th style="padding:4px 8px">Step</th>
+          <th style="padding:4px 8px">Broken</th>
+          <th style="padding:4px 8px">Healed</th>
+          <th style="padding:4px 8px">Conf</th>
+          <th style="padding:4px 8px">Class</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderLocatorVerification(t: TestCaseReport): string {
+  const locs = t.evidenceLocators;
+  const timeline = t.evidenceTimeline || [];
+  if (!locs || locs.total === 0) return '';
+  const rows = timeline
+    .filter((s) => s.locator?.used || s.locator?.kind)
+    .map(
+      (s) => `<tr>
+        <td style="padding:6px 8px;font-size:12px">#${s.index}</td>
+        <td style="padding:6px 8px;font-size:11px;font-family:monospace;word-break:break-all">${esc(s.locator?.used || `${s.locator?.kind}=${s.locator?.value || s.locator?.name || ''}`)}</td>
+        <td style="padding:6px 8px;font-size:12px">${s.locator?.verified ? miniBadge('verified', true) : miniBadge('unverified', false)}</td>
+        <td style="padding:6px 8px;font-size:11px;color:var(--text-3)">${esc(s.locator?.verifiedBy || '—')}${s.locator?.matchCount != null ? ` · matches ${s.locator.matchCount}` : ''}</td>
+      </tr>`
+    )
+    .join('');
+  return `
+  <div class="info-block" style="margin-bottom:14px">
+    <div class="section-title">Locator Verification · ${locs.verified}/${locs.total} verified (${(locs.verifiedRatio * 100).toFixed(0)}%)</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px">
+      <thead>
+        <tr style="text-align:left;font-size:11px;color:var(--text-3)">
+          <th style="padding:4px 8px">Step</th>
+          <th style="padding:4px 8px">Locator</th>
+          <th style="padding:4px 8px">Status</th>
+          <th style="padding:4px 8px">Proof</th>
+        </tr>
+      </thead>
+      <tbody>${rows || `<tr><td colspan="4" style="padding:8px;font-size:12px;color:var(--text-3)">No locator rows</td></tr>`}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderPageDrift(drift?: EvidencePageDrift[]): string {
+  if (!drift?.length) return '';
+  const rows = drift
+    .map(
+      (d) => `<tr>
+        <td style="padding:6px 8px;font-size:12px;font-family:monospace">${esc(d.pageKey)}</td>
+        <td style="padding:6px 8px;font-size:11px;font-family:monospace;color:var(--text-3)">${esc(d.previousFingerprint || '—')}</td>
+        <td style="padding:6px 8px;font-size:11px;font-family:monospace">${esc(d.currentFingerprint || '—')}</td>
+        <td style="padding:6px 8px;font-size:12px">+${d.added ?? 0} / −${d.removed ?? 0} / ~${d.changed ?? 0}</td>
+      </tr>`
+    )
+    .join('');
+  return `
+  <div class="info-block" style="margin-bottom:14px">
+    <div class="section-title">Page Drift</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px">
+      <thead>
+        <tr style="text-align:left;font-size:11px;color:var(--text-3)">
+          <th style="padding:4px 8px">Page</th>
+          <th style="padding:4px 8px">Previous FP</th>
+          <th style="padding:4px 8px">Current FP</th>
+          <th style="padding:4px 8px">Added / Removed / Changed</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 /* ── Test detail view ────────────────────────────────────────────── */
 
 function renderTimelineItem(s: ReportStep): string {
@@ -366,7 +594,10 @@ function renderTestDetail(t: TestCaseReport, baseHref: string, multiTest: boolea
     ? `<ol style="padding-left:18px;margin:0">${t.nlSteps.map((s) => `<li style="margin:4px 0;font-size:12.5px;color:var(--text-2)">${esc(s)}</li>`).join('')}</ol>`
     : `<p style="font-size:12px;color:var(--text-3)">No NL steps recorded.</p>`;
 
-  const stepsHtml = t.executionSteps.slice(0, 100).map((s) => renderTimelineItem(s)).join('');
+  const stepsHtml =
+    t.evidenceTimeline && t.evidenceTimeline.length > 0
+      ? t.evidenceTimeline.slice(0, 100).map((s) => renderEvidenceTimelineItem(s)).join('')
+      : t.executionSteps.slice(0, 100).map((s) => renderTimelineItem(s)).join('');
 
   const insightsHtml = t.runtimeInsights.length > 0
     ? `<ul style="padding-left:16px;margin:0">${t.runtimeInsights.map((i) =>
@@ -397,9 +628,10 @@ function renderTestDetail(t: TestCaseReport, baseHref: string, multiTest: boolea
   const aiHtml = t.aiAnalysis
     ? `<div class="card" style="margin-bottom:16px">
         <div class="card-header">
-          <div class="card-title">${ICON_AI} Test AI Analysis</div>
+          <div class="card-title">${ICON_AI} ${t.rootCauseAnalysis ? 'Grounded Root Cause' : 'Test AI Analysis'}</div>
         </div>
         <div class="card-body">
+          ${t.rootCauseAnalysis ? renderRootCauseCard(t.rootCauseAnalysis) : ''}
           ${renderAiBriefingCard(t.aiAnalysis)}
         </div>
       </div>`
@@ -426,6 +658,7 @@ function renderTestDetail(t: TestCaseReport, baseHref: string, multiTest: boolea
         ${perTestLink}
       </div>
     </div>
+    ${renderGovernanceStrip(t, baseHref)}
 
     <!-- Tabs -->
     <div class="tabs-bar">
@@ -439,6 +672,9 @@ function renderTestDetail(t: TestCaseReport, baseHref: string, multiTest: boolea
     <div class="tab-pane" data-tab-pane="summary">
       ${renderFlakeAnalysis(t, baseHref)}
       ${aiHtml}
+      ${renderHealLedger(t.evidenceHealing)}
+      ${renderLocatorVerification(t)}
+      ${renderPageDrift(t.evidenceDrift)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div class="info-block">
           <div class="section-title">Codegen Summary</div>

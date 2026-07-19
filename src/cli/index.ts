@@ -26,6 +26,15 @@ import { BrowserProviderRegistry } from '../core/browserProviders/BrowserProvide
 import { ConfigManager } from '../core/ConfigManager';
 import { collectSuiteReport } from '../core/execution_report/collector';
 import { writeArtifactManifest } from '../core/ci/ArtifactManifest';
+import {
+  evaluateEvidenceGates,
+  formatEvidenceGateFailures,
+  parseCompletenessGrade,
+  parseRiskLevel,
+} from '../core/evidence/EvidenceGates';
+import { EvidenceBundleBuilder } from '../core/evidence/EvidenceBundleBuilder';
+import { resolveEvidenceConfig } from '../core/evidence/EvidenceConfig';
+import type { CompletenessGrade, RiskLevel } from '../core/evidence/types';
 import { writeGithubActionsWorkflow } from '../core/ci/CiWorkflow';
 import { ScenarioMetadataParser } from '../core/authoring/ScenarioMetadata';
 import { AuthoringOutput } from '../core/authoring/NextSteps';
@@ -2311,8 +2320,17 @@ ci
   .option('--provider <name>', 'Browser provider', 'browser-use')
   .option('--parallel <workers>', 'Run parallel workers', '1')
   .option('--codegen', 'Generate deterministic code after execution', false)
+  .option('--require-evidence-grade <grade>', 'Fail CI if completeness grade is below A–F')
+  .option('--max-risk <level>', 'Fail CI if risk exceeds low|medium|high|critical')
   .description('Run WebPilot with CI defaults and write an artifact manifest')
-  .action((paths: string[] = [], options: { env?: string; provider?: string; parallel?: string; codegen?: boolean }) => {
+  .action((paths: string[] = [], options: {
+    env?: string;
+    provider?: string;
+    parallel?: string;
+    codegen?: boolean;
+    requireEvidenceGrade?: string;
+    maxRisk?: string;
+  }) => {
     const { spawnSync } = require('child_process');
     const runPaths = paths.length > 0 ? paths : ['tests/web'];
     const args = [
@@ -2346,7 +2364,36 @@ ci
       console.error(chalk.red(`CI run failed to start: ${result.error.message}`));
       process.exit(2);
     }
-    process.exit(result.status ?? 1);
+
+    const childStatus = result.status ?? 1;
+    if (childStatus !== 0) {
+      process.exit(childStatus);
+    }
+
+    const requireGrade = parseCompletenessGrade(options.requireEvidenceGrade);
+    const maxRisk = parseRiskLevel(options.maxRisk);
+    if (requireGrade || maxRisk) {
+      const evidenceCfg = resolveEvidenceConfig();
+      for (const slug of listSummarySlugs()) {
+        EvidenceBundleBuilder.writeForSlug(slug, { config: evidenceCfg });
+      }
+      const report = collectSuiteReport({
+        env: options.env,
+        suiteName: 'WebPilot CI Suite',
+      });
+      const gate = evaluateEvidenceGates(report, {
+        requireEvidenceGrade: requireGrade,
+        maxRisk: maxRisk as RiskLevel | undefined,
+      });
+      if (!gate.ok) {
+        console.error(chalk.red('Evidence gates failed:'));
+        console.error(formatEvidenceGateFailures(gate));
+        process.exit(1);
+      }
+      console.log(chalk.green('Evidence gates passed.'));
+    }
+
+    process.exit(0);
   });
 
 /**
@@ -3122,8 +3169,40 @@ program
   .option('--test <slug>', 'Limit HTML report to one test slug (e.g. automationexercise_add_to_cart)')
   .option('-e, --env <env>', 'Environment name for report header', 'qa')
   .option('--file <path>', 'Original test file path (metadata)')
+  .option('--require-evidence-grade <grade>', 'Fail if completeness grade is below A–F')
+  .option('--max-risk <level>', 'Fail if risk exceeds low|medium|high|critical')
   .action(async (options) => {
+    const requireGrade = parseCompletenessGrade(options.requireEvidenceGrade);
+    const maxRisk = parseRiskLevel(options.maxRisk);
+    if (options.requireEvidenceGrade && !requireGrade) {
+      console.error(chalk.red(`Invalid --require-evidence-grade "${options.requireEvidenceGrade}" (use A–F)`));
+      process.exit(2);
+    }
+    if (options.maxRisk && !maxRisk) {
+      console.error(chalk.red(`Invalid --max-risk "${options.maxRisk}" (use low|medium|high|critical)`));
+      process.exit(2);
+    }
+
+    const applyGates = (report: ReturnType<typeof collectSuiteReport>): boolean => {
+      if (!requireGrade && !maxRisk) return true;
+      const gate = evaluateEvidenceGates(report, {
+        requireEvidenceGrade: requireGrade as CompletenessGrade | undefined,
+        maxRisk: maxRisk as RiskLevel | undefined,
+      });
+      if (!gate.ok) {
+        console.error(chalk.red('Evidence gates failed:'));
+        console.error(formatEvidenceGateFailures(gate));
+        return false;
+      }
+      return true;
+    };
+
     if (options.json) {
+      const evidenceCfg = resolveEvidenceConfig();
+      const slugs = options.test ? [options.test] : listSummarySlugs();
+      for (const slug of slugs) {
+        EvidenceBundleBuilder.writeForSlug(slug, { config: evidenceCfg });
+      }
       const report = collectSuiteReport({
         env: options.env,
         testSlugs: options.test ? [options.test] : undefined,
@@ -3131,6 +3210,7 @@ program
       });
       const manifest = writeArtifactManifest();
       console.log(JSON.stringify({ report, artifactManifest: manifest.manifest }, null, 2));
+      if (!applyGates(report)) process.exit(1);
       return;
     }
     if (options.html) {
@@ -3143,6 +3223,12 @@ program
       const manifest = writeArtifactManifest();
       console.log('OK', result.suiteHtmlPath);
       console.log('Manifest', manifest.path);
+      const report = collectSuiteReport({
+        env: options.env,
+        testSlugs: options.test ? [options.test] : undefined,
+        suiteName: options.test ? `WebPilot — ${options.test}` : 'WebPilot Execution Suite',
+      });
+      if (!applyGates(report)) process.exit(1);
       return;
     }
     console.log(`\n${chalk.blue.bold('=== WebPilot Executive Quality Dashboard ===')}`);

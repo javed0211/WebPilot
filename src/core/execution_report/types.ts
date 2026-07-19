@@ -1,6 +1,9 @@
 import { AssertionSummary } from '../assertions/AssertionCandidate';
 import { FlakeAnalysis } from '../flake/FailureSignal';
 import { BrowserSessionInfo } from '../browserProviders/BrowserProvider';
+import type { RootCauseAnalysis } from './RootCauseTypes';
+
+export type { RootCauseAnalysis } from './RootCauseTypes';
 
 export interface ReportPricing {
   promptTokens: number;
@@ -33,6 +36,8 @@ export interface ReportArtifacts {
   video?: string;
   trace?: string;
   screenshots: string[];
+  /** Path to finalized event ledger bundle (`*_events.json`). */
+  eventBundle?: string;
 }
 
 export interface ReportStep {
@@ -94,7 +99,20 @@ export interface TestCaseReport {
   isAgentSuccessful?: boolean;
   isAgentDone?: boolean;
   aiAnalysis?: string;
+  /** Structured citation-validated root cause (feature 15). */
+  rootCauseAnalysis?: RootCauseAnalysis;
   flakeAnalysis?: FlakeAnalysis;
+  /** Feature 11 governance fields (from EvidenceBundle). */
+  evidenceRef?: string;
+  risk?: import('../evidence/types').RiskReport;
+  completeness?: import('../evidence/types').CompletenessReport;
+  healingCount?: number;
+  codegenQuality?: 'good' | 'degraded';
+  /** Normalized evidence timeline (preferred over executionSteps for HTML badges). */
+  evidenceTimeline?: import('../evidence/types').EvidenceTimelineStep[];
+  evidenceHealing?: import('../evidence/types').EvidenceHealingRecord[];
+  evidenceLocators?: import('../evidence/types').EvidenceLocatorSummary;
+  evidenceDrift?: import('../evidence/types').EvidencePageDrift[];
 }
 
 export interface SuiteExecutionReport {

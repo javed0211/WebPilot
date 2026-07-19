@@ -15,6 +15,10 @@ export interface RegressionPackEntry {
   flakeScore: number;
   lastStatus?: string;
   requirements: string[];
+  /** Feature 11 runtime evidence risk (orthogonal to requirement.risk). */
+  runtimeRiskLevel?: string;
+  runtimeRiskScore?: number;
+  completenessGrade?: string;
 }
 
 export interface RegressionPack {
@@ -80,10 +84,44 @@ export class RegressionPackManager {
             continue;
           }
 
+          const gov = art?.governance;
+          const riskLevel = (gov?.riskLevel || '').toLowerCase();
+          const grade = (gov?.completenessGrade || '').toUpperCase();
+          if (riskLevel === 'critical' || grade === 'D' || grade === 'F') {
+            if (!quarantine.has(evidence.path)) {
+              quarantine.set(evidence.path, {
+                path: evidence.path,
+                slug,
+                flakeScore,
+                reason:
+                  riskLevel === 'critical'
+                    ? `Runtime evidence risk is critical (${gov?.riskScore ?? '?'}); do not treat as release evidence.`
+                    : `Evidence completeness ${grade} is not governance-grade.`,
+              });
+            }
+            continue;
+          }
+
+          const evidenceRiskPenalty =
+            riskLevel === 'high' ? 0.2 : riskLevel === 'medium' ? 0.1 : 0;
+          const completenessPenalty =
+            grade === 'C' ? 0.08 : typeof gov?.completenessScore === 'number'
+              ? Math.max(0, (70 - gov.completenessScore) / 100) * 0.1
+              : 0;
+
           const weight = Number(
-            Math.min(1, basePriorityWeight + riskBoost + evidence.score * 0.1 - flakeScore * 0.2).toFixed(
-              2
-            )
+            Math.min(
+              1,
+              Math.max(
+                0,
+                basePriorityWeight +
+                  riskBoost +
+                  evidence.score * 0.1 -
+                  flakeScore * 0.2 -
+                  evidenceRiskPenalty -
+                  completenessPenalty
+              )
+            ).toFixed(2)
           );
           const existing = selected.get(evidence.path);
           if (existing) {
@@ -99,12 +137,15 @@ export class RegressionPackManager {
           selected.set(evidence.path, {
             path: evidence.path,
             slug,
-            reason: `Covers ${requirement.requirementId} (${requirement.risk} risk)`,
+            reason: `Covers ${requirement.requirementId} (${criterion.status})`,
             priority: requirement.priority,
             weight,
             flakeScore,
-            lastStatus: evidence.lastStatus,
+            lastStatus: art?.lastStatus ?? evidence.lastStatus,
             requirements: [requirement.requirementId],
+            runtimeRiskLevel: gov?.riskLevel,
+            runtimeRiskScore: gov?.riskScore,
+            completenessGrade: gov?.completenessGrade,
           });
         }
       }

@@ -499,12 +499,48 @@ User guide (update as phases ship): [Reports & Evidence](../guides/reports-and-e
 
 ## Implementation Status
 
-**Planned.** Foundation modules above already exist; this feature is primarily aggregation, persistence, scoring, and report surfacing.
+**Feature 11 largely complete** — EvidenceBundle, risk/completeness, HTML + React-shell governance overlay, page drift history, CI gates, coverage/regression penalties, ADO evidence comments + attachments.
 
 ### Remaining roadmap
 
-1. ⏳ Phase 1 — EvidenceBundle + RiskScorer + CompletenessGrader.
-2. ⏳ Phase 2 — Timeline badges, heal ledger, manifest.
-3. ⏳ Phase 3 — Page inventory history / drift.
-4. ⏳ Phase 4 — Codegen audit + usage in governance strip.
-5. ⏳ Phase 5 — Coverage / regression / ADO / CI gates.
+1. ✅ Phase 1 — EvidenceBundle + RiskScorer + CompletenessGrader.
+2. ✅ Phase 2 — Timeline badges, heal ledger, locator verification in HTML.
+3. ✅ Phase 3 — Page inventory history / drift.
+4. ✅ Phase 4 — Governance overlay on React report-ui shell (source tree still absent; vanilla overlay paints heal/locator/drift).
+5. ✅ Phase 5 — Coverage/regression evidence penalties + ADO publish comments/attachments.
+
+### Tests
+
+```bash
+npm run test:evidence-bundle
+```
+
+### Enable
+
+```yaml
+evidence:
+  enabled: true
+  writeBundle: true
+  pageInventoryHistory:
+    enabled: true
+    maxSnapshotsPerPage: 20
+```
+
+Env: `WEBPILOT_EVIDENCE_BUNDLE=0|1`
+
+### CI gates
+
+```bash
+webpilot report --json --require-evidence-grade B --max-risk medium
+webpilot ci run --require-evidence-grade B --max-risk medium
+```
+
+### Artifacts
+
+```text
+runtime/reports/data/evidence/<slug>/<runId>_evidence.json
+runtime/page-inventory/<origin>/<pageKey>.json
+runtime/page-inventory/<origin>/history/<pageKey>/<timestamp>.json
+```
+
+Summary gains `evidenceRef`, `risk`, `completeness`. Coverage evidence records `rawScore` / `governancePenalty` / `penaltyReasons`. ADO publish attaches EvidenceBundle JSON when present.

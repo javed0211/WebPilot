@@ -40,6 +40,7 @@ function baseFlags(over = {}) {
     captureNetwork: 'errors',
     captureConsole: 'errors',
     healingCommitPolicy: 'legacy',
+    failOnInvalidCitation: true,
     ...over,
   };
 }

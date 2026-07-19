@@ -48,11 +48,11 @@ Recommended order:
 8. [Test Authoring UX](./08-test-authoring-ux.md) — **complete**
 9. [Requirements Coverage and Regression Manager](./09-requirements-coverage-regression.md) — **planned** (Phase 1 + ADO Test Plans shipped)
 10. [Full OpenAPI / Swagger API Automation](./10-api-openapi-full-suite.md) — **shipped** (full + smoke modes)
-11. [Evidence-First Reports for QA Governance](./11-evidence-first-reports.md) — **planned**
+11. [Evidence-First Reports for QA Governance](./11-evidence-first-reports.md) — **shipped** (Phases 1–5)
 12. [Execution Event Ledger](./12-execution-event-ledger.md) — **in progress** (Phase 1 foundation shipped)
 13. [Fixture & Test-Data Lifecycle](./13-fixture-lifecycle.md) — **in progress** (manager + providers shipped)
 14. [Healing Change Classification](./14-healing-change-classification.md) — **in progress** (classifier + transactional commit shipped)
-15. [Grounded Root-Cause](./15-grounded-root-cause.md) — **planned**
+15. [Grounded Root-Cause](./15-grounded-root-cause.md) — **in progress** (analyzer + CitationValidator shipped)
 16. [Semantic Assertion Runtime](./16-semantic-assertion-runtime.md) — **in progress** (AST/runtime/codegen shipped)
 
 Recommended next build order for the trust roadmap:
@@ -61,7 +61,8 @@ Recommended next build order for the trust roadmap:
 2. Fixture lifecycle (13)
 3. Semantic assertions (16)
 4. Healing classification (14)
-5. Grounded root-cause (15) + EvidenceBundle (11)
+5. Grounded root-cause (15) — **started**
+6. EvidenceBundle (11) — **shipped**
 
 ## How To Use These Specs
 

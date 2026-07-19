@@ -69,7 +69,9 @@
     "test:event-ledger": "npm run build && node scripts/test-feature-12-event-ledger.cjs",
     "test:fixture-lifecycle": "npm run build && node scripts/test-feature-13-fixture-lifecycle.cjs",
     "test:semantic-assertions": "npm run build && node scripts/test-feature-16-semantic-assertions.cjs",
-    "test:healing-classification": "npm run build && node scripts/test-feature-14-healing-classification.cjs"
+    "test:healing-classification": "npm run build && node scripts/test-feature-14-healing-classification.cjs",
+    "test:grounded-root-cause": "npm run build && node scripts/test-feature-15-grounded-root-cause.cjs",
+    "test:evidence-bundle": "npm run build && node scripts/test-feature-11-evidence-bundle.cjs"
   },
   "keywords": [
     "web-automation",

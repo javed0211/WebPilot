@@ -181,6 +181,20 @@ export function upsertInventory(
   if (!file) return null;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const existing = loadInventory(snapshot.url) || ({} as Partial<PageInventory>);
+
+  // Archive prior fingerprint before overwrite when elements+fingerprint change.
+  try {
+    const { archiveInventoryIfChanged } = require('./PageInventoryHistory') as typeof import('./PageInventoryHistory');
+    archiveInventoryIfChanged(existing.fingerprint ? existing : null, {
+      fingerprint: snapshot.fingerprint ?? existing.fingerprint ?? null,
+      elements: snapshot.elements,
+      url: snapshot.url,
+      pageKey: snapshot.pageKey,
+    });
+  } catch {
+    /* history is best-effort */
+  }
+
   const merged: PageInventory = {
     schemaVersion: 2,
     pageKey: snapshot.pageKey ?? existing.pageKey ?? null,

@@ -8,6 +8,8 @@ import { FlakeAnalyzer } from './flake/FlakeAnalyzer';
 import { renderSuiteHtml, renderTestHtml } from './execution_report/renderHtml';
 import { renderReactSuiteHtml, renderReactTestHtml } from './execution_report/renderReactReport';
 import { SuiteExecutionReport, TestCaseReport } from './execution_report/types';
+import { RootCauseAnalyzer } from './execution_report/RootCauseAnalyzer';
+import type { RootCauseAnalysis } from './execution_report/RootCauseTypes';
 import { archiveCurrentRun } from './execution_report/history';
 import {
   ensureReportDirs,
@@ -20,6 +22,10 @@ import {
 } from './ReportPaths';
 import { UsageTracker } from '../utils/UsageTracker';
 import { persistJobUsage } from '../utils/UsagePersistence';
+import { resolveFeatureFlags } from './lifecycle/FeatureFlags';
+import { eventBundlePath } from './events/EventPaths';
+import { EvidenceBundleBuilder } from './evidence/EvidenceBundleBuilder';
+import { resolveEvidenceConfig } from './evidence/EvidenceConfig';
 
 function ensureReportAssets(): void {
   fs.mkdirSync(REPORTS_ASSETS_DIR, { recursive: true });
@@ -154,6 +160,42 @@ function persistAiAnalysis(slug: string, analysis: string): void {
   fs.writeFileSync(summaryFilePath(slug), JSON.stringify(summary, null, 2), 'utf8');
 }
 
+function persistRootCauseAnalysis(slug: string, analysis: RootCauseAnalysis, markdown: string): void {
+  const readPath = resolveSummaryPath(slug);
+  if (!fs.existsSync(readPath)) return;
+  const summary = JSON.parse(fs.readFileSync(readPath, 'utf8')) as Record<string, unknown>;
+  summary.rootCauseAnalysis = analysis;
+  summary.aiAnalysis = markdown;
+  fs.mkdirSync(path.dirname(summaryFilePath(slug)), { recursive: true });
+  fs.writeFileSync(summaryFilePath(slug), JSON.stringify(summary, null, 2), 'utf8');
+}
+
+function resolveEventBundleForTest(t: TestCaseReport): string | undefined {
+  if (t.artifacts.eventBundle) return t.artifacts.eventBundle;
+  const readPath = resolveSummaryPath(t.slug);
+  if (!fs.existsSync(readPath)) return undefined;
+  try {
+    const summary = JSON.parse(fs.readFileSync(readPath, 'utf8')) as Record<string, unknown>;
+    const runId = typeof summary.runId === 'string' ? summary.runId : undefined;
+    if (runId) return eventBundlePath(t.slug, runId);
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+function analyzeGroundedRootCause(
+  t: TestCaseReport,
+  failOnInvalidCitation: boolean
+): RootCauseAnalysis {
+  return RootCauseAnalyzer.analyze({
+    eventBundlePath: resolveEventBundleForTest(t),
+    status: t.status,
+    scenarioId: t.slug,
+    failOnInvalidCitation,
+  });
+}
+
 function persistFlakeAnalysis(
   slug: string,
   analysis: NonNullable<ReturnType<typeof FlakeAnalyzer.analyze>>
@@ -198,7 +240,26 @@ export async function generateExecutionReports(
     }
   }
 
-  if (!options.skipAi && report.testCases.length > 0) {
+  const flags = resolveFeatureFlags();
+
+  if (flags.groundedRootCause) {
+    console.log('\x1b[34m[ExecutionReport] Generating grounded root-cause analysis...\x1b[0m');
+    for (const t of report.testCases) {
+      if (t.rootCauseAnalysis) continue;
+      try {
+        const rca = analyzeGroundedRootCause(t, flags.failOnInvalidCitation);
+        const markdown = RootCauseAnalyzer.toMarkdown(rca);
+        t.rootCauseAnalysis = rca;
+        t.aiAnalysis = markdown;
+        persistRootCauseAnalysis(t.slug, rca, markdown);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        t.aiAnalysis = `_Grounded root-cause unavailable: ${msg}_`;
+      }
+    }
+  }
+
+  if (!options.skipAi && !flags.groundedRootCause && report.testCases.length > 0) {
     try {
       console.log('\x1b[34m[ExecutionReport] Generating AI analysis...\x1b[0m');
       UsageTracker.setPhase('analysis');
@@ -225,6 +286,44 @@ export async function generateExecutionReports(
         '\x1b[33m[ExecutionReport] AI analysis skipped:\x1b[0m',
         err instanceof Error ? err.message : err
       );
+    }
+  } else if (!options.skipAi && flags.groundedRootCause && report.testCases.length > 1) {
+    // Optional suite-level free-form rollup still allowed alongside grounded per-test RCA.
+    try {
+      UsageTracker.setPhase('analysis');
+      const llm = new LLMClient();
+      report.suiteAiAnalysis = await analyzeSuite(llm, report);
+      for (const t of report.testCases) {
+        persistJobUsage(t.slug);
+      }
+    } catch {
+      /* suite AI is optional when grounded mode is on */
+    }
+  }
+
+  const evidenceCfg = resolveEvidenceConfig();
+  if (evidenceCfg.enabled && evidenceCfg.writeBundle) {
+    console.log('\x1b[34m[ExecutionReport] Writing EvidenceBundles...\x1b[0m');
+    for (const t of report.testCases) {
+      try {
+        const bundle = EvidenceBundleBuilder.writeForSlug(t.slug, { config: evidenceCfg });
+        if (bundle) {
+          t.risk = bundle.risk;
+          t.completeness = bundle.completeness;
+          t.evidenceRef = bundle.artifacts.evidenceBundle;
+          t.healingCount = bundle.healing.count;
+          t.codegenQuality = bundle.codegen.quality;
+          t.evidenceTimeline = bundle.timeline;
+          t.evidenceHealing = bundle.healing.records;
+          t.evidenceLocators = bundle.locators;
+          t.evidenceDrift = bundle.pageInventory.drift;
+        }
+      } catch (err: unknown) {
+        console.warn(
+          `\x1b[33m[ExecutionReport] Evidence bundle skipped for ${t.slug}:\x1b[0m`,
+          err instanceof Error ? err.message : err
+        );
+      }
     }
   }
 

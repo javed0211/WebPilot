@@ -449,6 +449,58 @@ def upsert_inventory(
     merged["verifiedLocators"] = verified
     merged["verifiedControlsStored"] = len(verified)
 
+    # Archive prior fingerprint when it changes (feature 11 page drift history).
+    try:
+        prev_fp = existing.get("fingerprint")
+        next_fp = merged.get("fingerprint")
+        if (
+            prev_fp
+            and next_fp
+            and prev_fp != next_fp
+            and (existing.get("elements") or [])
+        ):
+            origin = origin_from_url(existing.get("url") or url)
+            page_key = existing.get("pageKey") or page_key_from_url(
+                existing.get("url") or url
+            )
+            if origin and page_key:
+                hist_dir = PAGE_INVENTORY_ROOT / origin / "history" / str(page_key)
+                hist_dir.mkdir(parents=True, exist_ok=True)
+                stamp = str(
+                    existing.get("updatedAt")
+                    or existing.get("capturedAt")
+                    or datetime.now(timezone.utc).isoformat()
+                ).replace(":", "-").replace(".", "-")
+                archive = {
+                    "schemaVersion": existing.get("schemaVersion", PAGE_INVENTORY_SCHEMA_VERSION),
+                    "pageKey": page_key,
+                    "url": existing.get("url"),
+                    "title": existing.get("title"),
+                    "capturedAt": existing.get("capturedAt"),
+                    "updatedAt": existing.get("updatedAt"),
+                    "fingerprint": prev_fp,
+                    "elementCount": existing.get("elementCount")
+                    or len(existing.get("elements") or []),
+                    "elements": existing.get("elements") or [],
+                    "archivedAt": datetime.now(timezone.utc).isoformat(),
+                    "nextFingerprint": next_fp,
+                }
+                (hist_dir / f"{stamp}.json").write_text(
+                    json.dumps(archive, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+                # Prune to 20 snapshots
+                files = sorted(hist_dir.glob("*.json"))
+                excess = len(files) - 20
+                if excess > 0:
+                    for old in files[:excess]:
+                        try:
+                            old.unlink()
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
     path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return path
 

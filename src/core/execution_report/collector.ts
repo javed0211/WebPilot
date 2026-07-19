@@ -206,6 +206,7 @@ export function collectTestCaseReport(slug: string): TestCaseReport | null {
 
   const codegenRaw = summary.codegen as Record<string, unknown> | undefined;
   const flakeRaw = summary.flakeAnalysis as FlakeAnalysis | undefined;
+  const rootCauseRaw = summary.rootCauseAnalysis as import('./RootCauseTypes').RootCauseAnalysis | undefined;
   const codegen = codegenRaw
     ? {
         mode: String(codegenRaw.mode || 'deterministic') as 'deterministic' | 'llm' | 'auto',
@@ -251,6 +252,8 @@ export function collectTestCaseReport(slug: string): TestCaseReport | null {
       ),
       trace: typeof artifactsRaw.trace === 'string' ? hrefFromReportsHtml(artifactsRaw.trace) : undefined,
       screenshots: collectScreenshots(slug, summary, browserCfg.screenshots),
+      eventBundle:
+        typeof artifactsRaw.eventBundle === 'string' ? artifactsRaw.eventBundle : undefined,
     },
     pricing: buildPricing(slug, summary),
     browserProvider: summaryBrowser?.provider,
@@ -259,8 +262,66 @@ export function collectTestCaseReport(slug: string): TestCaseReport | null {
     isAgentSuccessful: ctx?.isSuccessful as boolean | undefined,
     isAgentDone: ctx?.isDone as boolean | undefined,
     aiAnalysis: summary.aiAnalysis as string | undefined,
+    rootCauseAnalysis: rootCauseRaw,
     flakeAnalysis: flakeRaw,
+    evidenceRef: typeof summary.evidenceRef === 'string' ? summary.evidenceRef : undefined,
+    risk: summary.risk as TestCaseReport['risk'],
+    completeness: summary.completeness as TestCaseReport['completeness'],
+    healingCount:
+      typeof (summary.evidence as { healingCount?: number } | undefined)?.healingCount === 'number'
+        ? (summary.evidence as { healingCount: number }).healingCount
+        : undefined,
+    codegenQuality:
+      (summary.evidence as { codegenQuality?: 'good' | 'degraded' } | undefined)?.codegenQuality ||
+      undefined,
   };
+
+  // Reload detailed evidence surfaces from the bundle when regenerating reports.
+  const evidenceRef =
+    typeof summary.evidenceRef === 'string'
+      ? summary.evidenceRef
+      : typeof artifactsRaw.evidenceBundle === 'string'
+        ? artifactsRaw.evidenceBundle
+        : undefined;
+  if (evidenceRef) {
+    try {
+      const abs = path.isAbsolute(evidenceRef)
+        ? evidenceRef
+        : path.join(process.cwd(), evidenceRef);
+      if (fs.existsSync(abs)) {
+        const bundle = JSON.parse(fs.readFileSync(abs, 'utf8')) as {
+          timeline?: TestCaseReport['evidenceTimeline'];
+          healing?: { records?: TestCaseReport['evidenceHealing']; count?: number };
+          locators?: TestCaseReport['evidenceLocators'];
+          pageInventory?: { drift?: TestCaseReport['evidenceDrift'] };
+          risk?: TestCaseReport['risk'];
+          completeness?: TestCaseReport['completeness'];
+          codegen?: { quality?: 'good' | 'degraded' };
+          artifacts?: { evidenceBundle?: string };
+        };
+        baseReport.evidenceTimeline = bundle.timeline;
+        baseReport.evidenceHealing = bundle.healing?.records;
+        baseReport.evidenceLocators = bundle.locators;
+        baseReport.evidenceDrift = bundle.pageInventory?.drift;
+        if (!baseReport.risk && bundle.risk) baseReport.risk = bundle.risk;
+        if (!baseReport.completeness && bundle.completeness) {
+          baseReport.completeness = bundle.completeness;
+        }
+        if (baseReport.healingCount == null && typeof bundle.healing?.count === 'number') {
+          baseReport.healingCount = bundle.healing.count;
+        }
+        if (!baseReport.codegenQuality && bundle.codegen?.quality) {
+          baseReport.codegenQuality = bundle.codegen.quality;
+        }
+        if (!baseReport.evidenceRef) {
+          baseReport.evidenceRef =
+            bundle.artifacts?.evidenceBundle || evidenceRef;
+        }
+      }
+    } catch {
+      /* evidence reload is best-effort */
+    }
+  }
 
   if (!baseReport.flakeAnalysis && baseReport.status !== 'PASSED') {
     baseReport.flakeAnalysis =

@@ -24,6 +24,18 @@ export interface TestArtifact {
   lastStatus?: string;
   /** 0..1 flake score derived from run history (higher = flakier). */
   flakeScore: number;
+  /** Feature 11 governance signals from latest summary/evidence. */
+  governance?: {
+    riskScore?: number;
+    riskLevel?: string;
+    completenessScore?: number;
+    completenessGrade?: string;
+    healingCount?: number;
+    verifiedLocatorRatio?: number;
+    codegenQuality?: string | null;
+    evidenceRef?: string;
+    riskFactors?: string[];
+  };
 }
 
 const STEP_RE = /^\s*(?:\d+[.)]|[-*•])\s+(.*)$/;
@@ -107,6 +119,41 @@ function flakeScoreForSlug(slug: string): { score: number; lastStatus?: string }
   return { score: Math.min(1, Number((transitionScore + recentFailBias).toFixed(2))), lastStatus };
 }
 
+function governanceForSlug(slug: string): TestArtifact['governance'] {
+  const summaryPath = resolveSummaryPath(slug);
+  if (!fs.existsSync(summaryPath)) return undefined;
+  try {
+    const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8')) as {
+      risk?: { score?: number; level?: string; factors?: Array<{ id?: string }> };
+      completeness?: { score?: number; grade?: string };
+      evidenceRef?: string;
+      evidence?: {
+        healingCount?: number;
+        verifiedLocatorRatio?: number;
+        codegenQuality?: string | null;
+      };
+    };
+    if (!summary.risk && !summary.completeness && !summary.evidenceRef && !summary.evidence) {
+      return undefined;
+    }
+    return {
+      riskScore: summary.risk?.score,
+      riskLevel: summary.risk?.level,
+      completenessScore: summary.completeness?.score,
+      completenessGrade: summary.completeness?.grade,
+      healingCount: summary.evidence?.healingCount,
+      verifiedLocatorRatio: summary.evidence?.verifiedLocatorRatio,
+      codegenQuality: summary.evidence?.codegenQuality,
+      evidenceRef: summary.evidenceRef,
+      riskFactors: (summary.risk?.factors || [])
+        .map((f) => f.id)
+        .filter((id): id is string => Boolean(id)),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export class TestInventory {
   public static collect(): TestArtifact[] {
     const files = [
@@ -139,6 +186,7 @@ export class TestInventory {
         blob,
         lastStatus: flake.lastStatus,
         flakeScore: flake.score,
+        governance: governanceForSlug(slug),
       });
     }
     return artifacts;

@@ -218,9 +218,27 @@ healing:
   commitPolicy: postvalidated
 
 evidence:
+  enabled: true
+  writeBundle: true
   captureNetwork: errors     # off | errors | metadata
   captureConsole: errors     # off | errors | all
   failOnInvalidCitation: true
+  risk:
+    failWeight: 40
+    healingPerStep: 10
+    healingCap: 25
+    codegenDegraded: 20
+    unverifiedLocatorMax: 20
+    weakAssertionOnly: 15
+    missingFailureArtifacts: 10
+    pageDrift: 10
+  completeness:
+    requireVerifiedLocatorRatio: 0.8
+    requireTraceOnFailure: true
+    requireAssertionOnPass: true
+  pageInventoryHistory:
+    enabled: true
+    maxSnapshotsPerPage: 20
 
 # 4. Test Runner & Execution Options
 execution:

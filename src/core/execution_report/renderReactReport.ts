@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SuiteExecutionReport } from './types';
 import { findCliInstallRoot } from '../../cli/ProjectContext';
+import { appendGovernanceOverlay } from './governanceOverlay';
 
 const SHELL_RELATIVE = path.join('resources', 'report-ui', 'shell.html');
 const DATA_SCRIPT_RE =
@@ -43,9 +44,11 @@ function injectReportData(report: SuiteExecutionReport): string | null {
   // Escape `</script>` so an embedded sequence cannot terminate the tag early.
   const json = JSON.stringify(report).replace(/<\/script>/gi, '<\\/script>');
 
-  return shell.replace(DATA_SCRIPT_RE, (_match, open: string, _old: string, close: string) =>
-    `${open}${json}${close}`
+  const injected = shell.replace(
+    DATA_SCRIPT_RE,
+    (_match, open: string, _old: string, close: string) => `${open}${json}${close}`
   );
+  return appendGovernanceOverlay(injected, report);
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   testReportHtmlPath,
 } from '../ReportPaths';
 import { REPORTS_ROOT } from '../ProjectPaths';
+import { REPORTS_EVIDENCE_DIR } from '../events/EventPaths';
 
 export interface ArtifactManifest {
   version: '1.0.0';
@@ -25,6 +26,7 @@ export interface ArtifactManifest {
   videos: string[];
   screenshots: string[];
   summaries: string[];
+  evidence: string[];
   data: string[];
 }
 
@@ -69,6 +71,7 @@ export function buildArtifactManifest(): ArtifactManifest {
     videos: collectFiles(REPORTS_VIDEOS_DIR, (file) => /\.(webm|mp4)$/i.test(file)),
     screenshots: collectFiles(REPORTS_SCREENSHOTS_DIR, (file) => /\.(png|jpe?g|webp)$/i.test(file)),
     summaries: slugs.map((slug) => path.relative(process.cwd(), resolveSummaryPath(slug))).sort(),
+    evidence: collectFiles(REPORTS_EVIDENCE_DIR, (file) => file.endsWith('_evidence.json')),
     data: collectFiles(REPORTS_DATA_DIR, (file) => /\.(json|xml|txt)$/i.test(file)),
   };
 }

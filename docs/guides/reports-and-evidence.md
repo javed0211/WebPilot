@@ -17,7 +17,7 @@ Every `webpilot run` can generate:
 - JUnit XML for CI
 - Artifact manifest for upload
 
-**Planned (feature 11):** schema-versioned `EvidenceBundle` per run, governance strip (risk · completeness · heal count · codegen quality · cost), page-drift history, and CI gates on evidence grade.
+**Shipped (feature 11):** `EvidenceBundle`, governance strip (built-in HTML + React-shell overlay), heal/locator/drift surfaces, page-inventory history, CI `--require-evidence-grade` / `--max-risk`, coverage/regression evidence penalties, and ADO publish comments + EvidenceBundle attachments.
 
 ---
 
@@ -35,6 +35,10 @@ webpilot report --html --test booking_search_hotels
 
 # JSON suite report + artifact manifest
 webpilot report --json
+
+# Fail CI when evidence is too thin or too risky
+webpilot report --json --require-evidence-grade B --max-risk medium
+webpilot ci run --require-evidence-grade B --max-risk medium
 
 # Markdown analysis roll-up
 webpilot analyze
@@ -57,15 +61,17 @@ runtime/reports/
     index.html              # Suite dashboard
     <slug>.html             # Per-test report
   data/
-    summaries/              # *_summary.json
+    summaries/              # *_summary.json (+ evidenceRef, risk, completeness)
     execution-history/      # Step-by-step logs
     llm-usage/              # Token/cost per test
+    events/                 # Execution event ledger (*_events.json)
+    evidence/               # EvidenceBundle (*_evidence.json)
   videos/                   # *.mp4
   traces/                   # Playwright trace zips
   screenshots/              # Failure screenshots
   junit/                    # JUnit XML
   markdown/                 # Consolidated analysis
-  artifact-manifest.json    # CI upload index
+  artifact-manifest.json    # CI upload index (includes evidence[])
 ```
 
 ---

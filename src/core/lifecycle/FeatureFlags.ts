@@ -11,6 +11,8 @@ export interface WebPilotFeatureFlags {
   captureNetwork: 'off' | 'errors' | 'metadata';
   captureConsole: 'off' | 'errors' | 'all';
   healingCommitPolicy: 'legacy' | 'postvalidated';
+  /** Drop findings that fail CitationValidator (never ship uncited claims). */
+  failOnInvalidCitation: boolean;
 }
 
 const DEFAULTS: WebPilotFeatureFlags = {
@@ -22,6 +24,7 @@ const DEFAULTS: WebPilotFeatureFlags = {
   captureNetwork: 'errors',
   captureConsole: 'errors',
   healingCommitPolicy: 'legacy',
+  failOnInvalidCitation: true,
 };
 
 function asBool(value: unknown, fallback: boolean): boolean {
@@ -47,6 +50,7 @@ function asMode(value: unknown, allowed: string[], fallback: string): string {
  *   WEBPILOT_SEMANTIC_ASSERTIONS=0|1
  *   WEBPILOT_HEALING_CLASSIFICATION=off|shadow|enforce
  *   WEBPILOT_GROUNDED_ROOT_CAUSE=0|1
+ *   WEBPILOT_FAIL_ON_INVALID_CITATION=0|1
  */
 export function resolveFeatureFlags(cm?: ConfigManager): WebPilotFeatureFlags {
   const config = cm || ConfigManager.getInstance();
@@ -79,6 +83,10 @@ export function resolveFeatureFlags(cm?: ConfigManager): WebPilotFeatureFlags {
       ['legacy', 'postvalidated'],
       DEFAULTS.healingCommitPolicy
     ) as WebPilotFeatureFlags['healingCommitPolicy'],
+    failOnInvalidCitation: asBool(
+      evidence.failOnInvalidCitation,
+      DEFAULTS.failOnInvalidCitation
+    ),
   };
 
   if (process.env.WEBPILOT_EVENT_LEDGER != null) {
@@ -111,6 +119,12 @@ export function resolveFeatureFlags(cm?: ConfigManager): WebPilotFeatureFlags {
     flags.groundedRootCause = asBool(
       process.env.WEBPILOT_GROUNDED_ROOT_CAUSE,
       flags.groundedRootCause
+    );
+  }
+  if (process.env.WEBPILOT_FAIL_ON_INVALID_CITATION != null) {
+    flags.failOnInvalidCitation = asBool(
+      process.env.WEBPILOT_FAIL_ON_INVALID_CITATION,
+      flags.failOnInvalidCitation
     );
   }
 

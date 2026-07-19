@@ -70,10 +70,36 @@ export class AdoRestClient {
   public async addTestResults(
     runId: number,
     results: Array<Record<string, unknown>>
-  ): Promise<unknown> {
+  ): Promise<Array<{ id: number; testCase?: { id?: string }; [key: string]: unknown }>> {
     const res = await this.http.post(`/test/Runs/${runId}/results`, results, {
       params: { 'api-version': '7.1' },
     });
+    const value = (res.data as { value?: unknown })?.value;
+    return Array.isArray(value)
+      ? (value as Array<{ id: number; testCase?: { id?: string } }>)
+      : [];
+  }
+
+  public async createTestResultAttachment(
+    runId: number,
+    resultId: number,
+    fileName: string,
+    content: string | Buffer,
+    comment?: string
+  ): Promise<unknown> {
+    const stream = Buffer.isBuffer(content)
+      ? content.toString('base64')
+      : Buffer.from(content, 'utf8').toString('base64');
+    const res = await this.http.post(
+      `/test/Runs/${runId}/Results/${resultId}/attachments`,
+      {
+        stream,
+        fileName,
+        comment: comment || 'WebPilot EvidenceBundle',
+        attachmentType: 'GeneralAttachment',
+      },
+      { params: { 'api-version': '7.1' } }
+    );
     return res.data;
   }
 

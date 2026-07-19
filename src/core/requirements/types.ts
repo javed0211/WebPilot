@@ -121,8 +121,16 @@ export interface TestEvidence {
   lastStatus?: string;
   /** 0..1 flake score (higher = flakier). */
   flakeScore?: number;
-  /** 0..1 match score for this single test against the criterion. */
+  /** 0..1 match score for this single test against the criterion (after governance). */
   score: number;
+  /** Raw semantic match before Feature 11 governance penalties. */
+  rawScore?: number;
+  /** 0..1 total governance penalty applied to score. */
+  governancePenalty?: number;
+  /** Human-readable penalty reasons (risk factors, thin completeness). */
+  penaltyReasons?: string[];
+  /** Path to EvidenceBundle when available. */
+  evidenceRef?: string;
 }
 
 export interface CriterionCoverage {
