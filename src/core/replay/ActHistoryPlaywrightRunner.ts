@@ -16,6 +16,7 @@ import type {
   ActStep,
 } from './ActHistoryTypes';
 import { sanitizeActHistoryForReplay, isBadInputLocator } from './ActHistorySanitizer';
+import { compactWorkflowToActSteps } from '../codegen/CompactWorkflow';
 import {
   bindHealedSelector,
   bindLocator,
@@ -604,6 +605,15 @@ function latestVideoInDir(dir: string): string | null {
 
 export class ActHistoryPlaywrightRunner {
   public static loadSteps(doc: ActHistoryDocument): ActStep[] {
+    const compact = doc.compactWorkflow;
+    if (compact?.steps?.length) {
+      const steps = compactWorkflowToActSteps(compact).filter((step) => step && step.action);
+      console.log(
+        `[ActHistory] Using compactWorkflow: ${steps.length} steps` +
+          (compact.dropped?.length ? ` (audit dropped ${compact.dropped.length})` : '')
+      );
+      return steps.map((step, i) => ({ ...step, index: i + 1 }));
+    }
     const acts = doc.actHistory?.length ? doc.actHistory : doc.executionHistory || [];
     const filtered = acts.filter((step) => step && step.action);
     const { steps, dropped, merged } = sanitizeActHistoryForReplay(filtered);

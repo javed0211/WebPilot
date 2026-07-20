@@ -110,97 +110,136 @@ function stepKey(step: ActStep): string {
 }
 
 /**
+ * Normalize a raw ActHistory step the same way for both scoring and re-insert passes.
+ * Returns null when the step must be dropped (agent tools, skip-only clicks, empty inputs, …).
+ */
+function prepareStep(raw: ActStep): { action: string; step: ActStep } | 'drop' | 'skip-long-wait' {
+  const action = normalizeAction(raw.action);
+  if (NON_REPLAY_ACTIONS.has(action) || NON_REPLAY_ACTIONS.has(raw.action)) {
+    return 'drop';
+  }
+  if (action === 'wait') {
+    const seconds = Number(raw.value);
+    if (Number.isFinite(seconds) && seconds > 8) {
+      return 'skip-long-wait';
+    }
+  }
+
+  const locators = filterLocatorsForAction(action, stepLocators(raw));
+  const step: ActStep = {
+    ...raw,
+    locators,
+    selector: locators.length ? JSON.stringify(locators) : undefined,
+  };
+
+  if (action === 'input') {
+    const value = String(step.value ?? '').trim();
+    if (!value) return 'drop';
+    return { action, step };
+  }
+
+  if (action === 'click') {
+    // Skip-to-main / #main clicks are agent mistakes — never replay them.
+    if (stepLocators(raw).length > 0 && locators.length === 0) {
+      return 'drop';
+    }
+    const score = scoreLocatorsForAction('click', locators);
+    if (!locators.length && score < 0) {
+      return 'drop';
+    }
+    return { action, step };
+  }
+
+  return { action, step };
+}
+
+/**
  * Compact noisy browser-use ActHistory into a replay-safe sequence.
  * - Drops agent-tool steps (search_page, extract, …)
  * - Merges duplicate input/click retries — keeps the best locator set per intent
  * - Strips skip-link / #main anchors from fill targets
+ *
+ * Important: scoring and re-insert must use the *same* filtered locator key, otherwise
+ * clicks that also carried a skip-link candidate are silently lost (lookup miss).
  */
 export function sanitizeActHistoryForReplay(steps: ActStep[]): {
   steps: ActStep[];
   dropped: number;
   merged: number;
+  droppedReasons: string[];
+  mergedReasons: string[];
 } {
-  const kept: ActStep[] = [];
   let dropped = 0;
   let merged = 0;
+  const droppedReasons: string[] = [];
+  const mergedReasons: string[] = [];
 
-  // Best scored step per input value and per click signature.
+  // Best scored step per input value and per click signature (filtered locators).
   const bestInputByValue = new Map<string, ActStep>();
   const bestClickBySig = new Map<string, ActStep>();
 
   for (const raw of steps) {
-    const action = normalizeAction(raw.action);
-    if (NON_REPLAY_ACTIONS.has(action) || NON_REPLAY_ACTIONS.has(raw.action)) {
+    const prepared = prepareStep(raw);
+    if (prepared === 'drop' || prepared === 'skip-long-wait') {
       dropped += 1;
+      droppedReasons.push(
+        prepared === 'skip-long-wait'
+          ? `drop long wait: ${(raw.description || raw.action || '').toString().slice(0, 80)}`
+          : `drop ${normalizeAction(raw.action)}: ${(raw.description || '').toString().slice(0, 80)}`
+      );
       continue;
     }
-    if (action === 'wait') {
-      const seconds = Number(raw.value);
-      if (Number.isFinite(seconds) && seconds > 8) {
-        dropped += 1;
-        continue;
-      }
-    }
-
-    const locators = filterLocatorsForAction(action, stepLocators(raw));
-    const step: ActStep = {
-      ...raw,
-      locators,
-      selector: locators.length ? JSON.stringify(locators) : undefined,
-    };
+    const { action, step } = prepared;
 
     if (action === 'input') {
       const value = String(step.value ?? '').trim();
-      if (!value) {
-        dropped += 1;
-        continue;
-      }
       // Keep value-only inputs (empty locators) so replay can use semantic destination fallback.
-      const score = scoreLocatorsForAction('input', locators);
+      const score = scoreLocatorsForAction('input', step.locators || []);
       const prev = bestInputByValue.get(value);
       if (!prev || score > scoreLocatorsForAction('input', stepLocators(prev))) {
+        if (prev) {
+          merged += 1;
+          mergedReasons.push(`merged input value=${value.slice(0, 40)}`);
+        }
         bestInputByValue.set(value, step);
       } else {
         merged += 1;
+        mergedReasons.push(`merged input value=${value.slice(0, 40)}`);
       }
       continue;
     }
 
     if (action === 'click') {
-      // Skip-to-main / #main clicks are agent mistakes — never replay them.
-      if (stepLocators(raw).length > 0 && locators.length === 0) {
-        dropped += 1;
-        continue;
-      }
       const sig = stepKey(step);
-      const score = scoreLocatorsForAction('click', locators);
-      if (!locators.length && score < 0) {
-        dropped += 1;
-        continue;
-      }
+      const score = scoreLocatorsForAction('click', step.locators || []);
       const prev = bestClickBySig.get(sig);
       if (!prev || score > scoreLocatorsForAction('click', stepLocators(prev))) {
+        if (prev) {
+          merged += 1;
+          mergedReasons.push(`merged click ${sig.slice(0, 60)}`);
+        }
         bestClickBySig.set(sig, step);
       } else {
         merged += 1;
+        mergedReasons.push(`merged click ${sig.slice(0, 60)}`);
       }
-      continue;
     }
-
-    kept.push(step);
   }
 
   // Re-insert best input/click steps in original order (first occurrence position).
+  // Keys MUST match the filtered stepKey used when populating the maps above.
   const usedInput = new Set<string>();
   const usedClick = new Set<string>();
   const output: ActStep[] = [];
 
   for (const raw of steps) {
-    const action = normalizeAction(raw.action);
-    if (NON_REPLAY_ACTIONS.has(action) || NON_REPLAY_ACTIONS.has(raw.action)) continue;
+    const prepared = prepareStep(raw);
+    if (prepared === 'drop' || prepared === 'skip-long-wait') continue;
+
+    const { action, step } = prepared;
 
     if (action === 'input') {
-      const value = String(raw.value ?? '').trim();
+      const value = String(step.value ?? '').trim();
       if (!value || usedInput.has(value)) continue;
       const best = bestInputByValue.get(value);
       if (best) {
@@ -211,7 +250,7 @@ export function sanitizeActHistoryForReplay(steps: ActStep[]): {
     }
 
     if (action === 'click') {
-      const sig = stepKey(raw);
+      const sig = stepKey(step);
       if (usedClick.has(sig)) continue;
       const best = bestClickBySig.get(sig);
       if (best) {
@@ -221,28 +260,21 @@ export function sanitizeActHistoryForReplay(steps: ActStep[]): {
       continue;
     }
 
-    if (action === 'wait') {
-      const seconds = Number(raw.value);
-      if (Number.isFinite(seconds) && seconds > 8) continue;
-    }
-
-    // navigate, press, go_back, etc. — include once per identical key
-    const key = stepKey(raw);
+    // navigate, press, go_back, scroll, wait, etc. — include once per identical key
+    const key = stepKey(step);
     if (output.some((s) => stepKey(s) === key && normalizeAction(s.action) === action)) {
       merged += 1;
+      mergedReasons.push(`merged ${action} ${key.slice(0, 60)}`);
       continue;
     }
-    const locators = filterLocatorsForAction(action, stepLocators(raw));
-    output.push({
-      ...raw,
-      locators,
-      selector: locators.length ? JSON.stringify(locators) : undefined,
-    });
+    output.push(step);
   }
 
   return {
     steps: output.map((step, i) => ({ ...step, index: i + 1 })),
     dropped,
     merged,
+    droppedReasons,
+    mergedReasons,
   };
 }

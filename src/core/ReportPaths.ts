@@ -94,6 +94,10 @@ export function executionHistoryPath(slug: string): string {
   return path.join(REPORTS_EXECUTION_HISTORY_DIR, `${slug}_execution_history.json`);
 }
 
+export function workflowPath(slug: string): string {
+  return path.join(REPORTS_EXECUTION_HISTORY_DIR, `${slug}_workflow.json`);
+}
+
 export function llmUsagePath(slug: string): string {
   return path.join(REPORTS_LLM_USAGE_DIR, `${slug}_llm_usage.json`);
 }

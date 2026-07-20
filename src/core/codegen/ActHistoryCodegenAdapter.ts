@@ -4,6 +4,12 @@ import { RawExecutionStep } from './ExecutionTrace';
 import { filterActHistoryForCodegen } from './ActHistoryCodegenFilter';
 import { sanitizeActHistoryForReplay } from '../replay/ActHistorySanitizer';
 import { Logger } from '../../utils/Logger';
+import {
+  compactWorkflowToActSteps,
+  formatCompactCoverageLog,
+  getCompactWorkflow,
+} from './CompactWorkflow';
+import type { CompactWorkflow } from '../replay/ActHistoryTypes';
 
 export interface AssertionPlanItem {
   index?: number;
@@ -20,6 +26,7 @@ export interface ActHistoryCodegenSource {
   assertionPlan: AssertionPlanItem[];
   nlSteps: string[];
   targetUrl?: string;
+  compactWorkflow?: CompactWorkflow;
 }
 
 function extractAssertText(step: string): string | null {
@@ -202,17 +209,60 @@ function backfillStepUrls(steps: RawExecutionStep[]): void {
 }
 
 /**
- * Build codegen input steps from saved ActHistory (+ assertionPlan for expects).
- * Prefer actHistory over legacy NL-zipped executionHistory.
+ * Build codegen input steps from compactWorkflow (preferred) or ActHistory (+ assertionPlan).
+ * Full actHistory remains audit; compactWorkflow is the source of truth when present.
  */
 export class ActHistoryCodegenAdapter {
   public static fromDocument(raw: any, slug: string): ActHistoryCodegenSource {
+    const assertionPlan = (raw.assertionPlan || []) as AssertionPlanItem[];
+    const nlSteps = Array.isArray(raw.nlSteps) ? raw.nlSteps : [];
+    const compact = getCompactWorkflow(raw);
+
+    if (compact?.steps?.length) {
+      const compactActs = compactWorkflowToActSteps(compact);
+      // Compact already includes assertionPlan rows from Python builder; avoid double-append
+      // when those asserts are present. Still merge any missing asserts from assertionPlan.
+      const hasAssert = compactActs.some((s) =>
+        ['assert', 'screenshot'].includes(String(s.action || '').toLowerCase())
+      );
+      const firstUrl =
+        compactActs.find((s) => s.action === 'navigate' && s.url)?.url ||
+        compactActs.find((s) => s.url)?.url ||
+        undefined;
+      const finalUrl = [...compactActs].reverse().find((s) => s.url)?.url || undefined;
+      let merged: RawExecutionStep[] = compactActs.map((step, i) => normalizeActStep(step, i));
+      if (!hasAssert && assertionPlan.length) {
+        const assertSteps = assertionPlanToSteps(assertionPlan, firstUrl || undefined, finalUrl);
+        merged = [...merged, ...assertSteps].map((step, i) => ({ ...step, index: i + 1 }));
+      }
+      // Light filter only — do not re-run aggressive sanitize merge (preserves loops).
+      const filtered = filterActHistoryForCodegen(merged);
+      if (filtered.dropped > 0) {
+        Logger.detail(
+          `Compact workflow codegen filter: dropped ${filtered.dropped} noise step(s)`
+        );
+      }
+      const logLine = formatCompactCoverageLog(compact);
+      if (logLine) Logger.detail(logLine);
+      backfillStepUrls(filtered.steps);
+      return {
+        scenario: raw.scenario || raw.testName || slug,
+        scenarioSlug: slug,
+        sourceFile: raw.sourceFile,
+        historySource: compact.source || 'browser-use-compact',
+        steps: filtered.steps,
+        assertionPlan,
+        nlSteps,
+        targetUrl: firstUrl || undefined,
+        compactWorkflow: compact,
+      };
+    }
+
     const actSteps = (raw.actHistory || []) as any[];
     const legacySteps = (raw.executionHistory || raw.steps || []) as any[];
     const sourceSteps = actSteps.length ? actSteps : legacySteps;
     const acts = sourceSteps.map((step, i) => normalizeActStep(step, i));
 
-    const assertionPlan = (raw.assertionPlan || []) as AssertionPlanItem[];
     const firstUrl =
       acts.find((s) => s.action === 'navigate' && s.url)?.url ||
       acts.find((s) => s.url)?.url ||
@@ -231,7 +281,8 @@ export class ActHistoryCodegenAdapter {
     if (filtered.dropped > 0 || sanitized.dropped > 0 || sanitized.merged > 0) {
       Logger.detail(
         `ActHistory codegen filter: dropped ${filtered.dropped} noise step(s);` +
-          ` replay sanitize: ${mergedRaw.length} → ${sanitized.steps.length}` +
+          ` replay sanitize: ${filtered.steps.length} → ${sanitized.steps.length}` +
+          (sanitized.dropped ? ` (dropped ${sanitized.dropped})` : '') +
           (sanitized.merged ? ` (merged ${sanitized.merged})` : '')
       );
     }
@@ -245,7 +296,7 @@ export class ActHistoryCodegenAdapter {
       historySource: raw.historySource || (actSteps.length ? 'browser-use-act-history' : 'legacy'),
       steps: merged,
       assertionPlan,
-      nlSteps: Array.isArray(raw.nlSteps) ? raw.nlSteps : [],
+      nlSteps,
       targetUrl: firstUrl || undefined,
     };
   }

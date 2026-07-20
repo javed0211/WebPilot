@@ -70,6 +70,45 @@ assert(
   'Keeps London suggestion click'
 );
 
+// Regression: skip-link candidate + real button must keep the real click (same key both passes).
+const mixedSkipAndReal = [
+  { index: 1, action: 'navigate', url: 'https://example.test/residents' },
+  {
+    index: 2,
+    action: 'click',
+    description: 'Continue',
+    locators: [
+      { kind: 'text', value: 'Skip to main content' },
+      { kind: 'role', value: 'button', name: 'Continue' },
+    ],
+  },
+  {
+    index: 3,
+    action: 'click',
+    description: 'Back arrow',
+    locators: [
+      { kind: 'css', value: 'a[href="#main"]' },
+      { kind: 'role', value: 'button', name: 'Back' },
+    ],
+  },
+];
+const mixed = sanitizeActHistoryForReplay(mixedSkipAndReal);
+assert(mixed.steps.length === 3, 'Keeps navigate + Continue + Back', `${mixedSkipAndReal.length} → ${mixed.steps.length}`);
+assert(
+  mixed.steps.some((s) => s.action === 'click' && (s.locators || []).some((l) => l.name === 'Continue')),
+  'Keeps Continue when skip-link co-listed'
+);
+assert(
+  mixed.steps.some((s) => s.action === 'click' && (s.locators || []).some((l) => l.name === 'Back')),
+  'Keeps Back when #main co-listed'
+);
+assert(
+  !mixed.steps.some((s) => JSON.stringify(s.locators || []).toLowerCase().includes('skip')),
+  'Strips skip-link candidates from kept clicks'
+);
+assert(Array.isArray(mixed.droppedReasons), 'Sanitizer returns droppedReasons array');
+assert(Array.isArray(mixed.mergedReasons), 'Sanitizer returns mergedReasons array');
+
 if (failed) {
   console.error(`\n${failed} failed`);
   process.exit(1);

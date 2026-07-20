@@ -32,14 +32,23 @@ Important fields:
 
 | Field | Meaning |
 |-------|---------|
-| `actHistory` / `executionHistory` | Structured browser actions (source of truth for codegen) |
+| `actHistory` / `executionHistory` | Full browser-use action transcript (**audit** — tools, retries, noise) |
+| `compactWorkflow` | **Source of truth** for Playwright replay + deterministic codegen (ordered durable steps + locator candidates + drop audit + NL coverage) |
 | `isSuccessful` | `true` only when discovery completed the scenario successfully |
 | `isDone` | Agent finished — **not** the same as success |
 | `failure` / `errors` | Failure markers when the run did not succeed |
 | `nlSteps` | Original natural-language steps (reference) |
 | `urlSequence` | Pages visited |
 
+Sibling file for inspection:
+
+```text
+runtime/reports/data/execution-history/<slug>_workflow.json
+```
+
 > **Rule:** only `isSuccessful === true` counts as a reusable, codegen-eligible history. `isDone` alone is never enough.
+>
+> **Rule:** codegen/replay prefer `compactWorkflow.steps` when present. Raw `actHistory` is kept for debugging; do not treat the full transcript as the generated test.
 
 Related artifacts (optional to clear together):
 
@@ -96,14 +105,15 @@ When you re-run the **same** `.txt` with `--codegen`, WebPilot may skip **browse
 
 Reuse of history **never** means “pass without a browser.” If ActHistory browser replay fails, the job fails (use `--force-discovery` to rediscover).
 
-### Codegen from ActHistory (Cursor-style)
+### Codegen from compactWorkflow (preferred)
 
 After browser replay passes, codegen:
 
-1. **Filters** non-Playwright ActHistory noise (`search_page`, `extract`, `evaluate`, long agent waits)
-2. **Plans** pages under `packages/test-framework/pages/<site>/` (e.g. `booking/BookingHomePage.ts`) — not invented `WwwbookingcomHomePage`
-3. Emits deterministic POM/spec, then on failure repairs with **RepoEditCodegenAgent** (read existing files → surgical write), like Cursor editing the repo
-4. **Rejects** invented flat `Www*` / `En*org*` page classes
+1. Prefers **`compactWorkflow`** (durable locators + ordered steps). Falls back to filtering raw ActHistory only when compact is missing
+2. **NL coverage gate** — blocks codegen when compact coverage reports unmapped NL steps (override: `WEBPILOT_COMPACT_COVERAGE_GATE=warn`)
+3. **Verified-locator gate** (opt-in) — `WEBPILOT_COMPACT_REQUIRE_VERIFIED=1` blocks when interactive steps lack verified locators
+4. **Plans** pages under `packages/test-framework/pages/<site>/` (e.g. `booking/BookingHomePage.ts`) — not invented `WwwbookingcomHomePage`
+5. Emits deterministic POM/spec, then on failure repairs with **RepoEditCodegenAgent** (TypeScript Playwright)
 
 Opt out of RepoEdit (legacy one-shot invent): `WEBPILOT_CODEGEN_LEGACY_AGENT=1`
 

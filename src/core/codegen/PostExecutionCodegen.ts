@@ -6,6 +6,12 @@ import { CodegenContext } from '../CodegenContext';
 import { LLMClient } from '../LLMClient';
 import { Logger } from '../../utils/Logger';
 import { ActHistoryCodegenAdapter } from './ActHistoryCodegenAdapter';
+import {
+  evaluateCompactCoverageGate,
+  evaluateCompactVerifiedGate,
+  formatCompactCoverageLog,
+  getCompactWorkflow,
+} from './CompactWorkflow';
 import { DeterministicCodegenPipeline, PipelineInput } from './DeterministicCodegenPipeline';
 import { CodegenMetadata, CodegenProfilePlan } from './GenerationPlan';
 import { ReportCodegenInfo } from '../execution_report/types';
@@ -178,6 +184,36 @@ export async function runPostExecutionCodegen(options: {
   const historyDocument = loadHistoryDocument(options.testName, options.historyDocument);
   const blocked = skipCodegenUnlessSuccessful(historyDocument);
   if (blocked) return blocked;
+
+  const compact = getCompactWorkflow(historyDocument);
+  if (compact) {
+    const coverageLog = formatCompactCoverageLog(compact);
+    if (coverageLog) Logger.detail(coverageLog);
+    const coverageGate = evaluateCompactCoverageGate(compact, { codegen: true });
+    if (!coverageGate.ok) {
+      Logger.warn(coverageGate.message);
+      return {
+        success: false,
+        summary:
+          'Codegen blocked — compact workflow NL coverage incomplete. ' +
+          'Re-run discovery (--force-discovery) or set WEBPILOT_COMPACT_COVERAGE_GATE=warn. ' +
+          coverageGate.message,
+        files: [],
+      };
+    }
+    if (coverageGate.coverage?.unmapped?.length) {
+      Logger.warn(coverageGate.message);
+    }
+    const verifiedGate = evaluateCompactVerifiedGate(compact);
+    if (!verifiedGate.ok) {
+      Logger.warn(verifiedGate.message);
+      return {
+        success: false,
+        summary: `Codegen blocked — ${verifiedGate.message}`,
+        files: [],
+      };
+    }
+  }
 
   const mode = resolveCodegenMode();
   const projectProfile = readProjectCodegenProfile();

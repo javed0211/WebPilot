@@ -783,6 +783,7 @@ def build_full_execution_context(
         build_assertion_plan,
         build_run_log,
     )
+    from .compact_workflow import build_compact_workflow
     from .page_inventory import upsert_inventory
 
     act_steps = build_act_history(history_list, page_snapshots=page_snapshots)
@@ -818,6 +819,7 @@ def build_full_execution_context(
 
     # executionHistory = ActHistory rows (legacy TraceBuilder-compatible shape).
     execution_history = act_history_to_execution_rows(act_steps)
+    assertion_plan = build_assertion_plan(nl_steps)
     # Legacy extract kept for debug only (element_index dumps, memories noise).
     legacy_raw = extract_execution_history(history_list)
     runtime_insights = build_runtime_insights(history_list, nl_steps)
@@ -837,6 +839,14 @@ def build_full_execution_context(
     except Exception:
         pass
 
+    compact = build_compact_workflow(
+        act_steps,
+        nl_steps,
+        assertion_plan,
+        native_captured_actions=None,
+        source="browser-use-compact",
+    )
+
     return {
         "testName": test_name,
         "nlSteps": nl_steps,
@@ -844,7 +854,8 @@ def build_full_execution_context(
         "historySource": "browser-use-act-history",
         "actHistory": act_steps,
         "executionHistory": execution_history,
-        "assertionPlan": build_assertion_plan(nl_steps),
+        "assertionPlan": assertion_plan,
+        "compactWorkflow": compact,
         "runLog": build_run_log(history_list),
         "legacyRawHistory": legacy_raw,
         "runtimeInsights": runtime_insights,

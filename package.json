@@ -67,6 +67,7 @@
     "test:init-clone": "npm run build && node scripts/test-init-from-repo-clone.cjs",
     "test:codegen-repo-edit": "npm run build && node scripts/test-codegen-repo-edit.cjs",
     "test:act-history-sanitizer": "npm run build && node scripts/test-act-history-sanitizer.cjs",
+    "test:compact-workflow": "npm run build && node scripts/test-compact-workflow-adapter.cjs",
     "test:python-path-split": "npm run build && node scripts/test-python-path-split.cjs",
     "test:ado-mcp-launcher": "npm run build && node scripts/test-ado-mcp-launcher.cjs",
     "test:event-ledger": "npm run build && node scripts/test-feature-12-event-ledger.cjs",

@@ -132,6 +132,10 @@ def execution_history_path(slug: str) -> Path:
     return REPORTS_EXECUTION_HISTORY_DIR / f'{slug}_execution_history.json'
 
 
+def workflow_path(slug: str) -> Path:
+    return REPORTS_EXECUTION_HISTORY_DIR / f'{slug}_workflow.json'
+
+
 def llm_usage_path(slug: str) -> Path:
     return REPORTS_LLM_USAGE_DIR / f'{slug}_llm_usage.json'
 

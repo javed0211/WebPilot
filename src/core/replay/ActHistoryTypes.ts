@@ -106,11 +106,51 @@ export interface ActHistoryDocument {
   actHistory?: ActStep[];
   executionHistory?: ActStep[];
   assertionPlan?: AssertionPlanItem[];
+  /** Durable ordered steps for replay/codegen — prefer over raw actHistory. */
+  compactWorkflow?: CompactWorkflow;
   runLog?: ActRunLog;
   urlSequence?: string[];
   /** Top-level discovery success — trusted over later replay/heal runLog.failures. */
   isSuccessful?: boolean;
   isDone?: boolean;
+}
+
+export interface CompactWorkflowDrop {
+  index: number;
+  action: string;
+  reason: string;
+  description?: string;
+}
+
+export interface CompactWorkflowCoverage {
+  nlTotal: number;
+  mapped: number;
+  unmapped: string[];
+}
+
+export interface CompactWorkflowStep {
+  index: number;
+  action: string;
+  value?: string | null;
+  url?: string | null;
+  nlStep?: string | null;
+  locator?: ActLocator | null;
+  semanticLocators?: ActLocator[];
+  selectorCandidates?: ActLocator[];
+  verified?: boolean;
+  verifiedBy?: string;
+  elementIndex?: number | null;
+  backendNodeId?: string | null;
+  description?: string | null;
+  pageTitle?: string | null;
+}
+
+export interface CompactWorkflow {
+  schemaVersion: number;
+  source: string;
+  steps: CompactWorkflowStep[];
+  dropped: CompactWorkflowDrop[];
+  coverage: CompactWorkflowCoverage;
 }
 
 export interface ActReplayStepResult {

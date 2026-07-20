@@ -81,6 +81,7 @@ from .paths import (
     llm_usage_path,
     resolve_summary_path,
     summary_path,
+    workflow_path,
 )
 
 if BROWSER_USE_SOURCE_ROOT.is_dir():
@@ -957,9 +958,79 @@ async def run_native_browser_use_scenario(
         context['pageInventoryKeys'] = sorted(
             {k for k in page_snapshots.keys() if not str(k).startswith('http')}
         )
-    # Callback captures remain available for debug; they are not the act history.
+    # Pre-action locator seeds — used by compactWorkflow (not display-only).
     if captured_actions:
         context['nativeCapturedActions'] = captured_actions
+
+    # Rebuild compactWorkflow after live verify + nativeCapturedActions seeds.
+    try:
+        from .compact_workflow import build_compact_workflow, compact_steps_to_act_steps
+
+        compact = build_compact_workflow(
+            list(context.get("actHistory") or []),
+            list(context.get("nlSteps") or steps),
+            list(context.get("assertionPlan") or []),
+            native_captured_actions=captured_actions or None,
+            source="browser-use-compact",
+        )
+        # Optional certify pass on compact interactive steps still unverified.
+        certify_flag = os.environ.get("WEBPILOT_COMPACT_CERTIFY", "1").strip().lower()
+        if certify_flag not in ("0", "false", "no", "off") and os.environ.get("WEBPILOT_CODEGEN") == "1":
+            try:
+                from .live_locator_verifier import cdp_url_from_browser, live_verify_act_steps
+
+                compact_acts = compact_steps_to_act_steps(compact)
+                unverified = [
+                    s
+                    for s in compact_acts
+                    if str(s.get("action") or "").lower() in ("click", "input", "fill", "type", "select")
+                    and not s.get("locatorVerified")
+                    and (s.get("locators") or [])
+                ]
+                if unverified:
+                    upgraded_c = await live_verify_act_steps(
+                        compact_acts, cdp_url=cdp_url_from_browser(browser)
+                    )
+                    if upgraded_c:
+                        # Map verified locators back onto compact steps by index.
+                        by_idx = {int(s.get("index") or 0): s for s in compact_acts}
+                        for cstep in compact.get("steps") or []:
+                            src = by_idx.get(int(cstep.get("index") or 0))
+                            if not src:
+                                continue
+                            if src.get("locatorVerified"):
+                                cstep["verified"] = True
+                                cstep["verifiedBy"] = src.get("locatorVerifiedBy") or "playwright"
+                                locs = list(src.get("locators") or [])
+                                cstep["selectorCandidates"] = locs
+                                cstep["semanticLocators"] = [
+                                    l
+                                    for l in locs
+                                    if str(l.get("kind") or "").lower()
+                                    in ("role", "label", "placeholder", "testid")
+                                ]
+                                if locs:
+                                    cstep["locator"] = locs[0]
+                        print(
+                            f"[WebPilot] Compact workflow certify: upgraded {upgraded_c} step(s)"
+                        )
+            except Exception as certify_err:
+                print(f"[WebPilot] Warning: compact certify skipped: {certify_err}")
+
+        context["compactWorkflow"] = compact
+        cov = compact.get("coverage") or {}
+        print(
+            f"[WebPilot] Compact workflow: {len(compact.get('steps') or [])} steps "
+            f"(dropped {len(compact.get('dropped') or [])}); "
+            f"NL coverage {cov.get('mapped', 0)}/{cov.get('nlTotal', 0)}"
+        )
+        if cov.get("unmapped"):
+            print(
+                "[WebPilot] Compact NL unmapped: "
+                + "; ".join(str(u)[:80] for u in (cov.get("unmapped") or [])[:5])
+            )
+    except Exception as compact_err:
+        print(f"[WebPilot] Warning: compact workflow build skipped: {compact_err}")
 
     # Site-knowledge promotion from NL zipper is deferred (Phase 3: Playwright replay).
     # ActHistory already carries locator candidates for codegen / future PW runner.
@@ -981,6 +1052,7 @@ async def run_native_browser_use_scenario(
         'engineMode': 'native',
         'actHistorySteps': act_count,
         'assertionPlanCount': len(context.get('assertionPlan') or []),
+        'compactWorkflowSteps': len((context.get('compactWorkflow') or {}).get('steps') or []),
     }
     if not agent_ok:
         context['failure'] = 'WebPilot agent did not complete the scenario successfully'
@@ -1792,6 +1864,22 @@ async def main():
             json.dump({'test': base_file_name, **execution_context}, f_hist, indent=2, default=str)
         print(f"Saved full WebPilot execution context: {history_path}")
         print(f"  - {len(execution_history)} structured steps, {len(execution_context.get('urlSequence', []))} URLs")
+        compact = execution_context.get('compactWorkflow')
+        if isinstance(compact, dict) and compact.get('steps') is not None:
+            wf_path = str(workflow_path(base_file_name))
+            with open(wf_path, 'w', encoding='utf-8') as f_wf:
+                json.dump(
+                    {'test': base_file_name, 'compactWorkflow': compact},
+                    f_wf,
+                    indent=2,
+                    default=str,
+                )
+            cov = compact.get('coverage') or {}
+            print(
+                f"  - Compact workflow: {wf_path} "
+                f"({len(compact.get('steps') or [])} steps, "
+                f"NL coverage {cov.get('mapped', 0)}/{cov.get('nlTotal', 0)})"
+            )
         if runtime_insights.get('insights'):
             print("Runtime insights for codegen:")
             for ins in runtime_insights['insights']:

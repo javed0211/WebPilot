@@ -99,8 +99,10 @@ export function decideHistoryReuse(testFilePath: string, slug: string): HistoryR
 
   try {
     const doc = JSON.parse(fs.readFileSync(historyPath, 'utf8')) as Record<string, unknown>;
+    const compact = doc.compactWorkflow as { steps?: unknown[] } | undefined;
     const steps = (doc.actHistory ?? doc.executionHistory ?? []) as unknown[];
-    if (!Array.isArray(steps) || steps.length === 0) {
+    const compactCount = Array.isArray(compact?.steps) ? compact.steps.length : 0;
+    if ((!Array.isArray(steps) || steps.length === 0) && compactCount === 0) {
       return { reuse: false, reason: 'prior history has no steps', historyPath };
     }
     // Strict: never treat isDone as success. Failed navigations often end with
@@ -112,9 +114,10 @@ export function decideHistoryReuse(testFilePath: string, slug: string): HistoryR
         historyPath,
       };
     }
+    const reuseCount = compactCount || steps.length;
     return {
       reuse: true,
-      reason: `reusing ${steps.length} ActHistory step(s) from ${path.relative(process.cwd(), historyPath)}`,
+      reason: `reusing ${reuseCount} ${compactCount ? 'compactWorkflow' : 'ActHistory'} step(s) from ${path.relative(process.cwd(), historyPath)}`,
       historyPath,
       fingerprint: fingerprintDocument(doc),
     };

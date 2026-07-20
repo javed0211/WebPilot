@@ -40,7 +40,8 @@ function loadDocument(slug: string): ActHistoryDocument {
   }
   const raw = JSON.parse(fs.readFileSync(historyPath, 'utf8')) as ActHistoryDocument;
   const steps = raw.actHistory?.length ? raw.actHistory : raw.executionHistory || [];
-  if (!steps.length) {
+  const compactSteps = raw.compactWorkflow?.steps?.length || 0;
+  if (!steps.length && !compactSteps) {
     throw new Error(`ActHistory for "${slug}" has no steps to replay.`);
   }
   return raw;
