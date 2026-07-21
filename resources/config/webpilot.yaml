@@ -131,11 +131,14 @@ intelligentRunner:
   # step). It does NOT override the agent's own success/failure self-report, so it is
   # only needed as a false-positive guard on assertion steps.
   performance:
+    # discoveryFastMode (default true): lean Nexus-style agent for heavy SPAs —
+    # judge/planning/thinking off, flash on. Override: WEBPILOT_FULL_AGENT_MODE=1
+    discoveryFastMode: true
     judgeMode: "verification" # verification | always | off — run the judge only on verify/assert steps
     maxActionsPerStep: 6      # let the agent batch more actions per LLM round-trip
     useVision: "auto"         # auto | always | off
-    useThinking: true         # keep model reasoning (quality)
-    flashMode: false          # true skips eval/next-goal/thinking (fastest, lower quality)
+    useThinking: true         # used when discoveryFastMode is false
+    flashMode: false          # forced on when discoveryFastMode is true
     # Browser wait tuning in seconds. Page-load / network-idle waits keep WebPilot agent
     # defaults (null) so the agent never acts on a not-yet-settled DOM (reliability).
     # Only the pure dead-time between actions is trimmed (0.5 -> 0.3).

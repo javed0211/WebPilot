@@ -186,9 +186,9 @@ export class Engine {
     if (env === 'retain-on-failure') return !discoveryOk;
 
     const raw = String(
-      ConfigManager.getInstance().get('browser.video', 'retain-on-failure') || 'retain-on-failure'
+      ConfigManager.getInstance().get('browser.video', 'on') || 'on'
     ).toLowerCase();
-    if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'no') return !discoveryOk;
+    if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'no') return false;
     if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'yes') return true;
     return !discoveryOk; // retain-on-failure
   }
@@ -199,11 +199,18 @@ export class Engine {
     if (!fs.existsSync(historyPath)) return;
     try {
       Logger.info('Recording Playwright evidence video for report (ffmpeg not used)…');
-      const result = await ActHistoryReplayService.replay(slug, { heal: false });
+      // Force video:on for this attach pass — report evidence must keep the .webm even
+      // when browser.video is retain-on-failure and the replay itself succeeds.
+      const result = await ActHistoryReplayService.replay(slug, {
+        heal: false,
+        video: 'on',
+      });
       if (result.videoPath) {
         Logger.detail(`Report video attached: ${result.videoPath}`);
       } else {
-        Logger.detail('Playwright replay finished without a usable video file');
+        Logger.warn(
+          'Playwright replay finished without a usable .webm — check Chrome/Chromium install and browser.video'
+        );
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

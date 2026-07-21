@@ -35,7 +35,7 @@ def history_item_failed(item: dict) -> bool:
     return False
 
 
-def is_usable_video(path: str, min_bytes: int = 10_000) -> bool:
+def is_usable_video(path: str, min_bytes: int = 2_000) -> bool:
     """Reject empty/stub recordings scavenged from /tmp or aborted writers."""
     try:
         return os.path.isfile(path) and os.path.getsize(path) >= min_bytes

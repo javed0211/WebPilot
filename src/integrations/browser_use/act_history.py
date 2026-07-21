@@ -276,7 +276,8 @@ def _filter_locators_for_action(action: str, locators: list[dict[str, str]]) -> 
         if loc.get("kind") == "css" and "a[href" in blob and "#main" in blob:
             continue
         filtered.append(loc)
-    return filtered if filtered else locators
+    # Never fall back to skip-link-only locators — empty is better than a false target.
+    return filtered
 
 
 def locator_stability_score(item: dict[str, str]) -> float:

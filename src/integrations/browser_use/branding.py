@@ -127,6 +127,8 @@ WEBPILOT_BRANDING_INIT_SCRIPT = r"""(function () {
           display: flex;
           flex-direction: column;
           transition: transform 0.3s ease;
+          /* Visual-only: must not enter browser-use selector_map / steal focus */
+          pointer-events: none;
         }
         .wp-bar {
           display: flex;
@@ -157,7 +159,7 @@ WEBPILOT_BRANDING_INIT_SCRIPT = r"""(function () {
           white-space: nowrap;
         }
         .wp-text { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 600px; color: #f8fafc; }
-        .wp-right { display: flex; align-items: center; gap: 24px; pointer-events: auto; }
+        .wp-right { display: flex; align-items: center; gap: 24px; pointer-events: none; }
         .wp-stat { display: flex; flex-direction: column; font-size: 11px; color: #94a3b8; }
         .wp-stat span { font-size: 14px; font-weight: 600; color: white; margin-top: 2px; }
         .wp-btn {
@@ -166,18 +168,17 @@ WEBPILOT_BRANDING_INIT_SCRIPT = r"""(function () {
           color: white;
           padding: 6px 12px;
           border-radius: 6px;
-          cursor: pointer;
+          cursor: default;
           font-size: 13px;
           font-weight: 500;
-          transition: background 0.2s;
+          pointer-events: none;
         }
-        .wp-btn:hover { background: rgba(255,255,255,0.2); }
         .wp-panel {
           height: 0;
           overflow-y: auto;
           transition: height 0.3s ease;
           background: rgba(15, 23, 42, 0.98);
-          pointer-events: auto;
+          pointer-events: none;
         }
         .wp-panel.open { height: 300px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
         .wp-steps-list { padding: 20px; margin: 0; list-style: none; }
@@ -237,18 +238,12 @@ WEBPILOT_BRANDING_INIT_SCRIPT = r"""(function () {
         '    <div class="wp-right">',
         '      <div class="wp-stat">TOKENS USED<span id="webpilot-tokens">0</span></div>',
         '      <div class="wp-stat">EST. COST<span id="webpilot-cost">$0.0000</span></div>',
-        '      <button class="wp-btn" type="button" id="webpilot-details-btn">Details</button>',
+        '      <span class="wp-btn" id="webpilot-details-btn" aria-hidden="true">Details</span>',
         '    </div>',
         '  </div>',
         '</div>',
       ].join('');
-      const detailsBtn = document.getElementById('webpilot-details-btn');
-      if (detailsBtn && !detailsBtn.dataset.wpBound) {
-        detailsBtn.dataset.wpBound = '1';
-        detailsBtn.addEventListener('click', function () {
-          window.toggleWpPanel();
-        });
-      }
+      // Details is display-only (pointer-events:none) so it never enters browser-use's index.
       applyStatusToDom(loadPersistedStatus());
       delete window.__webpilotBootstrapStatus;
     } else {

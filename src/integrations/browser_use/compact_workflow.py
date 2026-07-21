@@ -201,24 +201,103 @@ def _nl_wants_loops(nl_steps: list[str]) -> bool:
     return any(_LOOP_NL_RE.search(s or "") for s in nl_steps or [])
 
 
-def _align_nl_step(action: str, value: str | None, description: str, nl_steps: list[str]) -> str | None:
+def _is_optional_nl(text: str) -> bool:
+    """Conditional NL (If …) is soft — covered by cookie accept or allowed unmapped."""
+    return bool(re.match(r"^if\b", (text or "").strip(), re.I))
+
+
+def _align_nl_step(
+    action: str,
+    value: str | None,
+    description: str,
+    nl_steps: list[str],
+    *,
+    used_nl: set[str] | None = None,
+) -> str | None:
     """Best-effort NL alignment for coverage (not inventing acts)."""
     blob = f"{action} {value or ''} {description or ''}".lower()
+    used = {(u or "").strip().lower() for u in (used_nl or set()) if (u or "").strip()}
     best: tuple[int, str] | None = None
     for nl in nl_steps or []:
         text = (nl or "").strip()
         if not text:
             continue
         lower = text.lower()
+        if lower in used:
+            continue
         score = 0
         if action in ("navigate", "open") and ("navigate" in lower or "http" in lower or "open" in lower):
             score += 3
+        if action == "go_back":
+            # "Navigate back to the previous page" / "go back" / "browser back"
+            if any(k in lower for k in ("go back", "navigate back", "previous page", "browser back")):
+                score += 8
+            elif "back" in lower and "navigate" in lower:
+                score += 6
+            elif re.search(r"\bback\b", lower) and "feedback" not in lower:
+                score += 4
         if action == "input" and value and str(value).lower()[:12] in lower:
             score += 5
-        if action == "input" and any(k in lower for k in ("enter", "type", "fill", "email", "password", "code")):
+        if action == "input" and any(k in lower for k in ("enter", "type", "fill", "email", "password", "code", "destination")):
             score += 2
-        if action == "click" and any(k in lower for k in ("click", "press", "tap", "continue", "sign in", "confirm", "back")):
-            score += 2
+        if action == "click":
+            if any(k in lower for k in ("click", "press", "tap", "continue", "sign in", "confirm", "back", "accept", "select")):
+                score += 2
+            # Prefer cookie/consent NL for Accept / OneTrust clicks — not "Search".
+            if any(k in blob for k in ("accept", "onetrust", "consent", "cookie")):
+                if any(k in lower for k in ("cookie", "consent", "accept", "dismiss")):
+                    score += 8
+                if "search" in lower and "cookie" not in lower:
+                    score -= 6
+            # Dismiss / close / sign-in interstitial — never map to Search or destination.
+            if any(k in blob for k in ("dismiss", "sign in information", "close dialog", "genius")):
+                if any(k in lower for k in ("cookie", "consent", "dismiss", "if a")):
+                    score += 8
+                if "search" in lower or "destination" in lower or "date" in lower:
+                    score -= 10
+            # Calendar day cells (aria-label dates / weekday + day) → check-in/out NL.
+            dateish = bool(
+                re.search(r"\b(20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", blob)
+                or "calendar" in blob
+                or "gridcell" in blob
+            )
+            if dateish:
+                is_checkout_nl = bool(re.search(r"check[\s-]*out", lower))
+                is_checkin_nl = bool(re.search(r"check[\s-]*in", lower)) and not is_checkout_nl
+                checkin_already = any(re.search(r"check[\s-]*in", u) and not re.search(r"check[\s-]*out", u) for u in used)
+                if is_checkin_nl:
+                    score += 10
+                    # First calendar click should claim check-in before check-out.
+                    if not checkin_already:
+                        score += 4
+                elif is_checkout_nl:
+                    score += 10
+                    if checkin_already:
+                        score += 4
+                    else:
+                        score -= 2
+                elif "date picker" in lower or "open the date" in lower or "select dates" in lower:
+                    score += 5
+                if "search" in lower and "date" not in lower:
+                    score -= 8
+            # Destination suggestion clicks
+            if value and str(value).lower()[:20] in lower:
+                score += 6
+            if "london" in blob and "london" in lower and not dateish:
+                score += 4
+            # Search button — require Search in the click blob, not just the NL.
+            if "search" in lower:
+                if re.search(r"\bsearch\b", blob) and "date" not in blob and "dismiss" not in blob:
+                    score += 6
+                else:
+                    score -= 4
+            if ("date picker" in lower or "open the date" in lower) and (
+                dateish or "select dates" in blob or "date" in blob
+            ):
+                score += 4
+            elif "date" in lower or re.search(r"check[\s-]*in", lower) or re.search(r"check[\s-]*out", lower):
+                if any(k in blob for k in ("date", "calendar", "check-in", "check-out", "day")) or dateish:
+                    score += 3
         if action == "assert" and any(k in lower for k in ("verify", "assert", "check", "ensure")):
             score += 4
         # Token overlap
@@ -248,34 +327,68 @@ def _coverage(
         if nl:
             mapped_nl.add(nl)
 
+    # Cookie Accept clicks also cover optional "If cookie consent…" NL.
+    has_cookie_accept = any(
+        s.get("action") == "click"
+        and (
+            "accept" in json.dumps(s.get("locator") or s.get("selectorCandidates") or {}).lower()
+            or "onetrust" in json.dumps(s.get("locator") or s.get("selectorCandidates") or {}).lower()
+            or "consent" in str(s.get("description") or "").lower()
+            or "accept" in str(s.get("nlStep") or "").lower()
+        )
+        for s in compact_steps
+    )
+
     unmapped: list[str] = []
+    optional_unmapped: list[str] = []
     for nl in nl_steps or []:
         text = (nl or "").strip()
         if not text:
             continue
         if text in mapped_nl:
             continue
-        # Soft match: assert NL covered by assertionPlan kinds via substring already handled
         lower = text.lower()
         covered = False
         for m in mapped_nl:
             if m.lower() == lower or (len(lower) > 20 and (lower in m.lower() or m.lower() in lower)):
                 covered = True
                 break
-        # Heuristic: navigate/enter/click phrases may map via action alignment only —
-        # if any compact step's nlStep was set from this line we're good; else unmapped.
         if not covered:
-            # Check reverse: did align attach this exact string?
             if any((s.get("nlStep") or "").strip() == text for s in compact_steps):
+                covered = True
+        if not covered and _is_optional_nl(text):
+            if has_cookie_accept or any(k in lower for k in ("cookie", "consent")):
+                # Optional consent step: accept click present → covered; else soft-only.
+                if has_cookie_accept:
+                    covered = True
+                else:
+                    optional_unmapped.append(text)
+                    continue
+            else:
+                optional_unmapped.append(text)
+                continue
+        # Selecting calendar days implies the date picker was opened.
+        if not covered and ("date picker" in lower or "open the date" in lower):
+            has_date_click = any(
+                s.get("action") == "click"
+                and re.search(
+                    r"\b(20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+                    str(s.get("description") or "").lower(),
+                )
+                for s in compact_steps
+            )
+            if has_date_click:
                 covered = True
         if not covered:
             unmapped.append(text)
 
     total = len([s for s in (nl_steps or []) if (s or "").strip()])
+    soft = len(optional_unmapped)
     return {
         "nlTotal": total,
-        "mapped": total - len(unmapped),
+        "mapped": total - len(unmapped) - soft,
         "unmapped": unmapped,
+        "optionalUnmapped": optional_unmapped,
     }
 
 
@@ -471,8 +584,17 @@ def build_compact_workflow(
 
     compact_steps: list[dict[str, Any]] = []
     used_inputs: set[str] = set()
+    used_nl: set[str] = set()
     last_click_sig: str | None = None
     click_run = 0
+
+    def _append_compact(raw_step: dict[str, Any], act: str, loc_list: list) -> None:
+        row = _to_compact_step(raw_step, act, loc_list, nl_steps, used_nl=used_nl)
+        nl = (row.get("nlStep") or "").strip()
+        if nl:
+            used_nl.add(nl.lower())
+        compact_steps.append(row)
+
     for step in kept_raw:
         action = step["_action"]
         locs = step["_locators"]
@@ -483,9 +605,7 @@ def build_compact_workflow(
                 continue
             best = best_input.get(key) or step
             used_inputs.add(key)
-            compact_steps.append(
-                _to_compact_step(best, "input", best.get("_locators") or locs, nl_steps)
-            )
+            _append_compact(best, "input", best.get("_locators") or locs)
             last_click_sig = None
             click_run = 0
             continue
@@ -506,7 +626,7 @@ def build_compact_workflow(
             else:
                 last_click_sig = sig
                 click_run = 1
-            compact_steps.append(_to_compact_step(step, action, locs, nl_steps))
+            _append_compact(step, action, locs)
             continue
         sig = _click_sig(action, value, locs)
         if compact_steps:
@@ -526,7 +646,7 @@ def build_compact_workflow(
                     }
                 )
                 continue
-        compact_steps.append(_to_compact_step(step, action, locs, nl_steps))
+        _append_compact(step, action, locs)
         last_click_sig = None
         click_run = 0
 
@@ -571,6 +691,8 @@ def _to_compact_step(
     action: str,
     locs: list[dict[str, Any]],
     nl_steps: list[str],
+    *,
+    used_nl: set[str] | None = None,
 ) -> dict[str, Any]:
     primary, semantic, candidates = _split_locator_buckets(locs)
     verified = bool(step.get("locatorVerified")) or any(
@@ -588,7 +710,7 @@ def _to_compact_step(
     element = step.get("element") if isinstance(step.get("element"), dict) else {}
     description = str(step.get("description") or "")
     value = None if step.get("value") is None else str(step.get("value"))
-    nl = _align_nl_step(action, value, description, nl_steps)
+    nl = _align_nl_step(action, value, description, nl_steps, used_nl=used_nl)
     return {
         "index": int(step.get("index") or 0),
         "action": action,

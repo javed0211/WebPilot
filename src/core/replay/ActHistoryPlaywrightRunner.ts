@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import { chromium } from 'playwright';
+import { ConfigManager } from '../ConfigManager';
 import { REPORTS_SCREENSHOTS_DIR, REPORTS_VIDEOS_DIR } from '../ReportPaths';
 import type { ExecutionEventLedger } from '../events/ExecutionEventLedger';
 import { PlaywrightEventCollector } from '../events/PlaywrightEventCollector';
@@ -594,7 +595,7 @@ function latestVideoInDir(dir: string): string | null {
     .map((f) => path.join(dir, f))
     .filter((p) => {
       try {
-        return fs.statSync(p).size >= 10_000;
+        return fs.statSync(p).size >= 1_000;
       } catch {
         return false;
       }
@@ -602,6 +603,40 @@ function latestVideoInDir(dir: string): string | null {
     .sort((a, b) => fs.statSync(a).mtimeMs - fs.statSync(b).mtimeMs);
   return files.length ? files[files.length - 1] : null;
 }
+
+/** Prefer configured channel; fall back to bundled Chromium when Chrome/Edge is missing. */
+async function launchReplayBrowser(headed: boolean): Promise<Browser> {
+  const target = String(
+    ConfigManager.getInstance().get('browser.target', 'chromium') || 'chromium'
+  ).toLowerCase();
+  const launchOpts = {
+    headless: !headed,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  };
+
+  const tryLaunch = async (channel?: string): Promise<Browser> => {
+    if (channel) {
+      return chromium.launch({ ...launchOpts, channel: channel as 'chrome' | 'msedge' });
+    }
+    return chromium.launch(launchOpts);
+  };
+
+  if (target === 'chrome' || target === 'msedge' || target === 'edge') {
+    const channel = target === 'chrome' ? 'chrome' : 'msedge';
+    try {
+      return await tryLaunch(channel);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[ActHistory] ${channel} launch failed (${msg.slice(0, 120)}) — falling back to bundled Chromium for Playwright video`
+      );
+      return tryLaunch();
+    }
+  }
+  return tryLaunch();
+}
+
+const MIN_USABLE_VIDEO_BYTES = 2_000;
 
 export class ActHistoryPlaywrightRunner {
   public static loadSteps(doc: ActHistoryDocument): ActStep[] {
@@ -643,6 +678,7 @@ export class ActHistoryPlaywrightRunner {
 
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
+    let page: Page | null = null;
     let success = false;
     let failure: string | undefined;
     let videoPath: string | undefined;
@@ -653,10 +689,7 @@ export class ActHistoryPlaywrightRunner {
     const ledger = options.eventLedger;
 
     try {
-      browser = await chromium.launch({
-        headless: !options.headed,
-        channel: 'chrome',
-      });
+      browser = await launchReplayBrowser(Boolean(options.headed));
 
       if (recordVideo) {
         fs.mkdirSync(videoTmpDir, { recursive: true });
@@ -668,7 +701,7 @@ export class ActHistoryPlaywrightRunner {
           ? { dir: videoTmpDir, size: { width: 1280, height: 720 } }
           : undefined,
       });
-      const page = await context.newPage();
+      page = await context.newPage();
 
       if (ledger) {
         const flags = resolveFeatureFlags();
@@ -950,35 +983,70 @@ export class ActHistoryPlaywrightRunner {
       success = !failure;
     } finally {
       eventCollector?.detach();
-      // Close context before browser so Playwright flushes the video file.
+      // Playwright finalizes .webm when the context closes. Prefer page.video().saveAs
+      // (official API) over scanning the temp dir — avoids races and empty stubs.
+      const videoHandle = recordVideo && page ? page.video() : null;
+      // Finalize video on context close; keep browser open until saveAs completes.
       if (context) {
         await context.close().catch(() => undefined);
       }
-      if (browser) {
-        await browser.close().catch(() => undefined);
-      }
 
       if (recordVideo) {
-        const recorded = latestVideoInDir(videoTmpDir);
         const keepVideo = videoMode === 'on' || (videoMode === 'retain-on-failure' && !success);
-        if (recorded && keepVideo) {
-          fs.mkdirSync(REPORTS_VIDEOS_DIR, { recursive: true });
-          const ext = path.extname(recorded) || '.webm';
-          const dest = path.join(REPORTS_VIDEOS_DIR, `${slug}${ext}`);
-          try {
-            fs.copyFileSync(recorded, dest);
-            if (fs.statSync(dest).size >= 10_000) {
-              videoPath = dest;
+        fs.mkdirSync(REPORTS_VIDEOS_DIR, { recursive: true });
+        const dest = path.join(REPORTS_VIDEOS_DIR, `${slug}.webm`);
+
+        if (keepVideo) {
+          let saved = false;
+          if (videoHandle) {
+            try {
+              await videoHandle.saveAs(dest);
+              if (fs.existsSync(dest) && fs.statSync(dest).size >= MIN_USABLE_VIDEO_BYTES) {
+                videoPath = dest;
+                saved = true;
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              console.warn(`[ActHistory] Playwright video saveAs failed: ${msg.slice(0, 160)}`);
             }
+          }
+          if (!saved) {
+            const recorded = latestVideoInDir(videoTmpDir);
+            if (recorded) {
+              try {
+                fs.copyFileSync(recorded, dest);
+                if (fs.statSync(dest).size >= MIN_USABLE_VIDEO_BYTES) {
+                  videoPath = dest;
+                  saved = true;
+                }
+              } catch {
+                // ignore
+              }
+            }
+          }
+          if (!saved) {
+            console.warn(
+              `[ActHistory] Playwright video missing or too small for ${slug} ` +
+                `(mode=${videoMode}, success=${success}). Check browser launch / recordVideo.`
+            );
+          }
+        } else if (fs.existsSync(dest)) {
+          try {
+            fs.unlinkSync(dest);
           } catch {
             // ignore
           }
         }
+
         try {
           fs.rmSync(videoTmpDir, { recursive: true, force: true });
         } catch {
           // ignore
         }
+      }
+
+      if (browser) {
+        await browser.close().catch(() => undefined);
       }
     }
 

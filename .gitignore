@@ -66,6 +66,12 @@ runtime/screenshots/
 runtime/fixtures/
 runtime/auth-state/
 
+# Page inventory snapshots (regenerated during browser-use discovery)
+runtime/page-inventory/
+
+# Playwright / codegen output at repo root (local validator runs)
+test-results/
+
 # Repository knowledge graph (regenerated before codegen)
 runtime/knowledge/
 

@@ -478,11 +478,15 @@ PERFORMANCE_DEFAULTS = {
     # native = one browser-use Agent for the full scenario (default — preserves engine intelligence).
     # scoped = one Agent per NL step (legacy WebPilot wrapper; use for knowledge repair only).
     'engineMode': 'native',
+    # Lean agent for heavy SPAs (Nexus-style). Set false / WEBPILOT_FULL_AGENT_MODE=1 for full agent.
+    'discoveryFastMode': True,
     'judgeMode': 'verification',
     'maxActionsPerStep': 6,
     'useVision': 'auto',
     'useThinking': True,
     'flashMode': False,
+    'enablePlanning': True,
+    'visionDetailLevel': 'auto',
     'minPageLoadWait': 0.1,
     'networkIdleWait': 0.3,
     'waitBetweenActions': 0.3,
@@ -533,9 +537,11 @@ def load_performance_config() -> dict:
             cfg['maxActionsPerStep'] = int(perf['maxActionsPerStep'])
         if perf.get('nativeAgentMaxSteps') is not None:
             cfg['nativeAgentMaxSteps'] = int(perf['nativeAgentMaxSteps'])
-        for key in ('useThinking', 'flashMode'):
+        for key in ('useThinking', 'flashMode', 'discoveryFastMode', 'enablePlanning'):
             if perf.get(key) is not None:
                 cfg[key] = bool(perf[key])
+        if perf.get('visionDetailLevel') is not None:
+            cfg['visionDetailLevel'] = str(perf['visionDetailLevel']).strip().lower()
         for key in ('minPageLoadWait', 'networkIdleWait', 'waitBetweenActions'):
             if key in perf:
                 cfg[key] = None if perf[key] is None else float(perf[key])
@@ -550,6 +556,13 @@ def load_performance_config() -> dict:
         cfg['flashMode'] = True
     elif env_flash in ('0', 'false', 'no', 'off'):
         cfg['flashMode'] = False
+    env_fast = os.environ.get('WEBPILOT_DISCOVERY_FAST_MODE', '').strip().lower()
+    if env_fast in ('1', 'true', 'yes', 'on'):
+        cfg['discoveryFastMode'] = True
+    elif env_fast in ('0', 'false', 'no', 'off'):
+        cfg['discoveryFastMode'] = False
+    if os.environ.get('WEBPILOT_FULL_AGENT_MODE', '').strip().lower() in ('1', 'true', 'yes', 'on'):
+        cfg['discoveryFastMode'] = False
     env_fresh = os.environ.get('WEBPILOT_FRESH_AGENT_PER_STEP', '').strip().lower()
     if env_fresh in ('1', 'true', 'yes', 'on'):
         cfg['freshAgentPerStep'] = True
@@ -722,23 +735,10 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
 
 
 def build_native_scenario_task(steps: list[str], discovery_rules: str) -> str:
-    """Full-scenario task for stock browser-use — consume engine behavior, light policy only."""
-    numbered = "\n".join(f"{i}. {step}" for i, step in enumerate(steps, start=1))
-    return "\n".join(
-        [
-            "Execute this test scenario end-to-end in the browser.",
-            "Complete every numbered step in order.",
-            "Handle cookie/consent banners, overlays, and auth flows when they block progress;",
-            "otherwise stick to the test steps.",
-            "Call done(success=true) only when the full scenario outcome is satisfied.",
-            "",
-            "Test steps:",
-            numbered,
-            "",
-            "=== OPTIONAL HINTS ===",
-            discovery_rules,
-        ]
-    )
+    """Lean full-scenario task — numbered steps first (Nexus-style)."""
+    from .discovery_tuning import build_lean_native_task
+
+    return build_lean_native_task(steps, discovery_rules)
 
 
 async def run_native_browser_use_scenario(
@@ -756,7 +756,13 @@ async def run_native_browser_use_scenario(
     perf: dict | None = None,
 ) -> tuple[bool, dict, Any | None]:
     """Run one browser-use Agent on the full scenario; history/codegen follow engine actions."""
-    perf = perf or dict(PERFORMANCE_DEFAULTS)
+    from .discovery_tuning import (
+        ControlLoopBreaker,
+        apply_discovery_fast_mode,
+        extract_initial_navigate_url,
+    )
+
+    perf = apply_discovery_fast_mode(perf or dict(PERFORMANCE_DEFAULTS))
     judge_mode = str(perf.get('judgeMode', 'verification')).strip().lower()
     resolved_use_vision = _resolve_use_vision(perf.get('useVision', 'auto'))
     from .prompt_loader import load_discovery_native_rules
@@ -786,13 +792,19 @@ async def run_native_browser_use_scenario(
         )
 
     task = build_native_scenario_task(sanitized_steps, discovery_rules)
+    initial_url = extract_initial_navigate_url(sanitized_steps)
     captured_actions: list[dict] = []
     page_snapshots: dict[str, dict] = {}
     native_agent = None
+    loop_breaker = ControlLoopBreaker()
 
     async def on_native_step(state, output, _agent_step):
+        new_actions: list[dict] = []
         if output is not None:
-            captured_actions.extend(actions_from_output(state, output))
+            new_actions = actions_from_output(state, output)
+            captured_actions.extend(new_actions)
+            if loop_breaker.observe_actions(new_actions) and loop_breaker.message:
+                print(f"[WebPilot] Control-loop breaker: {loop_breaker.message}")
         # Capture selector_map inventory while live DOM is still available
         try:
             from .page_inventory import snapshot_from_browser_state, upsert_inventory
@@ -814,6 +826,12 @@ async def run_native_browser_use_scenario(
                 if snap.get("url"):
                     page_snapshots[str(snap["url"])] = snap
                 upsert_inventory(snap)
+        except Exception:
+            pass
+        # Deterministic overlay cleanup each step — Booking Genius/sign-in often appears
+        # after cookie accept and blocks the destination field (skip-link mistargets).
+        try:
+            await prepare_page_for_interaction(browser)
         except Exception:
             pass
         if native_agent is None:
@@ -845,44 +863,61 @@ async def run_native_browser_use_scenario(
             pass
 
     use_judge = judge_mode != 'off'
+    fast = bool(perf.get('_discoveryFastModeActive'))
     print(
-        f"[WebPilot] Engine mode=native (WebPilot full-scenario agent, "
+        f"[WebPilot] Engine mode=native "
+        f"({'fast discovery' if fast else 'full agent'}; "
         f"maxSteps={int(perf.get('nativeAgentMaxSteps', 80))})"
     )
-    native_agent = Agent(
-        task=task,
-        llm=llm,
-        browser=browser,
-        calculate_cost=True,
-        register_new_step_callback=on_native_step,
-        use_vision=resolved_use_vision,
-        use_judge=use_judge,
-        ground_truth="\n".join(sanitized_steps),
-        enable_planning=True,
-        use_thinking=bool(perf.get('useThinking', True)),
-        flash_mode=bool(perf.get('flashMode', False)),
-        max_actions_per_step=int(perf.get('maxActionsPerStep', 6)),
-        max_history_items=_clamp_max_history_items(int(perf.get('maxHistoryItems', 30))),
-        directly_open_url=True,
-        llm_timeout=int(os.environ.get('WEBPILOT_LLM_TIMEOUT', '180') or 180),
-        extend_system_message=(
+    if fast:
+        print(
+            "[WebPilot] Discovery fast mode — judge/planning/thinking off, flash on "
+            "(set WEBPILOT_FULL_AGENT_MODE=1 to restore full agent)"
+        )
+
+    agent_kwargs: dict[str, Any] = {
+        'task': task,
+        'llm': llm,
+        'browser': browser,
+        'calculate_cost': True,
+        'register_new_step_callback': on_native_step,
+        'register_should_stop_callback': loop_breaker.should_stop,
+        'use_vision': resolved_use_vision,
+        'use_judge': use_judge,
+        'ground_truth': "\n".join(sanitized_steps),
+        'enable_planning': bool(perf.get('enablePlanning', not fast)),
+        'use_thinking': bool(perf.get('useThinking', not fast)),
+        'flash_mode': bool(perf.get('flashMode', fast)),
+        'max_actions_per_step': int(perf.get('maxActionsPerStep', 6)),
+        'max_history_items': _clamp_max_history_items(int(perf.get('maxHistoryItems', 30))),
+        'directly_open_url': True,
+        'llm_timeout': int(os.environ.get('WEBPILOT_LLM_TIMEOUT', '180') or 180),
+        'extend_system_message': (
             "You are running a WebPilot QE scenario via the WebPilot agent. "
             "Follow the numbered test steps in order. "
-            "Dismiss blocking overlays only when they prevent progress. "
-            "Call done(success=true) only when the last step outcome is satisfied. "
+            "Prefer semantic targets: role/label/placeholder (textbox, combobox, searchbox, button, link). "
+            "Never type into or click skip links (Skip to main content, a[href='#main']). "
+            "If an input note says the field's actual value differs from typed text, retarget the real field. "
+            "Dismiss cookie banners and blocking popups/interstitials as soon as they appear "
+            "(Close, Dismiss, X, Not now, No thanks on any site) — do not sign in or subscribe "
+            "unless the test steps require authentication. "
+            "Never call done(success=true) until EVERY numbered step is done — including opening the "
+            "date picker, selecting check-in/check-out dates, clicking Search, and verifications. "
             "Do not invent raw URLs for in-app navigation — use on-page click/search."
         ),
-        **(
-            {'sensitive_data': step_sensitive_data}
-            if step_sensitive_data
-            else {}
-        ),
-        **(
-            {'available_file_paths': upload_paths}
-            if upload_paths
-            else {}
-        ),
-    )
+    }
+    vision_detail = str(perf.get('visionDetailLevel') or 'auto').strip().lower()
+    if vision_detail in ('auto', 'low', 'high'):
+        agent_kwargs['vision_detail_level'] = vision_detail
+    if initial_url:
+        agent_kwargs['initial_actions'] = [{'navigate': {'url': initial_url, 'new_tab': False}}]
+        print(f"[WebPilot] Initial navigate → {initial_url}")
+    if step_sensitive_data:
+        agent_kwargs['sensitive_data'] = step_sensitive_data
+    if upload_paths:
+        agent_kwargs['available_file_paths'] = upload_paths
+
+    native_agent = Agent(**agent_kwargs)
 
     before_prompt, before_completion, before_cost, before_calls = await read_browser_use_usage_snapshot(native_agent)
     max_steps = max(int(perf.get('nativeAgentMaxSteps', 80)), len(steps) * 3)
@@ -903,11 +938,20 @@ async def run_native_browser_use_scenario(
     llm_usage_totals['llmCalls'] += max(0, after_calls - before_calls)
 
     agent_ok = bool(getattr(history, 'is_successful', lambda: False)())
+    if loop_breaker.triggered:
+        agent_ok = False
+        print(f"[WebPilot] Discovery stopped by control-loop breaker: {loop_breaker.message}")
     # ActHistory from browser-use is the sole executionHistory source of truth.
     # Do NOT overwrite with NL-aligned zipper (legacy build_nl_aligned_codegen_history).
     context = build_full_execution_context(
         history, steps, test_name, page_snapshots=page_snapshots or None
     )
+    if loop_breaker.triggered:
+        context["isSuccessful"] = False
+        context["failure"] = loop_breaker.message
+        context["errors"] = [loop_breaker.message]
+        context.setdefault("runLog", {})["isSuccessful"] = False
+        context.setdefault("runLog", {})["failures"] = [loop_breaker.message]
 
     # Milestone A: live Playwright certify locators against open CDP pages.
     try:
@@ -1029,6 +1073,21 @@ async def run_native_browser_use_scenario(
                 "[WebPilot] Compact NL unmapped: "
                 + "; ".join(str(u)[:80] for u in (cov.get("unmapped") or [])[:5])
             )
+        # Fail closed: browser-use may report success while skipping required NL steps
+        # (e.g. date picker). Do not treat that as codegen-eligible discovery.
+        required_unmapped = list(cov.get("unmapped") or [])
+        if agent_ok and required_unmapped:
+            agent_ok = False
+            msg = (
+                "Discovery incomplete — compact workflow missing required NL steps: "
+                + "; ".join(required_unmapped[:4])
+            )
+            context["isSuccessful"] = False
+            context["failure"] = msg
+            context["errors"] = [msg]
+            context.setdefault("runLog", {})["isSuccessful"] = False
+            context.setdefault("runLog", {})["failures"] = [msg]
+            print(f"[WebPilot] {msg}")
     except Exception as compact_err:
         print(f"[WebPilot] Warning: compact workflow build skipped: {compact_err}")
 
@@ -1055,7 +1114,9 @@ async def run_native_browser_use_scenario(
         'compactWorkflowSteps': len((context.get('compactWorkflow') or {}).get('steps') or []),
     }
     if not agent_ok:
-        context['failure'] = 'WebPilot agent did not complete the scenario successfully'
+        # Preserve a more specific failure (e.g. compact NL coverage) when already set.
+        if not (context.get('failure') or '').strip():
+            context['failure'] = 'WebPilot agent did not complete the scenario successfully'
         context['errors'] = [context['failure']]
         context.setdefault('runLog', {})['failures'] = [context['failure']]
     return agent_ok, context, native_agent

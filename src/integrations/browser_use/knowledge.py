@@ -1554,27 +1554,84 @@ async def wait_for_modal(browser_session: Any, timeout_seconds: float = 5.0) -> 
 
 
 async def dismiss_blocking_modals(browser_session: Any) -> None:
+    """
+    Site-agnostic dismiss of blocking dialogs / interstitials.
+
+    Runs on every site during prepare_page_for_interaction (native discovery
+    per step + scoped replay). Prefer Close / Dismiss / Not now; never click
+    Sign in / Log in / Create account / social auth CTAs.
+    """
     page = await browser_session.must_get_current_page()
     await page.evaluate(
         """() => {
           const visible = (el) => {
+            if (!el) return false;
             const r = el.getBoundingClientRect();
             const s = getComputedStyle(el);
             return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
           };
-          const modals = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.modal.show,.modal.in')]
-            .filter(visible);
-          for (const modal of modals) {
-            const buttons = [...modal.querySelectorAll('button,[role="button"],input[type="button"],input[type="submit"]')]
-              .filter(visible);
-            const preferred = buttons.find((btn) =>
-              /^(ok|yes|confirm|continue|accept|close|got it|agree)$/i.test((btn.textContent || btn.value || '').trim())
-            ) || buttons[0];
-            if (preferred) {
-              preferred.click();
+          const labelOf = (el) =>
+            ((el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('title') || '') + ' ' +
+              (el.textContent || el.value || '')).replace(/\\s+/g, ' ').trim();
+          const isAuthCta = (t) =>
+            /\\b(sign\\s*in|log\\s*in|create account|register|continue with|sign up|subscribe)\\b/i.test(t) ||
+            /\\b(google|facebook|apple|microsoft)\\b/i.test(t);
+          // Inside a dialog: Close / Dismiss / X / Not now / Accept (info dialogs).
+          const isModalDismiss = (t) => {
+            const s = (t || '').toLowerCase();
+            if (!s || isAuthCta(s)) return false;
+            if (/^(ok|yes|confirm|accept|close|got it|agree|dismiss|no thanks|not now|maybe later|skip)$/i.test(s)) {
               return true;
             }
+            return (
+              /\\bdismiss\\b/.test(s) ||
+              /\\bclose\\b/.test(s) ||
+              /\\bnot now\\b/.test(s) ||
+              /\\bno thanks\\b/.test(s) ||
+              /\\bmaybe later\\b/.test(s) ||
+              /^×$/.test(s) ||
+              /^x$/.test(s)
+            );
+          };
+          // Page-level (no dialog root): only strong interstitial skip patterns —
+          // never bare Close/Accept (too many false positives on toolbars).
+          const isPageInterstitialDismiss = (t) => {
+            const s = (t || '').toLowerCase();
+            if (!s || isAuthCta(s)) return false;
+            return (
+              /\\bdismiss\\b/.test(s) ||
+              /\\bnot now\\b/.test(s) ||
+              /\\bno thanks\\b/.test(s) ||
+              /\\bmaybe later\\b/.test(s) ||
+              /\\bskip for now\\b/.test(s) ||
+              /\\bno,? thanks\\b/.test(s)
+            );
+          };
+          const clickFirst = (nodes, pred) => {
+            for (const el of nodes) {
+              if (!visible(el)) continue;
+              if (!pred(labelOf(el))) continue;
+              el.click();
+              return true;
+            }
+            return false;
+          };
+
+          // 1) Visible modal / dialog roots (any site)
+          const modals = [...document.querySelectorAll(
+            '[role="dialog"],[aria-modal="true"],.modal.show,.modal.in'
+          )].filter(visible);
+          for (const modal of modals) {
+            const buttons = [...modal.querySelectorAll(
+              'button,[role="button"],input[type="button"],input[type="submit"],a[role="button"]'
+            )];
+            if (clickFirst(buttons, isModalDismiss)) return true;
           }
+
+          // 2) Page-level interstitials (Genius bars, newsletter walls, etc.)
+          const pageButtons = [...document.querySelectorAll('button,[role="button"],a[role="button"]')];
+          if (clickFirst(pageButtons, isPageInterstitialDismiss)) return true;
+
           return false;
         }"""
     )

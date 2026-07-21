@@ -126,6 +126,7 @@ export interface CompactWorkflowCoverage {
   nlTotal: number;
   mapped: number;
   unmapped: string[];
+  optionalUnmapped?: string[];
 }
 
 export interface CompactWorkflowStep {

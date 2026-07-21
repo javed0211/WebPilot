@@ -29,6 +29,8 @@ export interface ReplayFromHistoryOptions {
   headed?: boolean;
   heal?: boolean;
   stepTimeoutMs?: number;
+  /** Override browser.video for this replay (Playwright .webm only — never ffmpeg). */
+  video?: 'off' | 'on' | 'retain-on-failure';
 }
 
 function loadDocument(slug: string): ActHistoryDocument {
@@ -74,12 +76,12 @@ function resolveVideoMode(cm: ConfigManager): 'off' | 'on' | 'retain-on-failure'
   if (env === 'on' || env === '1' || env === 'true' || env === 'yes') return 'on';
   if (env === 'retain-on-failure') return 'retain-on-failure';
 
-  const raw = String(cm.get('browser.video', 'off') || 'off').toLowerCase();
-  if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'yes') return 'on';
+  // Default matches resources/config/webpilot.yaml (Playwright .webm evidence).
+  const raw = String(cm.get('browser.video', 'on') || 'on').toLowerCase();
+  if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'no') return 'off';
   if (raw === 'retain-on-failure') return 'retain-on-failure';
-  // yaml `off` → still record Playwright ActHistory video on failure (report evidence).
-  // BA discovery never uses ffmpeg; this mode only affects Playwright recording.
-  return 'retain-on-failure';
+  if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'yes') return 'on';
+  return 'on';
 }
 
 function resolveScreenshotMode(cm: ConfigManager): 'off' | 'on' | 'only-on-failure' {
@@ -139,7 +141,7 @@ function persistReplayArtifacts(
     const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8')) as Record<string, unknown>;
     const artifacts = { ...((summary.artifacts as Record<string, unknown>) || {}) };
 
-    if (result.videoPath && fs.existsSync(result.videoPath) && fs.statSync(result.videoPath).size >= 10_000) {
+    if (result.videoPath && fs.existsSync(result.videoPath) && fs.statSync(result.videoPath).size >= 2_000) {
       artifacts.video = result.videoPath;
     } else {
       delete artifacts.video;
@@ -147,7 +149,7 @@ function persistReplayArtifacts(
       for (const ext of ['.webm', '.mp4']) {
         const stale = path.join(REPORTS_VIDEOS_DIR, `${slug}${ext}`);
         try {
-          if (fs.existsSync(stale) && fs.statSync(stale).size < 10_000) fs.unlinkSync(stale);
+          if (fs.existsSync(stale) && fs.statSync(stale).size < 2_000) fs.unlinkSync(stale);
         } catch {
           // ignore
         }
@@ -268,7 +270,7 @@ export class ActHistoryReplayService {
         headed,
         stepTimeoutMs: options.stepTimeoutMs,
         heal: healHook,
-        video: resolveVideoMode(cm),
+        video: options.video ?? resolveVideoMode(cm),
         screenshots: resolveScreenshotMode(cm),
         eventLedger: ledger || undefined,
         healCommit: healer
