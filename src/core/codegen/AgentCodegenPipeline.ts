@@ -16,8 +16,10 @@ import {
   PipelineResult,
 } from './DeterministicCodegenPipeline';
 import { readProjectCodegenProfile } from './PostExecutionCodegen';
+import { CodegenProfileRegistry } from './profiles/CodegenProfileRegistry';
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 
 export interface AgentCodegenOptions {
   validate?: boolean;
@@ -48,10 +50,19 @@ function formatValidationFailure(validation: {
   return parts.join('\n');
 }
 
+function isWeakGotoOnlyScaffold(files: GeneratedFile[]): boolean {
+  if (!files.length) return true;
+  const joined = files.map((f) => f.content).join('\n');
+  const withoutGoto = joined.replace(/\b(goto|navigate|page\.goto)\b/gi, '');
+  const hasInteraction = /\b(fill|click|type|select|assert|expect|press|check)\b/i.test(withoutGoto);
+  const small = files.every((f) => f.content.length < 900);
+  return small && !hasInteraction;
+}
+
 /**
- * Repo-aware codegen: knowledge graph tools + coding agent (default path when
- * the graph has reusable pages). Deterministic emit remains available via
- * `--deterministic`.
+ * Repo-aware codegen: knowledge graph tools + coding agent.
+ * Language comes from project profile (typescript / python / java / csharp) —
+ * not hardcoded to TypeScript.
  */
 export class AgentCodegenPipeline {
   public static shouldPreferAgent(graphPages?: number): boolean {
@@ -69,14 +80,15 @@ export class AgentCodegenPipeline {
     options: AgentCodegenOptions = {}
   ): Promise<PipelineResult> {
     const enrich = options.enrichGraph !== false;
+    const profile = readProjectCodegenProfile();
     const graph = await RepoKnowledgeGraph.refreshAsync(undefined, { enrich });
-    const tools = new CodegenTools(undefined, graph);
+    const tools = new CodegenTools(undefined, graph, profile);
     const detection = resolveCodegenArchitecture({
       override: options.architecture,
     });
     const architecture = detection.architecture;
     Logger.info(
-      `[AgentCodegen] architecture=${architecture} (${detection.confidence}): ${detection.reasons.join('; ')}`
+      `[AgentCodegen] lang=${profile.language}/${profile.automationTool} architecture=${architecture} (${detection.confidence}): ${detection.reasons.join('; ')}`
     );
 
     const llm = new LLMClient({ maxTokens: 16000 });
@@ -98,24 +110,20 @@ export class AgentCodegenPipeline {
     );
 
     let files = generated.files;
-    const profile = readProjectCodegenProfile();
-    // Align profile pattern with detection for metadata/plan consumers
-    const planProfile = {
-      ...profile,
-      frameworkPattern: detection.frameworkPattern,
-    };
+    const priorFiles = [...files];
 
-    // Build a lightweight plan via deterministic path for metadata/spec paths,
-    // but keep agent-written files as SoT.
     const { trace, plan } = DeterministicCodegenPipeline.buildTraceAndPlan({
       ...input,
     });
     plan.profile = {
       ...plan.profile,
+      language: profile.language,
+      automationTool: profile.automationTool,
       frameworkPattern: detection.frameworkPattern,
+      testFramework: profile.testFramework,
     };
     plan.notes.push(
-      `Agent codegen: architecture=${architecture} confidence=${detection.confidence}`
+      `Agent codegen: language=${profile.language} architecture=${architecture} confidence=${detection.confidence}`
     );
     plan.notes.push(...detection.reasons.map((r) => `Architecture: ${r}`));
 
@@ -127,8 +135,42 @@ export class AgentCodegenPipeline {
       return { trace, plan, files, metadata };
     }
 
-    if (planProfile.language !== 'typescript' || planProfile.automationTool !== 'playwright') {
+    const isTsPlaywright =
+      profile.language === 'typescript' && profile.automationTool === 'playwright';
+
+    if (!isTsPlaywright) {
       CodegenWriter.writeFiles(files);
+      const adapter = CodegenProfileRegistry.resolve(plan.profile);
+      const command = adapter.validationCommand?.(plan.profile);
+      if (command) {
+        try {
+          execSync(command, { cwd: process.cwd(), stdio: 'inherit', env: process.env });
+          Logger.info(`[AgentCodegen] Profile validation passed (${profile.language}/${profile.automationTool})`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (options.repair === false) {
+            throw new Error(`Agent codegen failed ${profile.language} validation: ${message}`);
+          }
+          Logger.warn(`[AgentCodegen] ${profile.language} validation failed — running repair`);
+          generated = await agent.generateCode(
+            input.scenario,
+            llmSteps,
+            architecture,
+            graphContext,
+            message
+          );
+          if (!isWeakGotoOnlyScaffold(generated.files)) {
+            files = generated.files;
+            CodegenWriter.writeFiles(files);
+          } else {
+            Logger.warn('[AgentCodegen] Repair returned weak scaffold — keeping prior files');
+            files = priorFiles;
+            CodegenWriter.writeFiles(files);
+          }
+        }
+      }
+      metadata = DeterministicCodegenPipeline.persist(trace, plan, files);
+      metadata = { ...metadata, mode: 'llm' };
       return { trace, plan, files, metadata };
     }
 
@@ -156,8 +198,15 @@ export class AgentCodegenPipeline {
         graphContext,
         [failureDetail, prior].filter(Boolean).join('\n\n')
       );
-      files = [...generated.files];
-      if (!files.some((file) => file.path.endsWith('.spec.ts'))) {
+
+      if (isWeakGotoOnlyScaffold(generated.files) && priorFiles.length) {
+        Logger.warn('[AgentCodegen] Repair produced weak goto-only scaffold — keeping prior multi-step files');
+        files = [...priorFiles];
+      } else {
+        files = [...generated.files];
+      }
+
+      if (!files.some((file) => /\.(spec|test)\.ts$/i.test(file.path) || file.path === plan.specPath)) {
         const specOnDisk = path.join(process.cwd(), plan.specPath);
         if (fs.existsSync(specOnDisk)) {
           files.push({ path: plan.specPath, content: fs.readFileSync(specOnDisk, 'utf8') });

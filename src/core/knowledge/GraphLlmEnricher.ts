@@ -39,7 +39,7 @@ export interface GraphEnrichResult {
 
 const DEFAULT_MAX_PAGES = 40;
 const DEFAULT_MAX_BATCHES = 8;
-const DEFAULT_BATCH_SIZE = 5;
+const DEFAULT_BATCH_SIZE = 3;
 
 function extractJson(text: string): string {
   let cleaned = text.trim();
@@ -50,12 +50,57 @@ function extractJson(text: string): string {
   const end = cleaned.lastIndexOf('}');
   if (start >= 0 && end > start) {
     const slice = cleaned.slice(start, end + 1);
-    if (slice.includes('"nodes"') || slice.includes("'nodes'")) return slice;
+    if (slice.includes('"nodes"') || slice.includes("'nodes'") || slice.includes('"id"')) {
+      return slice;
+    }
   }
   const arrStart = cleaned.indexOf('[');
   const arrEnd = cleaned.lastIndexOf(']');
   if (arrStart >= 0 && arrEnd > arrStart) return cleaned.slice(arrStart, arrEnd + 1);
   return cleaned;
+}
+
+/** Recover truncated LLM JSON by harvesting complete {...} objects. */
+function recoverPartialNodes(text: string): AnalysisEnrichNode[] {
+  const nodes: AnalysisEnrichNode[] = [];
+  const re = /\{[^{}]*"id"\s*:\s*"[^"]+"[^{}]*\}/g;
+  const matches = text.match(re) || [];
+  for (const m of matches) {
+    try {
+      const obj = JSON.parse(m) as AnalysisEnrichNode;
+      if (obj?.id) nodes.push(obj);
+    } catch {
+      // skip
+    }
+  }
+  return nodes;
+}
+
+function parseBatchResponse(text: string): {
+  nodes: AnalysisEnrichNode[];
+  edges: AnalysisBatch['edges'];
+} {
+  try {
+    const parsed = JSON.parse(extractJson(text));
+    if (Array.isArray(parsed)) {
+      return { nodes: parsed as AnalysisEnrichNode[], edges: [] };
+    }
+    return {
+      nodes: Array.isArray(parsed?.nodes)
+        ? parsed.nodes
+        : Array.isArray(parsed?.items)
+          ? parsed.items
+          : [],
+      edges: Array.isArray(parsed?.edges) ? parsed.edges : [],
+    };
+  } catch {
+    const recovered = recoverPartialNodes(text);
+    if (recovered.length) {
+      Logger.warn(`[GraphEnrich] Recovered ${recovered.length} node(s) from truncated JSON`);
+      return { nodes: recovered, edges: [] };
+    }
+    throw new Error('Unexpected end of JSON input');
+  }
 }
 
 function chunkPageGroups(targets: ScanTarget[], batchSize: number): ScanTarget[][] {
@@ -66,35 +111,21 @@ function chunkPageGroups(targets: ScanTarget[], batchSize: number): ScanTarget[]
   for (let i = 0; i < pages.length; i += batchSize) {
     const pageSlice = pages.slice(i, i + batchSize);
     const pageIds = new Set(pageSlice.map((p) => p.id));
-    const relatedMethods = methods.filter(
-      (m) => m.parentId && pageIds.has(m.parentId)
-    );
-    groups.push([...pageSlice, ...relatedMethods.slice(0, batchSize * 12)]);
+    // Cap methods hard — large batches truncate LLM JSON
+    const relatedMethods = methods
+      .filter((m) => m.parentId && pageIds.has(m.parentId))
+      .slice(0, batchSize * 4);
+    groups.push([...pageSlice, ...relatedMethods]);
   }
 
-  // Orphan methods (no parent page in targets) — rare
   const covered = new Set(groups.flat().map((t) => t.id));
   const orphans = methods.filter((m) => !covered.has(m.id));
   if (orphans.length) {
-    for (let i = 0; i < orphans.length; i += 20) {
-      groups.push(orphans.slice(i, i + 20));
+    for (let i = 0; i < orphans.length; i += 12) {
+      groups.push(orphans.slice(i, i + 12));
     }
   }
   return groups;
-}
-
-function parseBatchResponse(text: string): {
-  nodes: AnalysisEnrichNode[];
-  edges: AnalysisBatch['edges'];
-} {
-  const parsed = JSON.parse(extractJson(text));
-  if (Array.isArray(parsed)) {
-    return { nodes: parsed as AnalysisEnrichNode[], edges: [] };
-  }
-  return {
-    nodes: Array.isArray(parsed?.nodes) ? parsed.nodes : Array.isArray(parsed?.items) ? parsed.items : [],
-    edges: Array.isArray(parsed?.edges) ? parsed.edges : [],
-  };
 }
 
 /**
@@ -141,7 +172,7 @@ export class GraphLlmEnricher {
 
     let llm: LLMClient;
     try {
-      llm = options.llm ?? new LLMClient({ maxTokens: 5000, temperature: 0 });
+      llm = options.llm ?? new LLMClient({ maxTokens: 8000, temperature: 0 });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       Logger.warn(`[GraphEnrich] LLM unavailable — keeping AST-only graph: ${message}`);
@@ -174,47 +205,57 @@ export class GraphLlmEnricher {
         filePath: t.filePath,
         signature: t.signature,
         parentId: t.parentId,
-        snippet: t.type === 'method' ? undefined : readSnippet(t.filePath),
+        // Skip large snippets for methods to keep completions under token limits
+        snippet: t.type === 'method' ? undefined : readSnippet(t.filePath)?.slice(0, 900),
       }));
 
-      const messages: LLMMessage[] = [
-        {
-          role: 'system',
-          content:
-            'You are WebPilot\'s repository graph analyzer for test automation codegen.\n' +
-            'Given structural symbols (page objects / methods), return ONLY JSON:\n' +
-            '{"nodes":[{"id":"...","type":"page|method","summary":"1-2 sentences for reuse",' +
-            '"intentTags":["fill","click","navigate"],"urlHint":"optional host or path",' +
-            '"domain":"optional","layer":"optional","relatedTo":["id or class name"]}],' +
-            '"edges":[{"source":"...","target":"...","type":"semantic|related|depends_on"}]}\n' +
-            'Rules: use exact ids from input; summaries must help an agent reuse existing APIs; ' +
-            'prefer intentTags that match Playwright actions; do not invent new page class names.',
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({ batchIndex: i + 1, symbols: payload }, null, 2),
-        },
-      ];
+      const system = {
+        role: 'system' as const,
+        content:
+          'You are WebPilot\'s repository graph analyzer for test automation codegen.\n' +
+          'Return ONLY compact JSON (no markdown):\n' +
+          '{"nodes":[{"id":"...","type":"page|method","summary":"1 sentence",' +
+          '"intentTags":["fill","click"],"urlHint":"optional","relatedTo":[]}],"edges":[]}\n' +
+          'Use exact ids. Keep summaries short. Prefer fewer edges.',
+      };
 
-      try {
-        const response = await llm.complete(messages);
-        const { nodes, edges } = parseBatchResponse(response.text);
-        const batch: AnalysisBatch = {
-          version: '1.0.0',
-          batchIndex: i + 1,
-          analyzedAt: new Date().toISOString(),
-          targetIds: group.map((t) => t.id),
-          nodes,
-          edges,
-        };
-        const batchPath = writeAnalysisBatch(batch);
-        batchesWritten++;
-        Logger.detail(
-          `[GraphEnrich] batch ${i + 1}/${groups.length}: ${nodes.length} node enrichments → ${batchPath}`
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        Logger.warn(`[GraphEnrich] batch ${i + 1} failed — merging partial results: ${message}`);
+      let nodes: AnalysisEnrichNode[] = [];
+      let edges: AnalysisBatch['edges'] = [];
+      let lastError = '';
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const messages: LLMMessage[] = [
+          system,
+          {
+            role: 'user',
+            content:
+              attempt === 0
+                ? JSON.stringify({ batchIndex: i + 1, symbols: payload }, null, 2)
+                : JSON.stringify(
+                    {
+                      batchIndex: i + 1,
+                      note: 'Previous reply was truncated/invalid JSON. Return fewer nodes (pages only if needed) as valid JSON.',
+                      symbols: payload.filter((p) => p.type !== 'method').slice(0, 3),
+                    },
+                    null,
+                    2
+                  ),
+          },
+        ];
+        try {
+          const response = await llm.complete(messages);
+          const parsed = parseBatchResponse(response.text);
+          nodes = parsed.nodes;
+          edges = parsed.edges;
+          lastError = '';
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err.message : String(err);
+          Logger.warn(`[GraphEnrich] batch ${i + 1} attempt ${attempt + 1} failed: ${lastError}`);
+        }
+      }
+
+      if (lastError && !nodes.length) {
         writeAnalysisBatch({
           version: '1.0.0',
           batchIndex: i + 1,
@@ -222,10 +263,25 @@ export class GraphLlmEnricher {
           targetIds: group.map((t) => t.id),
           nodes: [],
           edges: [],
-          rawError: message,
+          rawError: lastError,
         });
-        break;
+        // Continue other batches instead of aborting entire enrich
+        continue;
       }
+
+      const batch: AnalysisBatch = {
+        version: '1.0.0',
+        batchIndex: i + 1,
+        analyzedAt: new Date().toISOString(),
+        targetIds: group.map((t) => t.id),
+        nodes,
+        edges,
+      };
+      const batchPath = writeAnalysisBatch(batch);
+      batchesWritten++;
+      Logger.detail(
+        `[GraphEnrich] batch ${i + 1}/${groups.length}: ${nodes.length} node enrichments → ${batchPath}`
+      );
     }
 
     // --- 3. MERGE ---

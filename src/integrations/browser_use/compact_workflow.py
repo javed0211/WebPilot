@@ -304,7 +304,19 @@ def _nl_wants_loops(nl_steps: list[str]) -> bool:
 
 def _is_optional_nl(text: str) -> bool:
     """Conditional NL (If …) is soft — covered by cookie accept or allowed unmapped."""
-    return bool(re.match(r"^if\b", (text or "").strip(), re.I))
+    t = (text or "").strip().lower()
+    if t.startswith("if "):
+        return True
+    # Often folded into fill/input (Enter / search submit) rather than a discrete click.
+    if re.match(r"^(press|hit)\s+enter\b", t):
+        return True
+    if re.match(r"^submit\s+(the\s+)?search\b", t):
+        return True
+    return False
+
+
+# Keep a module-level alias used by older call sites if any.
+_OPTIONAL_NL = _is_optional_nl
 
 
 def _nl_occurrence_budget(nl_steps: list[str]) -> dict[str, int]:

@@ -15,6 +15,14 @@ import {
 } from './RepoArchitectureDetect';
 import { getCompactWorkflow } from '../codegen/CompactWorkflow';
 import { resolveExecutionHistoryPath } from '../ReportPaths';
+import { readProjectCodegenProfile } from '../codegen/PostExecutionCodegen';
+import type { CodegenProfilePlan } from '../codegen/GenerationPlan';
+import {
+  defaultPagesDir,
+  guessSpecCandidates,
+  pathAllowedForCodegen,
+  runTestsCommand,
+} from './CodegenRepoRoots';
 
 export type CodegenToolName =
   | 'kg_search'
@@ -52,19 +60,14 @@ export interface CodegenToolResult {
 }
 
 const MAX_FILE_CHARS = 24_000;
-const ALLOWED_PREFIXES = ['packages/test-framework/', 'resources/', 'tests/'];
 
 function normalizeRepoPath(p: string): string {
   return p.replace(/\\/g, '/').replace(/^\.\//, '');
 }
 
-function resolveSafePath(rel: string, allowTests = true): string | null {
+function resolveSafePath(rel: string, profile?: CodegenProfilePlan): string | null {
   const normalized = normalizeRepoPath(rel);
-  if (normalized.includes('..') || path.isAbsolute(rel)) return null;
-  const allowed = allowTests
-    ? ALLOWED_PREFIXES
-    : ALLOWED_PREFIXES.filter((p) => p !== 'tests/');
-  if (!allowed.some((prefix) => normalized.startsWith(prefix))) return null;
+  if (!pathAllowedForCodegen(normalized, profile)) return null;
   return normalized;
 }
 
@@ -97,10 +100,15 @@ function methodNamesForPage(graph: RepoKnowledgeGraphData, pageId: string): stri
  * Tool surface over WebPilot's owned knowledge graph for coding-agent codegen.
  */
 export class CodegenTools {
+  private profile: CodegenProfilePlan;
+
   constructor(
     private readonly root: string = PROJECT_ROOT,
-    private graphCache: RepoKnowledgeGraphData | null = null
-  ) {}
+    private graphCache: RepoKnowledgeGraphData | null = null,
+    profile?: CodegenProfilePlan
+  ) {
+    this.profile = profile ?? readProjectCodegenProfile();
+  }
 
   public refreshGraph(graph?: RepoKnowledgeGraphData): RepoKnowledgeGraphData {
     this.graphCache = graph ?? RepoKnowledgeGraph.load() ?? RepoKnowledgeGraph.build();
@@ -123,7 +131,7 @@ export class CodegenTools {
       case 'list_pages':
         return this.listPages();
       case 'list_dir':
-        return this.listDir(String(call.path || 'packages/test-framework/pages'));
+        return this.listDir(String(call.path || defaultPagesDir(this.profile)));
       case 'read_file':
         return this.readFile(String(call.path || ''));
       case 'get_compact_steps':
@@ -290,9 +298,13 @@ export class CodegenTools {
   }
 
   public listDir(rel: string): CodegenToolResult {
-    const safe = resolveSafePath(rel);
+    const safe = resolveSafePath(rel, this.profile);
     if (!safe) {
-      return { ok: false, tool: 'list_dir', text: 'denied — path must be under packages/test-framework/ or resources/' };
+      return {
+        ok: false,
+        tool: 'list_dir',
+        text: `denied — path must be under codegen roots for ${this.profile.language}/${this.profile.automationTool}`,
+      };
     }
     const full = path.join(this.root, safe);
     if (!fs.existsSync(full) || !fs.statSync(full).isDirectory()) {
@@ -303,9 +315,13 @@ export class CodegenTools {
   }
 
   public readFile(rel: string): CodegenToolResult {
-    const safe = resolveSafePath(rel);
+    const safe = resolveSafePath(rel, this.profile);
     if (!safe) {
-      return { ok: false, tool: 'read_file', text: 'denied — path must be under packages/test-framework/ or resources/' };
+      return {
+        ok: false,
+        tool: 'read_file',
+        text: `denied — path must be under codegen roots for ${this.profile.language}/${this.profile.automationTool}`,
+      };
     }
     const full = path.join(this.root, safe);
     if (!fs.existsSync(full)) {
@@ -373,12 +389,12 @@ export class CodegenTools {
   public writeFiles(files: Array<{ path: string; content: string }>): CodegenToolResult {
     const written: string[] = [];
     for (const file of files) {
-      const safe = resolveSafePath(String(file.path || ''), true);
+      const safe = resolveSafePath(String(file.path || ''), this.profile);
       if (!safe) {
         return {
           ok: false,
           tool: 'write_files',
-          text: `denied path: ${file.path}`,
+          text: `denied path: ${file.path} (language=${this.profile.language})`,
         };
       }
       const full = path.join(this.root, safe);
@@ -398,7 +414,7 @@ export class CodegenTools {
     if (!patch?.path || patch.oldText == null || patch.newText == null) {
       return { ok: false, tool: 'apply_patch', text: 'path, oldText, newText required' };
     }
-    const safe = resolveSafePath(patch.path);
+    const safe = resolveSafePath(patch.path, this.profile);
     if (!safe) return { ok: false, tool: 'apply_patch', text: `denied path: ${patch.path}` };
     const full = path.join(this.root, safe);
     if (!fs.existsSync(full)) return { ok: false, tool: 'apply_patch', text: `missing ${safe}` };
@@ -415,10 +431,7 @@ export class CodegenTools {
     if (!slug) {
       return { ok: false, tool: 'run_tests', text: 'slug is required' };
     }
-    const candidates = [
-      path.join('packages/test-framework/tests', `${slug}.spec.ts`),
-      path.join('packages/test-framework/tests', `${slug.replace(/-/g, '_')}.spec.ts`),
-    ];
+    const candidates = guessSpecCandidates(slug, this.profile);
     const rel = candidates.find((c) => fs.existsSync(path.join(this.root, c)));
     if (!rel) {
       return {
@@ -427,8 +440,9 @@ export class CodegenTools {
         text: `no spec found for slug ${slug} (tried ${candidates.join(', ')})`,
       };
     }
+    const cmd = runTestsCommand(slug, rel, this.profile);
     try {
-      const output = execSync(`npx playwright test ${rel} --reporter=line`, {
+      const output = execSync(cmd, {
         cwd: this.root,
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -439,15 +453,15 @@ export class CodegenTools {
         ok: true,
         tool: 'run_tests',
         text: (output || 'passed').slice(-4000),
-        data: { path: rel, passed: true },
+        data: { path: rel, passed: true, command: cmd },
       };
     } catch (err: any) {
       const output = `${err.stdout || ''}${err.stderr || err.message || ''}`.slice(-4000);
       return {
         ok: false,
         tool: 'run_tests',
-        text: output || 'playwright failed',
-        data: { path: rel, passed: false },
+        text: output || `${this.profile.language} tests failed`,
+        data: { path: rel, passed: false, command: cmd },
       };
     }
   }

@@ -1076,18 +1076,23 @@ async def run_native_browser_use_scenario(
         # Fail closed: browser-use may report success while skipping required NL steps
         # (e.g. date picker). Do not treat that as codegen-eligible discovery.
         required_unmapped = list(cov.get("unmapped") or [])
+        coverage_gate = (os.environ.get("WEBPILOT_COMPACT_COVERAGE_GATE") or "fail").strip().lower()
+        soft_gate = coverage_gate in ("0", "false", "off", "warn", "warning")
         if agent_ok and required_unmapped:
-            agent_ok = False
             msg = (
                 "Discovery incomplete — compact workflow missing required NL steps: "
                 + "; ".join(required_unmapped[:4])
             )
-            context["isSuccessful"] = False
-            context["failure"] = msg
-            context["errors"] = [msg]
-            context.setdefault("runLog", {})["isSuccessful"] = False
-            context.setdefault("runLog", {})["failures"] = [msg]
-            print(f"[WebPilot] {msg}")
+            if soft_gate:
+                print(f"[WebPilot] WARN (COMPACT_COVERAGE_GATE={coverage_gate}): {msg}")
+            else:
+                agent_ok = False
+                context["isSuccessful"] = False
+                context["failure"] = msg
+                context["errors"] = [msg]
+                context.setdefault("runLog", {})["isSuccessful"] = False
+                context.setdefault("runLog", {})["failures"] = [msg]
+                print(f"[WebPilot] {msg}")
     except Exception as compact_err:
         print(f"[WebPilot] Warning: compact workflow build skipped: {compact_err}")
 
