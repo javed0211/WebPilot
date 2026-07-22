@@ -1,7 +1,5 @@
 import { ConfigManager } from '../ConfigManager';
-import { CodegenAgent } from '../../agents/CodegenAgent';
 import { GeneratedFile } from '../../agents/CodegenAgent';
-import { CodegenWriter } from '../CodegenWriter';
 import { CodegenContext } from '../CodegenContext';
 import { LLMClient } from '../LLMClient';
 import { Logger } from '../../utils/Logger';
@@ -373,31 +371,34 @@ export async function runPostExecutionCodegen(options: {
           `(set by webpilot init → project.language). Use deterministic codegen for this stack.`
       );
     }
-    const llm = options.llmClient ?? new LLMClient();
-    const codegen = new CodegenAgent(llm);
-    const llmSteps = steps.map((step) => ({
-      action: step.action,
-      selector: step.selector ?? undefined,
-      value: step.value ?? undefined,
-      url: step.url ?? undefined,
-      description: step.description,
-    }));
-    const generated = await codegen.generateCode(
-      options.testName,
-      llmSteps,
-      options.architecture,
-      graphContext,
-      options.fallbackReason
-    );
-    const { ok, paths } = await CodegenWriter.writeAndValidate(generated.files, llm, {
-      testSlug: options.testName,
-      urls: [...new Set(steps.map((step) => step.url).filter(Boolean) as string[])],
+    const { AgentCodegenPipeline } = await import('./AgentCodegenPipeline');
+    const { resolveCodegenArchitecture } = await import('../knowledge/RepoArchitectureDetect');
+    const detection = resolveCodegenArchitecture({
+      override: options.architecture,
     });
-    return {
-      success: ok,
-      summary: ok ? generated.summary : `${generated.summary} (codegen validation failed for ${paths.join(', ')})`,
-      files: generated.files,
-    };
+    try {
+      const result = await AgentCodegenPipeline.run(pipelineInput, {
+        validate: options.validate !== false,
+        architecture: detection.architecture,
+        enrichGraph: process.env.WEBPILOT_GRAPH_ENRICH !== '0',
+        repair: true,
+      });
+      return {
+        success: true,
+        summary: buildSummary(result.metadata, result.files.length),
+        files: result.files,
+        metadata: result.metadata,
+        reportCodegen: DeterministicCodegenPipeline.toReportCodegen(result.metadata, result.plan),
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      Logger.error(`Agent codegen failed: ${message}`);
+      return {
+        success: false,
+        summary: `Agent codegen failed: ${message}`,
+        files: [],
+      };
+    }
   };
 
   const withHealContext = (result: PostExecutionCodegenResult): PostExecutionCodegenResult => {

@@ -11,6 +11,7 @@ import { HealingAgent } from '../agents/HealingAgent';
 import { SymbolParser } from './SymbolParser';
 import { CodegenContext } from './CodegenContext';
 import { RepoKnowledgeGraph } from './knowledge/RepoKnowledgeGraph';
+import { resolveCodegenArchitecture } from './knowledge/RepoArchitectureDetect';
 import { CodegenWriter } from './CodegenWriter';
 import { runPostExecutionCodegen, PostExecutionCodegenResult } from './codegen/PostExecutionCodegen';
 import { RawExecutionStep } from './codegen/ExecutionTrace';
@@ -111,7 +112,9 @@ export class Engine {
     // Interactive is always headed; otherwise headless comes from webpilot.yaml only.
     this.interactive = options.interactive ?? false;
     this.headed = this.interactive ? true : BrowserProviderRegistry.resolveHeaded();
-    this.architecture = options.architecture ?? 'pom';
+    this.architecture = resolveCodegenArchitecture({
+      override: options.architecture,
+    }).architecture;
     this.fallbackReason = options.fallbackReason;
     this.forceBrowserUse = options.forceBrowserUse ?? false;
     this.fixturePath = options.fixturePath;

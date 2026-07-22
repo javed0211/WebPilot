@@ -4,6 +4,11 @@ import { LLMClient, LLMMessage } from '../core/LLMClient';
 import { CodegenContext } from '../core/CodegenContext';
 import { CodegenFailureMemory } from '../core/codegen/CodegenFailureMemory';
 import { RepoKnowledgeGraph } from '../core/knowledge/RepoKnowledgeGraph';
+import { CodegenTools, CodegenToolCall } from '../core/knowledge/CodegenTools';
+import {
+  CodegenArchitecture,
+  resolveCodegenArchitecture,
+} from '../core/knowledge/RepoArchitectureDetect';
 import { PromptLoader } from '../core/PromptLoader';
 import { Logger } from '../utils/Logger';
 import {
@@ -22,14 +27,7 @@ type HistoryStep = {
   description: string;
 };
 
-type AgentAction =
-  | { action: 'list_pages' }
-  | { action: 'read_file'; path: string }
-  | { action: 'list_dir'; path: string }
-  | { action: 'write_files'; files: GeneratedFile[]; summary: string; fixReport?: string }
-  | { action: 'done'; summary: string; fixReport?: string };
-
-const MAX_ROUNDS = 8;
+const MAX_ROUNDS = 10;
 const MAX_FILE_CHARS = 24_000;
 
 function extractJson(text: string): string {
@@ -47,40 +45,7 @@ function normalizeRepoPath(p: string): string {
   return p.replace(/\\/g, '/').replace(/^\.\//, '');
 }
 
-function resolveSafePath(rel: string): string | null {
-  const normalized = normalizeRepoPath(rel);
-  if (normalized.includes('..') || path.isAbsolute(rel)) return null;
-  if (
-    !normalized.startsWith('packages/test-framework/') &&
-    !normalized.startsWith('resources/')
-  ) {
-    return null;
-  }
-  return normalized;
-}
-
-function listPageIndex(): string {
-  try {
-    RepoKnowledgeGraph.refresh();
-    const graph = RepoKnowledgeGraph.load();
-    if (!graph) return CodegenContext.buildSymbolGraphContext();
-    const pages = graph.nodes
-      .filter((n) => n.type === 'page')
-      .map((n) => {
-        const methods = graph.edges
-          .filter((e) => e.from === n.id && e.type === 'contains')
-          .map((e) => graph.nodes.find((x) => x.id === e.to)?.name)
-          .filter(Boolean)
-          .slice(0, 20);
-        return `- ${n.name} @ ${n.filePath || '?'} methods=[${methods.join(', ')}]`;
-      });
-    return pages.length ? pages.join('\n') : '(no page objects indexed yet)';
-  } catch {
-    return CodegenContext.buildSymbolGraphContext();
-  }
-}
-
-function sanitizeWrittenFiles(files: GeneratedFile[], urls: string[]): GeneratedFile[] {
+function sanitizeWrittenFiles(files: GeneratedFile[], urls: string[], architecture: CodegenArchitecture): GeneratedFile[] {
   const primaryUrl = urls.find(Boolean);
   const inferred = primaryUrl ? inferSitePageFromUrl(primaryUrl) : null;
 
@@ -89,30 +54,22 @@ function sanitizeWrittenFiles(files: GeneratedFile[], urls: string[]): Generated
       let filePath = normalizeRepoPath(file.path);
       const base = path.basename(filePath, '.ts');
 
-      // Rewrite invented flat Www* into site-folder names.
-      if (isInventedFlatPagePath(filePath) || isInventedFlatPageName(base)) {
+      if (architecture !== 'flat' && (isInventedFlatPagePath(filePath) || isInventedFlatPageName(base))) {
         if (inferred) {
-          Logger.warn(
-            `[RepoEditCodegen] Rewriting invented ${filePath} → ${inferred.pagePath}`
-          );
+          Logger.warn(`[RepoEditCodegen] Rewriting invented ${filePath} → ${inferred.pagePath}`);
           filePath = inferred.pagePath;
-          // Best-effort rename class in content
           file.content = file.content.replace(
             new RegExp(`\\bclass\\s+${base}\\b`, 'g'),
             `class ${inferred.className}`
           );
-          file.content = file.content.replace(
-            new RegExp(`\\b${base}\\b`, 'g'),
-            inferred.className
-          );
+          file.content = file.content.replace(new RegExp(`\\b${base}\\b`, 'g'), inferred.className);
         }
       }
 
-      // Specs importing invented flat pages → prefer site path if we rewrote.
       return { path: filePath, content: file.content };
     })
     .filter((file) => {
-      if (isInventedFlatPagePath(file.path)) {
+      if (architecture !== 'flat' && isInventedFlatPagePath(file.path)) {
         Logger.warn(`[RepoEditCodegen] Rejecting invented flat page: ${file.path}`);
         return false;
       }
@@ -121,27 +78,27 @@ function sanitizeWrittenFiles(files: GeneratedFile[], urls: string[]): Generated
 }
 
 /**
- * Cursor-style codegen: read real repo files, then surgically write POMs/specs.
- * Replaces one-shot invent that ignored existing page objects.
+ * Coding-agent codegen: tool loop over WebPilot knowledge graph + repo files.
  */
 export class RepoEditCodegenAgent {
   private llm: LLMClient;
+  private tools: CodegenTools;
   private written: GeneratedFile[] = [];
   private lastSummary = '';
   private lastFixReport?: string;
 
-  constructor(llm: LLMClient) {
-    // Surgical edits need larger completions than default chat.
+  constructor(llm: LLMClient, tools?: CodegenTools) {
     this.llm =
       llm instanceof LLMClient
         ? new LLMClient({ maxTokens: 16000 })
         : new LLMClient({ maxTokens: 16000 });
+    this.tools = tools ?? new CodegenTools();
   }
 
   public async generateCode(
     testName: string,
     history: HistoryStep[],
-    architecture: 'flat' | 'pom' | 'bdd' | 'pom-bdd',
+    architecture: CodegenArchitecture,
     _symbolGraphContext?: string,
     fallbackReason?: string
   ): Promise<CodegenResult> {
@@ -156,15 +113,22 @@ export class RepoEditCodegenAgent {
       }))
     );
 
-    const urls = [
-      ...new Set(filtered.steps.map((s) => s.url).filter(Boolean) as string[]),
-    ];
-    const pageIndex = listPageIndex();
+    const urls = [...new Set(filtered.steps.map((s) => s.url).filter(Boolean) as string[])];
+    const detection = resolveCodegenArchitecture({ override: architecture });
+    const arch = detection.architecture;
+
+    try {
+      const graph = RepoKnowledgeGraph.load() ?? RepoKnowledgeGraph.refresh();
+      this.tools.refreshGraph(graph);
+    } catch {
+      this.tools.refreshGraph();
+    }
+
     const priorFailures = CodegenFailureMemory.toPromptBlock(testName);
     const failureContext = [fallbackReason, priorFailures].filter(Boolean).join('\n\n');
-
-    // Pre-read likely page files (Cursor always starts by reading).
-    const seedReads = this.seedReadFiles(urls);
+    const archResult = this.tools.detectArchitecture(arch);
+    const pageIndex = this.tools.listPages().text;
+    const seedReads = this.seedReadFiles(urls, arch);
     const historyText = filtered.steps
       .map(
         (h, i) =>
@@ -185,22 +149,21 @@ export class RepoEditCodegenAgent {
         role: 'user',
         content: [
           `Test: ${testName}`,
-          `Architecture: ${architecture}`,
+          `Architecture: ${arch} (frameworkPattern=${detection.frameworkPattern}, confidence=${detection.confidence})`,
+          `Architecture signals:\n${archResult.text}`,
           filtered.dropped
             ? `Filtered ${filtered.dropped} non-Playwright ActHistory step(s) before codegen.`
             : '',
           '',
-          '## Existing page objects (repo)',
+          '## Existing page objects (knowledge graph)',
           pageIndex,
           '',
           '## Pre-read files',
-          seedReads || '(none matched yet — use list_pages / read_file)',
+          seedReads || '(none matched yet — use kg_find_page / read_file)',
           '',
           '## ActHistory (Playwright-relevant only)',
           historyText || '(empty after filter)',
-          failureContext
-            ? `\n## Prior Playwright / validation failure\n${failureContext}\n`
-            : '',
+          failureContext ? `\n## Prior Playwright / validation failure\n${failureContext}\n` : '',
           '',
           'Respond with ONE JSON action object only.',
         ]
@@ -210,101 +173,51 @@ export class RepoEditCodegenAgent {
     ];
 
     Logger.info(
-      `[RepoEditCodegen] Cursor-style edit loop (filter dropped ${filtered.dropped} step(s), ${MAX_ROUNDS} rounds max)`
+      `[RepoEditCodegen] Tool loop (arch=${arch}, filter dropped ${filtered.dropped}, ${MAX_ROUNDS} rounds max)`
     );
 
     for (let round = 1; round <= MAX_ROUNDS; round++) {
       const response = await this.llm.complete(messages);
-      let parsed: AgentAction;
+      let parsed: CodegenToolCall;
       try {
-        parsed = JSON.parse(extractJson(response.text)) as AgentAction;
+        parsed = JSON.parse(extractJson(response.text)) as CodegenToolCall;
       } catch {
         messages.push({ role: 'assistant', content: response.text });
         messages.push({
           role: 'user',
           content:
-            'Parse error. Reply with a single JSON object: {"action":"list_pages"|"read_file"|"list_dir"|"write_files"|"done", ...}',
+            'Parse error. Reply with a single JSON object using tools: ' +
+            'kg_search|kg_find_page|kg_find_method|list_pages|list_dir|read_file|get_compact_steps|' +
+            'detect_architecture|write_files|apply_patch|run_tests|done.',
         });
         continue;
       }
 
       messages.push({ role: 'assistant', content: JSON.stringify(parsed) });
 
-      if (parsed.action === 'list_pages') {
-        const result = listPageIndex();
-        messages.push({ role: 'user', content: `TOOL RESULT list_pages:\n${result}` });
-        continue;
-      }
-
-      if (parsed.action === 'read_file') {
-        const safe = resolveSafePath(String(parsed.path || ''));
-        if (!safe) {
-          messages.push({
-            role: 'user',
-            content: 'TOOL RESULT read_file: denied — path must be under packages/test-framework/',
-          });
-          continue;
-        }
-        const full = path.join(process.cwd(), safe);
-        if (!fs.existsSync(full)) {
-          messages.push({
-            role: 'user',
-            content: `TOOL RESULT read_file: missing ${safe}`,
-          });
-          continue;
-        }
-        let content = fs.readFileSync(full, 'utf8');
-        if (content.length > MAX_FILE_CHARS) {
-          content = content.slice(0, MAX_FILE_CHARS) + '\n/* …truncated… */\n';
-        }
-        messages.push({
-          role: 'user',
-          content: `TOOL RESULT read_file ${safe}:\n\`\`\`ts\n${content}\n\`\`\``,
-        });
-        continue;
-      }
-
-      if (parsed.action === 'list_dir') {
-        const safe = resolveSafePath(String(parsed.path || 'packages/test-framework/pages'));
-        if (!safe) {
-          messages.push({ role: 'user', content: 'TOOL RESULT list_dir: denied' });
-          continue;
-        }
-        const full = path.join(process.cwd(), safe);
-        if (!fs.existsSync(full) || !fs.statSync(full).isDirectory()) {
-          messages.push({ role: 'user', content: `TOOL RESULT list_dir: missing ${safe}` });
-          continue;
-        }
-        const entries = fs.readdirSync(full).slice(0, 80).join('\n');
-        messages.push({
-          role: 'user',
-          content: `TOOL RESULT list_dir ${safe}:\n${entries}`,
-        });
-        continue;
-      }
-
       if (parsed.action === 'write_files') {
-        const files = sanitizeWrittenFiles(parsed.files || [], urls);
+        const files = sanitizeWrittenFiles(
+          (parsed.files || []).map((f) => ({ path: f.path, content: f.content })),
+          urls,
+          arch
+        );
         if (!files.length) {
           messages.push({
             role: 'user',
             content:
-              'TOOL RESULT write_files: no valid files (invented Www* flat pages are rejected). Reuse pages/<site>/ or create under that folder, then write_files again.',
+              arch === 'flat'
+                ? 'TOOL RESULT write_files: no valid files. Emit a flat spec under packages/test-framework/tests/.'
+                : 'TOOL RESULT write_files: no valid files (invented Www* flat pages are rejected). Reuse pages/<site>/ then write_files again.',
           });
           continue;
         }
+        const result = await this.tools.execute({ action: 'write_files', files });
         this.written = files;
         this.lastSummary = parsed.summary || `Wrote ${files.length} file(s) via RepoEditCodegen`;
         this.lastFixReport = parsed.fixReport;
-        // Persist immediately so subsequent reads see updates (Cursor-like).
-        for (const file of files) {
-          const full = path.join(process.cwd(), file.path);
-          fs.mkdirSync(path.dirname(full), { recursive: true });
-          fs.writeFileSync(full, file.content, 'utf8');
-        }
         messages.push({
           role: 'user',
-          content: `TOOL RESULT write_files: saved ${files.map((f) => f.path).join(', ')}. If done, respond {"action":"done","summary":"..."}.`,
+          content: `TOOL RESULT write_files: ${result.text}. If done, respond {"action":"done","summary":"..."}.`,
         });
         continue;
       }
@@ -315,16 +228,25 @@ export class RepoEditCodegenAgent {
         break;
       }
 
-      messages.push({
-        role: 'user',
-        content: `Unknown action. Use list_pages | read_file | list_dir | write_files | done.`,
-      });
+      // Bind slug for history/tests tools when omitted
+      if (
+        (parsed.action === 'get_compact_steps' || parsed.action === 'run_tests') &&
+        !parsed.slug
+      ) {
+        parsed.slug = testName;
+      }
+
+      const result = await this.tools.execute(parsed);
+      const body =
+        parsed.action === 'read_file' && result.ok
+          ? `TOOL RESULT read_file ${parsed.path}:\n\`\`\`ts\n${String(result.text).slice(0, MAX_FILE_CHARS)}\n\`\`\``
+          : `TOOL RESULT ${parsed.action}:\n${result.text}`;
+      messages.push({ role: 'user', content: body });
     }
 
     if (!this.written.length) {
-      // Fallback: still try to emit a minimal site-folder scaffold from filtered history.
-      Logger.warn('[RepoEditCodegen] No write_files — falling back to minimal site scaffold');
-      return this.minimalFallback(testName, filtered.steps, urls);
+      Logger.warn('[RepoEditCodegen] No write_files — falling back to minimal scaffold');
+      return this.minimalFallback(testName, filtered.steps, urls, arch);
     }
 
     return {
@@ -334,27 +256,36 @@ export class RepoEditCodegenAgent {
     };
   }
 
-  private seedReadFiles(urls: string[]): string {
+  private seedReadFiles(urls: string[], architecture: CodegenArchitecture): string {
+    if (architecture === 'flat') {
+      const testsDir = path.join(process.cwd(), 'packages/test-framework/tests');
+      if (!fs.existsSync(testsDir)) return '';
+      const chunks: string[] = [];
+      for (const name of fs.readdirSync(testsDir).filter((n) => n.endsWith('.spec.ts')).slice(0, 4)) {
+        const rel = `packages/test-framework/tests/${name}`;
+        let content = fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
+        if (content.length > 8_000) content = content.slice(0, 8_000) + '\n/* truncated */\n';
+        chunks.push(`### ${rel}\n\`\`\`ts\n${content}\n\`\`\``);
+      }
+      return chunks.join('\n\n');
+    }
+
     const chunks: string[] = [];
     const candidates = new Set<string>();
     for (const url of urls) {
+      const pageHit = this.tools.kgFindPage(url);
+      if (pageHit.data && Array.isArray(pageHit.data)) {
+        for (const node of pageHit.data as Array<{ filePath?: string }>) {
+          if (node.filePath) candidates.add(normalizeRepoPath(node.filePath));
+        }
+      }
       const inferred = inferSitePageFromUrl(url);
       candidates.add(inferred.pagePath);
-      // Also try existing site folder files.
       const dir = path.join(process.cwd(), 'packages/test-framework/pages', inferred.siteFolder);
       if (fs.existsSync(dir)) {
         for (const name of fs.readdirSync(dir).filter((n) => n.endsWith('.ts')).slice(0, 6)) {
-          candidates.add(
-            path.posix.join('packages/test-framework/pages', inferred.siteFolder, name)
-          );
+          candidates.add(path.posix.join('packages/test-framework/pages', inferred.siteFolder, name));
         }
-      }
-    }
-    // automationexercise canonical folder
-    const aeDir = path.join(process.cwd(), 'packages/test-framework/pages/automationexercise');
-    if (fs.existsSync(aeDir) && urls.some((u) => /automationexercise/i.test(u))) {
-      for (const name of fs.readdirSync(aeDir).filter((n) => n.endsWith('Page.ts')).slice(0, 8)) {
-        candidates.add(`packages/test-framework/pages/automationexercise/${name}`);
       }
     }
 
@@ -371,11 +302,28 @@ export class RepoEditCodegenAgent {
   private minimalFallback(
     testName: string,
     steps: { action: string; url?: string | null; description: string }[],
-    urls: string[]
+    urls: string[],
+    architecture: CodegenArchitecture
   ): CodegenResult {
     const url = urls[0] || 'https://example.com/';
-    const inferred = inferSitePageFromUrl(url);
     const slug = testName.replace(/\s+/g, '_').toLowerCase();
+
+    if (architecture === 'flat') {
+      const specContent = `import { test, expect } from '@playwright/test';
+
+test.describe('${testName}', () => {
+  test('${testName}', async ({ page }) => {
+    await page.goto('${url.replace(/'/g, "\\'")}');
+  });
+});
+`;
+      return {
+        files: [{ path: `packages/test-framework/tests/${slug}.spec.ts`, content: specContent }],
+        summary: `Minimal flat spec scaffold for ${testName} (RepoEdit wrote nothing).`,
+      };
+    }
+
+    const inferred = inferSitePageFromUrl(url);
     const pageContent = `import { Page } from '@playwright/test';
 import { BasePage } from '../../core/BasePage';
 

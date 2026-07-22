@@ -17,6 +17,24 @@ const SUCCESS_WORDS = [
 
 const VERIFY_WORDS = ['verify', 'assert', 'check', 'see', 'visible', 'shown', 'displayed', 'loaded'];
 
+/** Strip verify/assert boilerplate to a likely on-page text fragment. */
+export function extractAssertText(step: string): string | null {
+  let text = step.trim();
+  text = text.replace(/^(verify|assert|check|ensure)\s+/i, '');
+  text = text.replace(/\s+(is|are)\s+(visible|displayed|shown|present|loaded).*$/i, '');
+  text = text.replace(/\s+loads?\s+successfully.*$/i, '');
+  text = text.replace(/^that\s+/i, '');
+  text = text.replace(/^the\s+/i, '');
+  text = text.replace(/\s+section$/i, '');
+  text = text.replace(/\s+page$/i, '');
+  text = text.replace(/\s+(link|button|heading|menu|tab|checkbox|radio)$/i, '');
+  text = text.replace(/[."']+$/g, '').trim();
+  if (!text || text.length > 120) return null;
+  // Still looks like an instruction, not page copy.
+  if (/^(verify|assert|check|ensure)\b/i.test(text)) return null;
+  return text;
+}
+
 function clamp(value: number): number {
   return Math.max(0, Math.min(0.99, Number(value.toFixed(2))));
 }
@@ -169,15 +187,67 @@ function assertTextOrUrlValue(step: TraceStep): AssertionCandidate | null {
       risks: [],
     };
   }
-  // A grounded selector is stronger than repeating the NL value as literal
-  // page text (for example, a Booking.com brand link assertion).
+
+  const nl = `${step.intent || ''} ${step.description || ''} ${step.value || ''}`;
+  const urlContains = nl.match(/\burl\s+contains\s+(.+)$/i);
+  if (urlContains) {
+    const expected = urlContains[1].replace(/[."']+$/g, '').trim();
+    if (expected) {
+      return {
+        kind: 'url_contains',
+        strength: 'strong',
+        confidence: 0.91,
+        description: `URL contains "${expected}"`,
+        expected,
+        source: 'intent',
+        signals: ['url-contains', 'nl-derived'],
+        risks: [],
+      };
+    }
+  }
+
+  // Brand/logo asserts: "Verify the Booking.com logo…" → brand link, not the NL sentence.
+  const brandWord = nl.match(/([A-Z][a-zA-Z0-9]*\.(?:com|org|net|io))/)?.[1];
+  if (brandWord && /\blogo\b/i.test(nl)) {
+    return {
+      kind: 'role_visible',
+      strength: 'strong',
+      confidence: 0.9,
+      description: `${brandWord} logo link is visible`,
+      expected: brandWord,
+      selector: {
+        kind: 'role',
+        value: `link[name='${brandWord}']`,
+        confidence: 0.88,
+        signals: ['brand-logo', 'nl-derived'],
+        risks: [],
+      },
+      source: 'intent',
+      signals: ['brand-logo', 'nl-derived'],
+      risks: [],
+    };
+  }
+
+  // A grounded selector is stronger than repeating the NL value as literal page text.
   if (step.selector) return null;
+
+  const text =
+    extractAssertText(step.value) ||
+    extractAssertText(step.intent || '') ||
+    extractAssertText(step.description || '');
+  if (!text) return null;
+
+  // Compound page-state NL ("X and Y are visible") is not literal page text.
+  if (/\band\b/i.test(text) && text.length > 40) {
+    return null;
+  }
+
   return {
     kind: 'text_visible',
     strength: 'strong',
     confidence: 0.9,
-    description: `Text "${step.value}" is visible`,
-    expected: step.value,
+    description: `Text "${text}" is visible`,
+    expected: text,
     // Never attach invented role:link candidates — emitter must use getByText.
     selector: undefined,
     source: 'intent',

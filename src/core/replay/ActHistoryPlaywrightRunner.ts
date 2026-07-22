@@ -18,6 +18,7 @@ import type {
 } from './ActHistoryTypes';
 import { sanitizeActHistoryForReplay, isBadInputLocator } from './ActHistorySanitizer';
 import { compactWorkflowToActSteps } from '../codegen/CompactWorkflow';
+import { executeAssertStep } from './AssertStepExecutor';
 import {
   bindHealedSelector,
   bindLocator,
@@ -70,6 +71,15 @@ function normalizeAction(action: string): string {
   if (a === 'fill' || a === 'type') return 'input';
   if (a === 'send_keys') return 'press';
   if (a === 'navigate_back' || a === 'back') return 'go_back';
+  if (
+    a === 'verify' ||
+    a === 'expect' ||
+    a === 'check' ||
+    a === 'assert_visible_page' ||
+    a === 'browser-use-assertion'
+  ) {
+    return 'assert';
+  }
   return a;
 }
 
@@ -915,15 +925,27 @@ export class ActHistoryPlaywrightRunner {
             stepResult.ok = true;
             stepResult.locatorUsed = resolved.description;
             }
+          } else if (action === 'assert') {
+            const used = await executeAssertStep(
+              page,
+              step,
+              stepLocators(step),
+              timeout
+            );
+            stepResult.ok = true;
+            stepResult.locatorUsed = used;
           } else if (action === 'search' || action === 'extract' || action === 'find_text' || action === 'evaluate') {
+            // Agent-tool residue — never treat as a passed verification.
             stepResult.ok = true;
             stepResult.locatorUsed = `skipped:${action}`;
           } else if (action === 'switch' || action === 'close') {
             stepResult.ok = true;
             stepResult.locatorUsed = `skipped:${action}`;
           } else {
-            stepResult.ok = true;
-            stepResult.locatorUsed = `skipped:${action}`;
+            throw new Error(
+              `unsupported replay action "${action}" — refusing silent skip ` +
+                `(description=${(step.description || '').slice(0, 80)})`
+            );
           }
         } catch (err) {
           stepResult.ok = false;

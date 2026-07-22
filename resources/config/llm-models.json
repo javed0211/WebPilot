@@ -3,20 +3,24 @@
     {
       "match": "gpt-5",
       "tokenLimitField": "max_completion_tokens",
-      "notes": "Azure/OpenAI gpt-5.x rejects max_tokens"
+      "omitTemperature": true,
+      "notes": "Azure/OpenAI gpt-5.x rejects max_tokens and non-default temperature"
     },
     {
       "match": "o1",
       "tokenLimitField": "max_completion_tokens",
+      "omitTemperature": true,
       "notes": "Reasoning models use max_completion_tokens"
     },
     {
       "match": "o3",
-      "tokenLimitField": "max_completion_tokens"
+      "tokenLimitField": "max_completion_tokens",
+      "omitTemperature": true
     },
     {
       "match": "o4",
-      "tokenLimitField": "max_completion_tokens"
+      "tokenLimitField": "max_completion_tokens",
+      "omitTemperature": true
     }
   ],
   "defaults": {

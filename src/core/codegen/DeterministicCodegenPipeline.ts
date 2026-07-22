@@ -5,6 +5,7 @@ import { GeneratedFile } from '../../agents/CodegenAgent';
 import { CodegenWriter } from '../CodegenWriter';
 import { LLMClient } from '../LLMClient';
 import { RepoKnowledgeGraph } from '../knowledge/RepoKnowledgeGraph';
+import { resolveCodegenArchitecture } from '../knowledge/RepoArchitectureDetect';
 import { ActHistoryCodegenAdapter } from './ActHistoryCodegenAdapter';
 import {
   codegenMetadataPath,
@@ -338,10 +339,13 @@ export class DeterministicCodegenPipeline {
         }));
         const failureDetail = formatValidationFailure(validation);
         const prior = CodegenFailureMemory.toPromptBlock(trace.scenarioSlug);
+        const detection = resolveCodegenArchitecture({
+          override: plan.profile.frameworkPattern,
+        });
         const generated = await agent.generateCode(
           input.scenario,
           llmSteps,
-          'pom',
+          detection.architecture,
           graphContext,
           [failureDetail, prior].filter(Boolean).join('\n\n')
         );

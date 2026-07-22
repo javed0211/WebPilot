@@ -207,3 +207,154 @@ def test_digital_like_unmapped_coverage_when_back_missing():
     ]
     compact = build_compact_workflow(acts, nl, [])
     assert "Click Backward button till it get disabled" in compact["coverage"]["unmapped"]
+
+
+def test_search_page_promoted_to_assert_with_locators():
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://playwright.dev/",
+            "value": "https://playwright.dev/",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "search_page",
+            "description": 'Searched page for "Installation": 2 matches found.',
+            "locators": [],
+        },
+        {
+            "index": 3,
+            "action": "search_page",
+            "description": 'Searched page for "intro": 3 matches found.',
+            "locators": [],
+        },
+        {
+            "index": 4,
+            "action": "search_page",
+            "description": 'Searched page for "zzznomatch": 0 matches found.',
+            "locators": [],
+        },
+    ]
+    nl = [
+        "Navigate to https://playwright.dev/",
+        "Verify Installation is displayed",
+        "Verify page URL contains intro",
+    ]
+    plan = [
+        {"index": 2, "kind": "assert", "nlStep": "Verify Installation is displayed"},
+        {"index": 3, "kind": "assert", "nlStep": "Verify page URL contains intro"},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    actions = [s["action"] for s in compact["steps"]]
+    assert "search_page" not in actions
+    install = next(s for s in compact["steps"] if "Installation" in (s.get("nlStep") or ""))
+    assert install["action"] == "assert"
+    assert any(
+        (l.get("kind") == "text" and l.get("value") == "Installation")
+        for l in (install.get("selectorCandidates") or []) + ([install["locator"]] if install.get("locator") else [])
+    )
+    url_assert = next(s for s in compact["steps"] if "url contains intro" in (s.get("nlStep") or "").lower())
+    assert url_assert["action"] == "assert"
+    assert str(url_assert.get("value") or "").startswith("__url_contains__:")
+    assert any(d["reason"] == "drop agent-tool search_page" for d in compact["dropped"])
+
+
+def test_asserts_interleaved_by_nl_index_not_appended():
+    """Verifies must run on the page where NL places them — not after final go_back."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://playwright.dev/",
+            "value": "https://playwright.dev/",
+            "description": "navigate",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "click",
+            "description": "click | Get started",
+            "locators": [{"kind": "role", "value": "link", "name": "Get started"}],
+        },
+        {
+            "index": 3,
+            "action": "go_back",
+            "description": "go_back",
+            "locators": [],
+        },
+        {
+            "index": 4,
+            "action": "click",
+            "description": "click | Docs",
+            "locators": [{"kind": "role", "value": "link", "name": "Docs"}],
+        },
+        {
+            "index": 5,
+            "action": "go_back",
+            "description": "go_back again",
+            "locators": [],
+        },
+    ]
+    nl = [
+        "Navigate to https://playwright.dev/",
+        "Verify Playwright homepage loads successfully",
+        "Verify Get started link is visible",
+        "Click Get started",
+        "Verify Getting Started page is displayed",
+        "Verify page URL contains intro",
+        "Navigate back to the previous page",
+        "Click Docs",
+        "Verify page URL contains docs",
+        "Navigate back to the previous page",
+        "Verify Copyright © 2026 Microsoft is displayed in the footer",
+    ]
+    assertion_plan = [
+        {"index": 2, "kind": "assert", "nlStep": "Verify Playwright homepage loads successfully"},
+        {"index": 3, "kind": "assert", "nlStep": "Verify Get started link is visible"},
+        {"index": 5, "kind": "assert", "nlStep": "Verify Getting Started page is displayed"},
+        {"index": 6, "kind": "assert", "nlStep": "Verify page URL contains intro"},
+        {"index": 9, "kind": "assert", "nlStep": "Verify page URL contains docs"},
+        {"index": 11, "kind": "assert", "nlStep": "Verify Copyright © 2026 Microsoft is displayed in the footer"},
+    ]
+    compact = build_compact_workflow(acts, nl, assertion_plan)
+    labels = [
+        f"{s['action']}:{(s.get('nlStep') or '')[:40]}"
+        for s in compact["steps"]
+    ]
+    # Homepage asserts before Get started click
+    home_i = next(i for i, s in enumerate(compact["steps"]) if "homepage loads" in (s.get("nlStep") or "").lower())
+    get_started_link_i = next(
+        i for i, s in enumerate(compact["steps"]) if "get started link" in (s.get("nlStep") or "").lower()
+    )
+    click_gs_i = next(
+        i
+        for i, s in enumerate(compact["steps"])
+        if s["action"] == "click" and "Get started" in (s.get("nlStep") or s.get("description") or "")
+    )
+    assert home_i < click_gs_i, labels
+    assert get_started_link_i < click_gs_i, labels
+
+    # Intro asserts after Get started click, before first go_back
+    intro_url_i = next(i for i, s in enumerate(compact["steps"]) if "url contains intro" in (s.get("nlStep") or "").lower())
+    getting_started_i = next(
+        i for i, s in enumerate(compact["steps"]) if "getting started page" in (s.get("nlStep") or "").lower()
+    )
+    go_backs = [i for i, s in enumerate(compact["steps"]) if s["action"] == "go_back"]
+    assert len(go_backs) == 2, labels
+    assert click_gs_i < getting_started_i < go_backs[0], labels
+    assert click_gs_i < intro_url_i < go_backs[0], labels
+
+    # Docs URL assert between Docs click and second go_back
+    click_docs_i = next(
+        i
+        for i, s in enumerate(compact["steps"])
+        if s["action"] == "click" and "Docs" in (s.get("nlStep") or s.get("description") or "")
+    )
+    docs_url_i = next(i for i, s in enumerate(compact["steps"]) if "url contains docs" in (s.get("nlStep") or "").lower())
+    assert click_docs_i < docs_url_i < go_backs[1], labels
+
+    # Footer assert after final go_back
+    footer_i = next(i for i, s in enumerate(compact["steps"]) if "copyright" in (s.get("nlStep") or "").lower())
+    assert go_backs[1] < footer_i, labels

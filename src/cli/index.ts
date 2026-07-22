@@ -2408,7 +2408,7 @@ program
     'Deprecated: ignored — set browser.headless in resources/config/webpilot.yaml',
     false
   )
-  .option('--architecture <arch>', 'Target generated architecture: flat, pom, bdd, pom-bdd', 'pom')
+  .option('--architecture <arch>', 'Target generated architecture: flat, pom, bdd, pom-bdd (auto-detect if omitted)')
   .option('--parallel <workers>', 'Run parallel workers', '1')
   .option('--provider <name>', 'Browser provider: local-playwright, browser-use (WebPilot agent), testmu')
   .option('--report', 'Automatically generate HTML report after run completes')
@@ -2780,7 +2780,7 @@ program
   .command('interactive')
   .argument('<file>', 'Path to the natural language test script')
   .option('-e, --env <env>', 'Environment to switch to', 'qa')
-  .option('--architecture <arch>', 'Target generated architecture', 'pom')
+  .option('--architecture <arch>', 'Target generated architecture: flat, pom, bdd, pom-bdd (auto-detect if omitted)')
   .description('Execute web test in human-in-the-loop interactive mode')
   .action(async (file, options) => {
     const testName = path.basename(file, path.extname(file));
@@ -3004,15 +3004,32 @@ historyCmd
 
 /**
  * COMMAND: generate
- * Build deterministic Playwright code from a saved execution trace/plan.
+ * Build Playwright code from a saved execution history (agent+tools by default when
+ * the knowledge graph has pages; use --deterministic for template-only emit).
  */
 program
   .command('generate')
-  .description('Generate deterministic Playwright code from a saved execution trace')
+  .description('Generate Playwright code from a saved execution trace (agent+KG tools by default)')
   .option('--from <slug>', 'Scenario slug to generate from, or "latest"', 'latest')
   .option('--no-validate', 'Skip TypeScript and Playwright validation')
-  .option('--repair', 'Opt-in CodegenAgent LLM repair when deterministic validation fails (off by default)')
-  .action(async (options: { from?: string; validate?: boolean; repair?: boolean }) => {
+  .option('--deterministic', 'Force deterministic template emit (no coding agent)')
+  .option('--agent', 'Force coding-agent codegen over the knowledge graph')
+  .option('--architecture <arch>', 'Override architecture: flat, pom, bdd, pom-bdd')
+  .option('--no-enrich', 'Skip LLM graph enrichment before agent codegen')
+  .option('--repair', 'Opt-in LLM repair when deterministic validation fails (deterministic path)')
+  .option('--no-repair', 'Skip repair round on agent validation failure')
+  .action(async (options: {
+    from?: string;
+    validate?: boolean;
+    deterministic?: boolean;
+    agent?: boolean;
+    architecture?: string;
+    enrich?: boolean;
+    repair?: boolean;
+  }) => {
+    const { AgentCodegenPipeline } = require('../core/codegen/AgentCodegenPipeline') as typeof import('../core/codegen/AgentCodegenPipeline');
+    const { resolveCodegenArchitecture } = require('../core/knowledge/RepoArchitectureDetect') as typeof import('../core/knowledge/RepoArchitectureDetect');
+
     const slug =
       options.from === 'latest'
         ? readLatestPointer()?.slug || (() => {
@@ -3020,10 +3037,41 @@ program
           })()
         : options.from!;
 
-    console.log(`\n${chalk.magenta('=== WebPilot Deterministic Codegen ===')}`);
+    const detection = resolveCodegenArchitecture({
+      override: options.architecture,
+    });
+    const forceDeterministic = Boolean(options.deterministic) || process.env.WEBPILOT_CODEGEN_DETERMINISTIC === '1';
+    const forceAgent = Boolean(options.agent) || process.env.WEBPILOT_CODEGEN_AGENT === '1';
+    const useAgent =
+      !forceDeterministic &&
+      (forceAgent || AgentCodegenPipeline.shouldPreferAgent());
+
+    console.log(`\n${chalk.magenta(useAgent ? '=== WebPilot Agent Codegen ===' : '=== WebPilot Deterministic Codegen ===')}`);
     console.log(`  Scenario slug: ${chalk.cyan(slug)}`);
+    console.log(
+      `  Architecture : ${chalk.cyan(detection.architecture)} ` +
+        chalk.dim(`(${detection.confidence}) ${detection.reasons[0] || ''}`)
+    );
 
     try {
+      if (useAgent) {
+        const result = await AgentCodegenPipeline.runFromSlug(slug, {
+          validate: options.validate !== false,
+          architecture: options.architecture || detection.architecture,
+          enrichGraph: options.enrich !== false,
+          repair: options.repair !== false,
+        });
+        console.log(`\n${chalk.green('Generated files:')}`);
+        for (const file of result.files) {
+          console.log(`  - ${file.path}`);
+        }
+        console.log(`\n${chalk.dim('Trace:')} ${result.metadata.sourceTrace}`);
+        console.log(`${chalk.dim('Plan:')} ${result.metadata.sourcePlan}`);
+        console.log(`\n${DeterministicCodegenPipeline.planSummary(result.plan)}`);
+        console.log(`\n${chalk.dim('Replay without LLM:')} webpilot replay ${result.plan.specPath}`);
+        return;
+      }
+
       const result = await DeterministicCodegenPipeline.runFromSlug(slug, {
         validate: options.validate !== false,
         agentRepair: Boolean(options.repair),
@@ -3095,23 +3143,26 @@ program
 /**
  * COMMAND: graph
  * Build a repository knowledge graph (page objects, tests, methods, relationships)
- * that is fed into code generation so the model reuses existing code instead of
- * re-inventing it. Reuses the TypeScript AST and, if present, enrichment from an
- * Understand-Anything graph (.ua/knowledge-graph.json or legacy .understand-anything/).
+ * that grounds code generation. AST is always built; optional `--enrich` runs
+ * WebPilot LLM semantic enrichment (no Cursor / Understand-Anything required).
  */
 program
   .command('graph')
   .description('Build/refresh the repository knowledge graph used to ground code generation')
   .option('--json', 'Print the full graph JSON to stdout instead of a summary')
   .option('--summary', 'Print the compact prompt summary that is injected into codegen')
+  .option('--enrich', 'Run WebPilot LLM semantic enrichment (summaries, intent tags)')
   .option('--out <path>', 'Write the graph JSON to a custom path')
-  .action(async (options: { json?: boolean; summary?: boolean; out?: string }) => {
+  .action(async (options: { json?: boolean; summary?: boolean; enrich?: boolean; out?: string }) => {
+    const { detectRepoArchitecture } = require('../core/knowledge/RepoArchitectureDetect') as typeof import('../core/knowledge/RepoArchitectureDetect');
     const uaStatus = RepoKnowledgeGraph.understandAnythingStatus();
-    const graph = await RepoKnowledgeGraph.buildAsync();
+    const enrich = Boolean(options.enrich) || process.env.WEBPILOT_GRAPH_ENRICH === '1';
+    const graph = await RepoKnowledgeGraph.buildAndMaybeEnrich({ enrich });
     const outPath = options.out
       ? path.resolve(process.cwd(), options.out)
       : KNOWLEDGE_GRAPH_PATH;
     RepoKnowledgeGraph.save(graph, outPath);
+    const layout = detectRepoArchitecture();
 
     if (options.json) {
       console.log(JSON.stringify(graph, null, 2));
@@ -3127,19 +3178,27 @@ program
       sources.typescriptCompiler ? 'TypeScript compiler AST' : null,
       sources.symbolParser ? 'TypeScript AST' : null,
       sources.treeSitter ? 'tree-sitter' : null,
-      sources.understandAnything ? 'Understand-Anything' : null,
+      sources.llmEnrich ? 'WebPilot LLM enrich' : null,
+      sources.understandAnything ? 'Understand-Anything (optional)' : null,
     ].filter(Boolean);
 
     console.log(`\n${chalk.magenta('=== WebPilot Repository Knowledge Graph ===')}`);
     console.log(`  Profile     : ${chalk.cyan(`${profile.language}/${profile.automationTool}/${profile.frameworkPattern}`)}`);
+    console.log(`  Layout      : ${chalk.cyan(layout.architecture)} ${chalk.dim(`(${layout.confidence})`)}`);
     console.log(`  Sources     : ${srcParts.join(' + ') || 'none'}`);
-    if (uaStatus.found) {
-      console.log(`  UA graph    : ${chalk.green(uaStatus.relativePath)}`);
+    if (sources.llmEnrich) {
+      console.log(`  LLM enrich  : ${chalk.green('yes')}`);
+      console.log(`  Intermediate: ${chalk.dim('runtime/knowledge/intermediate/ (scan + batches + merge-report)')}`);
+    } else if (enrich) {
+      console.log(`  LLM enrich  : ${chalk.yellow('requested but no updates (check LLM keys / targets)')}`);
     } else {
       console.log(
-        `  UA graph    : ${chalk.dim('optional — not present')} ` +
-          chalk.dim('(AST graph is enough; .ua/ merges automatically if you add it)')
+        `  LLM enrich  : ${chalk.dim('off')} ` +
+          chalk.dim('(pass --enrich for scan→batch→merge semantic pipeline)')
       );
+    }
+    if (uaStatus.found) {
+      console.log(`  UA import   : ${chalk.dim(uaStatus.relativePath + ' (optional merge)')}`);
     }
     console.log(`  Files       : ${stats.files}`);
     console.log(`  Page objects: ${stats.pages}`);
@@ -3155,11 +3214,11 @@ program
       console.log(`  Imported    : ${stats.importedNodes} nodes, ${stats.importedEdges} edges`);
     }
     if (stats.enriched > 0) {
-      console.log(`  Enriched    : ${chalk.green(`${stats.enriched} nodes`)} (Understand-Anything summaries)`);
+      console.log(`  Enriched    : ${chalk.green(`${stats.enriched} nodes`)}`);
     }
     for (const note of notes) console.log(`  ${chalk.yellow('⚠')} ${note}`);
     console.log(`\n  Saved to ${chalk.green(path.relative(process.cwd(), outPath))}`);
-    console.log(`  Tip: ${chalk.dim('webpilot graph --summary')} shows what the model sees during codegen.\n`);
+    console.log(`  Tip: ${chalk.dim('webpilot graph --enrich && webpilot generate --from <slug>')}\n`);
   });
 
 /**

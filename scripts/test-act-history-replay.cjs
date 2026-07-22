@@ -14,6 +14,10 @@ const {
 const {
   ActHistoryPlaywrightRunner,
 } = require(path.join(root, 'dist/src/core/replay/ActHistoryPlaywrightRunner.js'));
+const {
+  extractAssertText,
+  groundAssertStep,
+} = require(path.join(root, 'dist/src/core/replay/AssertStepExecutor.js'));
 
 function testParseAndRank() {
   const raw = JSON.stringify([
@@ -49,7 +53,52 @@ function testLoadStepsFallsBackToExecutionHistory() {
   assert.strictEqual(steps[0].action, 'click');
 }
 
+function testAssertGrounding() {
+  assert.strictEqual(extractAssertText('Verify Installation is displayed'), 'Installation');
+  assert.strictEqual(
+    extractAssertText('Verify Playwright homepage loads successfully'),
+    'Playwright homepage'
+  );
+
+  const urlNl = groundAssertStep(
+    { index: 1, action: 'assert', description: 'Verify page URL contains intro' },
+    []
+  );
+  assert.strictEqual(urlNl.kind, 'url_contains');
+  assert.strictEqual(urlNl.fragment, 'intro');
+
+  const urlValue = groundAssertStep(
+    { index: 1, action: 'assert', value: '__url_contains__:docs' },
+    []
+  );
+  assert.strictEqual(urlValue.kind, 'url_contains');
+  assert.strictEqual(urlValue.fragment, 'docs');
+
+  const loaded = groundAssertStep(
+    {
+      index: 1,
+      action: 'assert',
+      description: 'Verify Playwright homepage loads successfully',
+      url: 'https://playwright.dev/',
+    },
+    []
+  );
+  assert.strictEqual(loaded.kind, 'url_equals');
+
+  const text = groundAssertStep(
+    { index: 1, action: 'assert', description: 'Verify Installation is displayed' },
+    []
+  );
+  assert.strictEqual(text.kind, 'visible');
+  assert.strictEqual(text.locators[0].kind, 'text');
+  assert.strictEqual(text.locators[0].value, 'Installation');
+
+  const ungrounded = groundAssertStep({ index: 1, action: 'assert', description: '' }, []);
+  assert.strictEqual(ungrounded.kind, 'ungrounded');
+}
+
 testParseAndRank();
 testLoadStepsPrefersActHistory();
 testLoadStepsFallsBackToExecutionHistory();
+testAssertGrounding();
 console.log('test-act-history-replay: ok');

@@ -81,6 +81,11 @@ _LOOP_NL_RE = re.compile(
 _SEMANTIC_KINDS = frozenset({"role", "label", "placeholder", "testid"})
 _MAX_LOOP_CLICKS = 5
 
+_SEARCH_PAGE_QUERY_RE = re.compile(
+    r"Searched page for\s+[\"'“]?([^\"'”:]+)[\"'”]?",
+    re.I,
+)
+
 
 def _normalize_action(action: str) -> str:
     a = (action or "custom").strip().lower()
@@ -101,6 +106,102 @@ def _normalize_action(action: str) -> str:
     if a in ("verify", "expect", "check", "assert_visible_page", "browser-use-assertion"):
         return "assert"
     return a
+
+
+def _extract_search_page_query(step: dict[str, Any]) -> str | None:
+    value = step.get("value")
+    if value is not None and str(value).strip():
+        return str(value).strip().strip("\"'")
+    desc = str(step.get("description") or "")
+    match = _SEARCH_PAGE_QUERY_RE.search(desc)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
+def _match_verify_nl(
+    query: str,
+    nl_steps: list[str],
+    assertion_plan: list[dict[str, Any]],
+) -> str | None:
+    """Find the verify NL line that this search_page query was satisfying."""
+    q = (query or "").strip().lower()
+    if not q:
+        return None
+    candidates: list[str] = []
+    for nl in nl_steps or []:
+        text = (nl or "").strip()
+        if text:
+            candidates.append(text)
+    for item in assertion_plan or []:
+        text = str(item.get("nlStep") or "").strip()
+        if text and text not in candidates:
+            candidates.append(text)
+
+    best: tuple[int, str] | None = None
+    for text in candidates:
+        lower = text.lower()
+        if not any(k in lower for k in ("verify", "assert", "check", "ensure", "capture screenshot")):
+            continue
+        score = 0
+        if q in lower:
+            score += 8
+        q_tokens = [t for t in re.split(r"[^a-z0-9]+", q) if len(t) >= 4]
+        for t in q_tokens[:6]:
+            if t in lower:
+                score += 2
+        if score >= 6 and (best is None or score > best[0]):
+            best = (score, text)
+    return best[1] if best else None
+
+
+def _search_page_to_assert(
+    step: dict[str, Any],
+    nl_steps: list[str],
+    assertion_plan: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """
+    Promote a successful search_page verify into a durable assert with locators.
+    Agent-tool noise with no NL match stays dropped.
+    """
+    desc = str(step.get("description") or "")
+    if re.search(r"\b0 matches\b|\bno matches\b", desc, re.I):
+        return None
+    query = _extract_search_page_query(step)
+    if not query or len(query) < 2:
+        return None
+    matched_nl = _match_verify_nl(query, nl_steps, assertion_plan)
+    if not matched_nl:
+        return None
+
+    url_m = re.search(r"url\s+contains\s+(.+)$", matched_nl, re.I)
+    if url_m:
+        fragment = url_m.group(1).replace(".", "").strip().strip("\"'")
+        return {
+            **step,
+            "action": "assert",
+            "value": f"__url_contains__:{fragment or query}",
+            "description": matched_nl,
+            "locators": [],
+            "_action": "assert",
+            "_locators": [],
+            "_nlHint": matched_nl,
+        }
+
+    locs: list[dict[str, Any]] = [{"kind": "text", "value": query, "exact": False}]
+    if any(k in matched_nl.lower() for k in ("section", "heading", "page")):
+        locs.insert(0, {"kind": "role", "value": "heading", "name": query})
+
+    return {
+        **step,
+        "action": "assert",
+        "value": matched_nl,
+        "description": matched_nl,
+        "locators": locs,
+        "_action": "assert",
+        "_locators": locs,
+        "_nlHint": matched_nl,
+    }
 
 
 def _is_skip_link_locator(loc: dict[str, Any]) -> bool:
@@ -206,24 +307,37 @@ def _is_optional_nl(text: str) -> bool:
     return bool(re.match(r"^if\b", (text or "").strip(), re.I))
 
 
+def _nl_occurrence_budget(nl_steps: list[str]) -> dict[str, int]:
+    """How many times each NL line may be claimed (supports duplicate go_back lines)."""
+    budget: dict[str, int] = {}
+    for nl in nl_steps or []:
+        text = (nl or "").strip().lower()
+        if not text:
+            continue
+        budget[text] = budget.get(text, 0) + 1
+    return budget
+
+
 def _align_nl_step(
     action: str,
     value: str | None,
     description: str,
     nl_steps: list[str],
     *,
-    used_nl: set[str] | None = None,
+    used_nl: dict[str, int] | None = None,
+    nl_budget: dict[str, int] | None = None,
 ) -> str | None:
     """Best-effort NL alignment for coverage (not inventing acts)."""
     blob = f"{action} {value or ''} {description or ''}".lower()
-    used = {(u or "").strip().lower() for u in (used_nl or set()) if (u or "").strip()}
+    used_counts = used_nl if used_nl is not None else {}
+    budget = nl_budget if nl_budget is not None else _nl_occurrence_budget(nl_steps)
     best: tuple[int, str] | None = None
     for nl in nl_steps or []:
         text = (nl or "").strip()
         if not text:
             continue
         lower = text.lower()
-        if lower in used:
+        if used_counts.get(lower, 0) >= budget.get(lower, 1):
             continue
         score = 0
         if action in ("navigate", "open") and ("navigate" in lower or "http" in lower or "open" in lower):
@@ -264,7 +378,10 @@ def _align_nl_step(
             if dateish:
                 is_checkout_nl = bool(re.search(r"check[\s-]*out", lower))
                 is_checkin_nl = bool(re.search(r"check[\s-]*in", lower)) and not is_checkout_nl
-                checkin_already = any(re.search(r"check[\s-]*in", u) and not re.search(r"check[\s-]*out", u) for u in used)
+                checkin_already = any(
+                    re.search(r"check[\s-]*in", u) and not re.search(r"check[\s-]*out", u)
+                    for u in used_counts
+                )
                 if is_checkin_nl:
                     score += 10
                     # First calendar click should claim check-in before check-out.
@@ -392,6 +509,111 @@ def _coverage(
     }
 
 
+def _nl_index_map(nl_steps: list[str]) -> dict[str, list[int]]:
+    """Map lowercased NL text → 1-based indices (duplicates keep multiple slots)."""
+    out: dict[str, list[int]] = {}
+    for i, nl in enumerate(nl_steps or [], start=1):
+        text = (nl or "").strip()
+        if not text:
+            continue
+        out.setdefault(text.lower(), []).append(i)
+    return out
+
+
+def _assert_step_from_plan(item: dict[str, Any]) -> dict[str, Any]:
+    nl = str(item.get("nlStep") or "").strip()
+    kind = str(item.get("kind") or "assert").lower()
+    return {
+        "index": 0,
+        "action": "screenshot" if kind == "screenshot" else "assert",
+        "value": nl,
+        "url": None,
+        "nlStep": nl,
+        "locator": None,
+        "semanticLocators": [],
+        "selectorCandidates": [],
+        "verified": False,
+        "description": nl,
+    }
+
+
+def _interleave_asserts_by_nl(
+    action_steps: list[dict[str, Any]],
+    assertion_plan: list[dict[str, Any]] | None,
+    nl_steps: list[str],
+) -> list[dict[str, Any]]:
+    """
+    Place asserts at their NL index so replay runs them on the correct page.
+
+    Actions keep discovery order within/around slots; asserts insert at plan.index
+    (or NL match). Avoids dumping every verify after the final go_back.
+    """
+    if not assertion_plan:
+        return list(action_steps)
+
+    nl_map = _nl_index_map(nl_steps)
+    nl_occ: dict[str, int] = {}
+    slots: dict[int, list[tuple[int, int, dict[str, Any]]]] = {}
+
+    def action_slot(step: dict[str, Any], prev: int) -> int:
+        nl = (step.get("nlStep") or "").strip()
+        if not nl:
+            return prev
+        key = nl.lower()
+        indices = nl_map.get(key) or []
+        if not indices:
+            return prev
+        occ = nl_occ.get(key, 0)
+        nl_occ[key] = occ + 1
+        return indices[occ] if occ < len(indices) else indices[-1]
+
+    prev_slot = 0
+    seq = 0
+    existing_assert_nl: set[str] = set()
+    for step in action_steps:
+        slot = action_slot(step, prev_slot)
+        prev_slot = slot
+        slots.setdefault(slot, []).append((0, seq, step))
+        seq += 1
+        if str(step.get("action") or "").lower() in ("assert", "screenshot"):
+            key = (step.get("nlStep") or "").strip().lower()
+            if key:
+                existing_assert_nl.add(key)
+
+    for item in assertion_plan or []:
+        if not isinstance(item, dict):
+            continue
+        nl = str(item.get("nlStep") or "").strip()
+        if not nl:
+            continue
+        key = nl.lower()
+        if key in existing_assert_nl:
+            continue
+        kind = str(item.get("kind") or "assert").lower()
+        # Screenshot NL already bound to a screenshot action — don't duplicate.
+        if kind == "screenshot" and any(
+            (s.get("nlStep") or "").strip().lower() == key
+            and str(s.get("action") or "").lower() == "screenshot"
+            for s in action_steps
+        ):
+            existing_assert_nl.add(key)
+            continue
+
+        slot = int(item.get("index") or 0)
+        if slot <= 0:
+            indices = nl_map.get(key) or []
+            slot = indices[0] if indices else (max(slots.keys(), default=0) + 1)
+        slots.setdefault(slot, []).append((1, seq, _assert_step_from_plan(item)))
+        seq += 1
+        existing_assert_nl.add(key)
+
+    ordered: list[dict[str, Any]] = []
+    for slot in sorted(slots.keys()):
+        for _prio, _seq, step in sorted(slots[slot], key=lambda t: (t[0], t[1])):
+            ordered.append(step)
+    return ordered
+
+
 def _merge_native_captured(
     step: dict[str, Any],
     native_captured: list[dict[str, Any]] | None,
@@ -468,6 +690,21 @@ def build_compact_workflow(
         action = _normalize_action(raw_action)
         description = str(step.get("description") or "")
         idx = int(step.get("index") or 0)
+
+        if action == "search_page" or raw_action.lower() == "search_page":
+            converted = _search_page_to_assert(step, nl_steps, assertion_plan)
+            if converted:
+                kept_raw.append(converted)
+            else:
+                dropped.append(
+                    {
+                        "index": idx,
+                        "action": raw_action,
+                        "reason": "drop agent-tool search_page",
+                        "description": description[:120],
+                    }
+                )
+            continue
 
         if action in _DROP_ACTIONS or raw_action.lower() in _DROP_ACTIONS:
             dropped.append(
@@ -584,15 +821,24 @@ def build_compact_workflow(
 
     compact_steps: list[dict[str, Any]] = []
     used_inputs: set[str] = set()
-    used_nl: set[str] = set()
+    used_nl: dict[str, int] = {}
+    nl_budget = _nl_occurrence_budget(nl_steps)
     last_click_sig: str | None = None
     click_run = 0
 
     def _append_compact(raw_step: dict[str, Any], act: str, loc_list: list) -> None:
-        row = _to_compact_step(raw_step, act, loc_list, nl_steps, used_nl=used_nl)
+        row = _to_compact_step(
+            raw_step,
+            act,
+            loc_list,
+            nl_steps,
+            used_nl=used_nl,
+            nl_budget=nl_budget,
+        )
         nl = (row.get("nlStep") or "").strip()
         if nl:
-            used_nl.add(nl.lower())
+            key = nl.lower()
+            used_nl[key] = used_nl.get(key, 0) + 1
         compact_steps.append(row)
 
     for step in kept_raw:
@@ -628,6 +874,26 @@ def build_compact_workflow(
                 click_run = 1
             _append_compact(step, action, locs)
             continue
+        if action == "assert":
+            # Deduplicate promoted search_page asserts that share the same NL.
+            hint = str(step.get("_nlHint") or step.get("description") or "").strip().lower()
+            if hint and any(
+                (s.get("nlStep") or "").strip().lower() == hint and s.get("action") == "assert"
+                for s in compact_steps
+            ):
+                dropped.append(
+                    {
+                        "index": int(step.get("index") or 0),
+                        "action": "assert",
+                        "reason": "merged duplicate assert nl",
+                        "description": str(step.get("description") or "")[:120],
+                    }
+                )
+                continue
+            _append_compact(step, action, locs)
+            last_click_sig = None
+            click_run = 0
+            continue
         sig = _click_sig(action, value, locs)
         if compact_steps:
             prev = compact_steps[-1]
@@ -650,28 +916,8 @@ def build_compact_workflow(
         last_click_sig = None
         click_run = 0
 
-    # Append assertionPlan as assert/screenshot compact steps when not already present
-    existing_nl = {(s.get("nlStep") or "").strip().lower() for s in compact_steps}
-    for item in assertion_plan:
-        nl = str(item.get("nlStep") or "").strip()
-        if not nl or nl.lower() in existing_nl:
-            continue
-        kind = str(item.get("kind") or "assert").lower()
-        compact_steps.append(
-            {
-                "index": 0,
-                "action": "screenshot" if kind == "screenshot" else "assert",
-                "value": nl,
-                "url": None,
-                "nlStep": nl,
-                "locator": None,
-                "semanticLocators": [],
-                "selectorCandidates": [],
-                "verified": False,
-                "description": nl,
-            }
-        )
-        existing_nl.add(nl.lower())
+    # Interleave assertionPlan by NL index (not dump-at-end — wrong page context).
+    compact_steps = _interleave_asserts_by_nl(compact_steps, assertion_plan, nl_steps)
 
     for i, step in enumerate(compact_steps, start=1):
         step["index"] = i
@@ -692,7 +938,8 @@ def _to_compact_step(
     locs: list[dict[str, Any]],
     nl_steps: list[str],
     *,
-    used_nl: set[str] | None = None,
+    used_nl: dict[str, int] | None = None,
+    nl_budget: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     primary, semantic, candidates = _split_locator_buckets(locs)
     verified = bool(step.get("locatorVerified")) or any(
@@ -710,7 +957,14 @@ def _to_compact_step(
     element = step.get("element") if isinstance(step.get("element"), dict) else {}
     description = str(step.get("description") or "")
     value = None if step.get("value") is None else str(step.get("value"))
-    nl = _align_nl_step(action, value, description, nl_steps, used_nl=used_nl)
+    nl = str(step.get("_nlHint") or "").strip() or _align_nl_step(
+        action,
+        value,
+        description,
+        nl_steps,
+        used_nl=used_nl,
+        nl_budget=nl_budget,
+    )
     return {
         "index": int(step.get("index") or 0),
         "action": action,

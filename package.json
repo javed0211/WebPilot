@@ -62,6 +62,8 @@
     "test:act-history-codegen": "npm run build && node scripts/test-act-history-codegen.cjs",
     "test:knowledge-only-replay": "npm run build && node scripts/test-knowledge-only-replay.cjs",
     "test:understand-anything-import": "npm run build && node scripts/test-understand-anything-import.cjs",
+    "test:codegen-tools-kg": "npm run build && node scripts/test-codegen-tools-kg.cjs",
+    "test:graph-enrich-merge": "npm run build && node scripts/test-graph-enrich-merge.cjs",
     "test:history-reuse": "npm run build && node scripts/test-history-reuse.cjs",
     "test:history-clear": "npm run build && node scripts/test-history-clear.cjs",
     "test:init-clone": "npm run build && node scripts/test-init-from-repo-clone.cjs",

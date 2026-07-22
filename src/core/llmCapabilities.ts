@@ -6,14 +6,21 @@ export type TokenLimitField = 'max_tokens' | 'max_completion_tokens';
 
 export interface ModelCapabilities {
   tokenLimitField: TokenLimitField;
+  /** gpt-5 / o-series on Azure reject non-default temperature. */
+  omitTemperature?: boolean;
   modelKey: string;
   source: 'override' | 'family' | 'default' | 'probe';
 }
 
 interface LlmModelsConfig {
-  families?: { match: string; tokenLimitField: TokenLimitField; notes?: string }[];
-  defaults?: { tokenLimitField?: TokenLimitField };
-  overrides?: Record<string, { tokenLimitField?: TokenLimitField }>;
+  families?: {
+    match: string;
+    tokenLimitField: TokenLimitField;
+    omitTemperature?: boolean;
+    notes?: string;
+  }[];
+  defaults?: { tokenLimitField?: TokenLimitField; omitTemperature?: boolean };
+  overrides?: Record<string, { tokenLimitField?: TokenLimitField; omitTemperature?: boolean }>;
 }
 
 export interface AzureChatPayloadOptions {
@@ -47,22 +54,32 @@ export function resolveModelCapabilities(modelOrDeployment: string): ModelCapabi
   const cfg = loadModelsConfig();
 
   const override = cfg.overrides?.[key] ?? cfg.overrides?.[modelOrDeployment];
-  if (override?.tokenLimitField) {
-    return { tokenLimitField: override.tokenLimitField, modelKey: key, source: 'override' };
+  if (override?.tokenLimitField || override?.omitTemperature !== undefined) {
+    return {
+      tokenLimitField: override.tokenLimitField || cfg.defaults?.tokenLimitField || 'max_tokens',
+      omitTemperature: Boolean(override.omitTemperature),
+      modelKey: key,
+      source: 'override',
+    };
   }
 
   for (const family of cfg.families || []) {
     if (key.includes(family.match.toLowerCase())) {
       return {
         tokenLimitField: family.tokenLimitField,
+        omitTemperature: Boolean(family.omitTemperature),
         modelKey: key,
         source: 'family',
       };
     }
   }
 
+  // Safety net when llm-models.json is stale — gpt-5* / o-series reject temperature=0.
+  const omitTemperature = /^(gpt-5|o1|o3|o4)\b/.test(key) || key.includes('gpt-5');
+
   return {
     tokenLimitField: cfg.defaults?.tokenLimitField || 'max_tokens',
+    omitTemperature: omitTemperature || Boolean(cfg.defaults?.omitTemperature),
     modelKey: key,
     source: 'default',
   };
@@ -77,7 +94,7 @@ export function buildAzureChatPayload(
     messages: options.messages,
     [caps.tokenLimitField]: options.maxTokens,
   };
-  if (options.temperature !== undefined) {
+  if (options.temperature !== undefined && !caps.omitTemperature) {
     payload.temperature = options.temperature;
   }
   if (options.responseFormat === 'json') {

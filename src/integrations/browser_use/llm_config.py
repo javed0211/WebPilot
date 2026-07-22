@@ -211,20 +211,95 @@ def apply_azure_env(cfg: dict[str, Any]) -> None:
     os.environ['AZURE_OPENAI_API_VERSION'] = cfg.get('apiVersion', '')
 
 
+def _azure_api_model_id(cfg: dict[str, Any]) -> str:
+    """
+    Azure routes by deployment name. Prefer deploymentId over the display `model`
+    field so Foundry does not 404 on a non-deployed model id.
+    """
+    deployment = str(cfg.get('deploymentId') or '').strip()
+    if deployment and not _is_placeholder(deployment):
+        return deployment
+    return str(cfg.get('model') or '').strip()
+
+
+def _azure_needs_responses_api(model_or_deployment: str) -> bool:
+    """gpt-5 / gpt-5.4-pro / codex-style models reject Chat Completions on Azure."""
+    n = (model_or_deployment or '').lower().strip()
+    if not n:
+        return False
+    if 'codex' in n or 'computer-use' in n:
+        return True
+    # Plain gpt-5 and gpt-5.x* use Responses API on Azure Foundry.
+    if n == 'gpt-5' or n.startswith('gpt-5-') or n.startswith('gpt-5.') or n.startswith('gpt-5_'):
+        return True
+    return False
+
+
+def _azure_reasoning_effort(model_or_deployment: str) -> str:
+    """gpt-5.4-pro rejects 'low'; gpt-5 accepts low/medium."""
+    n = (model_or_deployment or '').lower()
+    if re.search(r'gpt-5\.\d', n) or (n.startswith('gpt-5') and 'pro' in n):
+        return 'medium'
+    return 'low'
+
+
+def _azure_reasoning_models_for_deployment(deployment: str) -> list[str]:
+    """
+    Only enable reasoning params for deployments that accept them.
+    Empty list disables — browser-use substring-matches 'gpt-5' inside 'gpt-5.4-pro'.
+    """
+    d = (deployment or '').lower().strip()
+    if not d:
+        return []
+    if _azure_needs_responses_api(d):
+        return [d]
+    reasoning_ids = (
+        'o1',
+        'o1-mini',
+        'o1-pro',
+        'o3',
+        'o3-mini',
+        'o3-pro',
+        'o4-mini',
+        'gpt-5',
+        'gpt-5-mini',
+        'gpt-5-nano',
+    )
+    for rid in reasoning_ids:
+        if d == rid or d.startswith(rid + '-') or d.startswith(rid + '_'):
+            return list(reasoning_ids)
+    return []
+
+
 def create_browser_use_llm(provider: str, cfg: dict[str, Any]):
     """Return a browser-use chat model for the active provider."""
     if provider == 'azure':
         from browser_use import ChatAzureOpenAI
 
         apply_azure_env(cfg)
-        return ChatAzureOpenAI(
-            model=cfg['model'],
-            api_key=cfg['apiKey'],
-            azure_endpoint=cfg['endpoint'],
-            azure_deployment=cfg['deploymentId'],
-            api_version=cfg['apiVersion'],
-            temperature=0.0,
-        )
+        api_model = _azure_api_model_id(cfg)
+        api_version = str(cfg.get('apiVersion') or '2024-12-01-preview').strip()
+        kwargs: dict[str, Any] = {
+            'model': api_model,
+            'api_key': cfg['apiKey'],
+            'azure_endpoint': cfg['endpoint'],
+            'azure_deployment': cfg.get('deploymentId') or api_model,
+            'api_version': api_version,
+            'reasoning_models': _azure_reasoning_models_for_deployment(api_model),
+        }
+        if _azure_needs_responses_api(api_model):
+            # Chat Completions returns "operation unsupported" for gpt-5.4-pro.
+            kwargs['use_responses_api'] = True
+            kwargs['reasoning_effort'] = _azure_reasoning_effort(api_model)
+            kwargs['temperature'] = None
+            # Responses API requires a recent preview version.
+            if api_version < '2025-03-01':
+                kwargs['api_version'] = '2025-03-01-preview'
+                os.environ['OPENAI_API_VERSION'] = kwargs['api_version']
+                os.environ['AZURE_OPENAI_API_VERSION'] = kwargs['api_version']
+        else:
+            kwargs['temperature'] = 0.0
+        return ChatAzureOpenAI(**kwargs)
 
     if provider == 'openai':
         from browser_use import ChatOpenAI

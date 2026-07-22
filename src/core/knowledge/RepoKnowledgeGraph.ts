@@ -20,8 +20,9 @@ import { SymbolParser, ClassSymbolInfo } from '../SymbolParser';
  *
  * We do not vendor those repos. CodeFlow currently has no license, and
  * Understand-Anything is a coding-agent plugin rather than an embeddable npm
- * library. Instead, WebPilot reuses the same core pattern and interoperates with
- * Understand-Anything graph JSON when present:
+ * library. WebPilot owns graph generation via AST + optional LLM enrich
+ * (`webpilot graph --enrich`). Optional interoperability remains for cached
+ * Understand-Anything JSON when present:
  *   - `.ua/knowledge-graph.json` (current)
  *   - `.understand-anything/knowledge-graph.json` (legacy)
  */
@@ -83,6 +84,7 @@ export interface RepoKnowledgeGraphData {
     symbolParser: boolean;
     understandAnything: boolean;
     treeSitter: boolean;
+    llmEnrich?: boolean;
   };
   stats: {
     files: number;
@@ -120,7 +122,7 @@ type ScanFile = {
 
 type TreeSitterLanguageKey = 'python' | 'java' | 'csharp' | 'go';
 
-const GRAPH_VERSION = '1.1.0';
+const GRAPH_VERSION = '1.2.0';
 
 const SOURCE_EXTENSIONS = new Set([
   '.ts',
@@ -1095,6 +1097,7 @@ export class RepoKnowledgeGraph {
         symbolParser: true,
         understandAnything: Boolean(imported.sourcePath) && (imported.nodes.length > 0 || imported.summaries.size > 0),
         treeSitter: false,
+        llmEnrich: false,
       },
       stats,
       notes,
@@ -1175,9 +1178,35 @@ export class RepoKnowledgeGraph {
     return graph;
   }
 
-  public static async refreshAsync(outputPath: string = KNOWLEDGE_GRAPH_PATH): Promise<RepoKnowledgeGraphData> {
-    const graph = await RepoKnowledgeGraph.buildAsync();
+  public static async refreshAsync(
+    outputPath: string = KNOWLEDGE_GRAPH_PATH,
+    options?: { enrich?: boolean }
+  ): Promise<RepoKnowledgeGraphData> {
+    let graph = await RepoKnowledgeGraph.buildAsync();
+    if (options?.enrich) {
+      graph = await RepoKnowledgeGraph.enrichWithLlm(graph);
+    }
     RepoKnowledgeGraph.save(graph, outputPath);
+    return graph;
+  }
+
+  /**
+   * LLM semantic enrichment (summaries, intent tags, url hints).
+   * Fail-soft when LLM is unavailable — returns AST graph unchanged aside from notes.
+   */
+  public static async enrichWithLlm(graph: RepoKnowledgeGraphData): Promise<RepoKnowledgeGraphData> {
+    const { GraphLlmEnricher } = await import('./GraphLlmEnricher');
+    const result = await GraphLlmEnricher.enrich(graph);
+    return result.graph;
+  }
+
+  public static async buildAndMaybeEnrich(options?: {
+    enrich?: boolean;
+  }): Promise<RepoKnowledgeGraphData> {
+    let graph = await RepoKnowledgeGraph.buildAsync();
+    if (options?.enrich) {
+      graph = await RepoKnowledgeGraph.enrichWithLlm(graph);
+    }
     return graph;
   }
 
@@ -1192,17 +1221,18 @@ export class RepoKnowledgeGraph {
     const srcParts = [
       sources.typescriptCompiler ? 'TypeScript compiler AST' : null,
       sources.treeSitter ? 'tree-sitter' : null,
-      sources.understandAnything ? 'Understand-Anything graph' : null,
+      sources.llmEnrich ? 'WebPilot LLM enrich' : null,
+      sources.understandAnything ? 'Understand-Anything graph (optional)' : null,
     ].filter(Boolean);
     lines.push(
       `Indexed ${stats.files} source files, ${stats.pages} page objects, ${stats.tests} tests, ` +
         `${stats.apis} API modules, ${stats.imports} imports/dependencies ` +
         `(source: ${srcParts.join(' + ') || 'none'}).`
     );
-    if (!sources.understandAnything) {
+    if (!sources.llmEnrich && !sources.understandAnything) {
       lines.push(
-        'Note: Semantic enrichment optional — AST graph alone is used for reuse. ' +
-          'If `.ua/knowledge-graph.json` exists it is merged automatically on refresh.'
+        'Note: Run `webpilot graph --enrich` (requires LLM keys) for semantic summaries. ' +
+          'AST graph alone is enough for structural reuse.'
       );
     }
     for (const note of graph.notes) lines.push(`Note: ${note}`);
@@ -1232,6 +1262,19 @@ export class RepoKnowledgeGraph {
       }
     }
 
+    const llmSemantic = graph.nodes
+      .filter((node) => node.meta?.enrichedBy === 'webpilot-llm' && node.meta?.summary)
+      .filter((node) => node.type !== 'method')
+      .slice(0, 20);
+    if (llmSemantic.length > 0) {
+      lines.push('');
+      lines.push('Semantic enrichment (WebPilot LLM) — prefer these meanings when naming/extending APIs:');
+      for (const node of llmSemantic) {
+        const where = node.filePath ? ` (${node.filePath})` : '';
+        lines.push(`- [${node.type}] ${node.name}${where}: ${String(node.meta?.summary).slice(0, 220)}`);
+      }
+    }
+
     if (sources.understandAnything) {
       const seenSemantic = new Set<string>();
       const semantic = graph.nodes
@@ -1243,6 +1286,7 @@ export class RepoKnowledgeGraph {
           return node.type === 'domain';
         })
         .filter((node) => node.type !== 'method')
+        .filter((node) => node.meta?.enrichedBy !== 'webpilot-llm')
         .sort((a, b) => {
           const rank = (n: KnowledgeNode) =>
             n.type === 'page' ? 0 : n.type === 'domain' ? 1 : n.type === 'file' ? 2 : 3;
@@ -1257,7 +1301,7 @@ export class RepoKnowledgeGraph {
         .slice(0, 20);
       if (semantic.length > 0) {
         lines.push('');
-        lines.push('Semantic enrichment (Understand-Anything) — prefer these meanings when naming/extending APIs:');
+        lines.push('Optional Understand-Anything import — prefer WebPilot LLM summaries when both exist:');
         for (const node of semantic) {
           const where = node.filePath ? ` (${node.filePath})` : '';
           lines.push(`- [${node.type}] ${node.name}${where}: ${String(node.meta?.summary).slice(0, 220)}`);
