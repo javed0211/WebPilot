@@ -178,13 +178,14 @@ async function dismissBookingOverlays(page: Page): Promise<boolean> {
 }
 
 function isOptionalOverlayClick(step: ActStep, locators: ActLocator[]): boolean {
+  if (step.optional) return true;
   const blob = [
     step.description || '',
     ...locators.map((l) => `${l.name || ''} ${l.value || ''} ${l.filterText || ''}`),
   ]
     .join(' ')
     .toLowerCase();
-  return /dismiss|sign[\s-]?in|accept|onetrust|cookie|consent|close (dialog|modal|popup|banner)|not now|maybe later|no thanks/i.test(
+  return /dismiss|sign[\s-]?in|accept|onetrust|one.?trust|cookie|consent|continue shopping|accept all|accept cookies|close (dialog|modal|popup|banner)|not now|maybe later|no thanks|if a (location|cookie)/i.test(
     blob
   );
 }
@@ -221,6 +222,7 @@ async function dismissCookieBanner(page: Page): Promise<boolean> {
     'Got it',
     'OK',
     'Allow all',
+    'Continue shopping',
   ];
   for (const label of labels) {
     try {
@@ -446,12 +448,14 @@ async function tryOptionalOverlayClick(
   locators: ActLocator[],
   timeout: number
 ): Promise<{ locator: import('playwright').Locator; used: ActLocator; description: string } | null> {
+  const visibilityTimeout = Math.min(Math.max(timeout, 1_000), 5_000);
   for (const loc of locators) {
     try {
       const bound = bindLocator(page, loc);
       if (!bound) continue;
       const target = bound.first();
-      const visible = await target.isVisible().catch(() => false);
+      // Match codegen if-present: wait briefly for the overlay; skip quietly if absent.
+      const visible = await target.isVisible({ timeout: visibilityTimeout }).catch(() => false);
       if (!visible) continue;
       await target.click({ timeout: Math.min(timeout, 3_000) });
       return {

@@ -190,6 +190,7 @@ function normalizeActStep(step: any, index: number): RawExecutionStep {
     urlAfter: step.urlAfter ?? null,
     description: String(step.description || `${step.action || 'step'} ${index + 1}`),
     locators: Array.isArray(step.locators) ? step.locators : undefined,
+    optional: Boolean(step.optional),
   };
 }
 

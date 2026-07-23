@@ -49,6 +49,8 @@ export interface ActStep {
   locators?: ActLocator[];
   agentStep?: number | null;
   actionParams?: Record<string, unknown>;
+  /** When true, codegen must emit if-present dismiss (cookie/dialog may be absent). */
+  optional?: boolean;
 }
 
 export interface AssertionPlanItem {
@@ -122,11 +124,29 @@ export interface CompactWorkflowDrop {
   description?: string;
 }
 
+export type CompactNlStepStatus =
+  | 'executed'
+  | 'assertGrounded'
+  | 'assertHollow'
+  | 'misbound'
+  | 'notExecuted'
+  | 'optionalSkipped';
+
+export interface CompactNlStepStatusRow {
+  nlIndex: number;
+  nlStep: string;
+  status: CompactNlStepStatus | string;
+  evidenceStepIndex?: number | null;
+  reason?: string;
+}
+
 export interface CompactWorkflowCoverage {
   nlTotal: number;
   mapped: number;
   unmapped: string[];
   optionalUnmapped?: string[];
+  /** Per-NL execution fidelity — prefer this over mapped/unmapped alone. */
+  stepStatuses?: CompactNlStepStatusRow[];
 }
 
 export interface CompactWorkflowStep {
@@ -144,6 +164,8 @@ export interface CompactWorkflowStep {
   backendNodeId?: string | null;
   description?: string | null;
   pageTitle?: string | null;
+  /** Cookie/dialog dismiss — codegen emits if-visible click, never hard-fail when absent. */
+  optional?: boolean;
 }
 
 export interface CompactWorkflow {

@@ -1073,6 +1073,22 @@ async def run_native_browser_use_scenario(
                 "[WebPilot] Compact NL unmapped: "
                 + "; ".join(str(u)[:80] for u in (cov.get("unmapped") or [])[:5])
             )
+        statuses = cov.get("stepStatuses") or []
+        if statuses:
+            interesting = [
+                s
+                for s in statuses
+                if str(s.get("status") or "")
+                in ("notExecuted", "misbound", "assertHollow", "optionalSkipped")
+            ]
+            if interesting:
+                print(
+                    "[WebPilot] Compact NL step status: "
+                    + "; ".join(
+                        f"#{s.get('nlIndex')} {s.get('status')}: {str(s.get('nlStep') or '')[:60]}"
+                        for s in interesting[:8]
+                    )
+                )
         # Fail closed: browser-use may report success while skipping required NL steps
         # (e.g. date picker). Do not treat that as codegen-eligible discovery.
         required_unmapped = list(cov.get("unmapped") or [])

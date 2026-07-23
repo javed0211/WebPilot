@@ -27,6 +27,7 @@ export function compactWorkflowToActSteps(compact: CompactWorkflow | null | unde
       selector: ordered.length ? JSON.stringify(ordered) : undefined,
       pageTitle: step.pageTitle ?? null,
       elementIndex: step.elementIndex ?? null,
+      optional: Boolean(step.optional),
     };
   });
 }
@@ -56,11 +57,19 @@ export function getCompactWorkflow(doc: Record<string, unknown> | null | undefin
 export function formatCompactCoverageLog(compact: CompactWorkflow | null | undefined): string {
   if (!compact) return '';
   const cov = compact.coverage || { nlTotal: 0, mapped: 0, unmapped: [] };
-  return (
+  const base =
     `Compact workflow: ${compact.steps.length} steps ` +
     `(dropped ${compact.dropped?.length || 0}); ` +
-    `NL coverage ${cov.mapped}/${cov.nlTotal}`
+    `NL coverage ${cov.mapped}/${cov.nlTotal}`;
+  const bad = (cov.stepStatuses || []).filter((s) =>
+    ['notExecuted', 'misbound', 'assertHollow'].includes(String(s.status || ''))
   );
+  if (!bad.length) return base;
+  const detail = bad
+    .slice(0, 5)
+    .map((s) => `#${s.nlIndex} ${s.status}: ${String(s.nlStep || '').slice(0, 50)}`)
+    .join('; ');
+  return `${base} [${detail}]`;
 }
 
 /**
@@ -91,12 +100,21 @@ export function evaluateCompactCoverageGate(
       coverage: cov,
     };
   }
-  const detail = unmapped
+  const statuses = cov.stepStatuses || [];
+  const statusDetail = statuses
+    .filter((s) => ['notExecuted', 'misbound', 'assertHollow'].includes(String(s.status || '')))
     .slice(0, 8)
-    .map((s) => `  - ${s}`)
+    .map((s) => `  - [${s.status}] #${s.nlIndex} ${s.nlStep}${s.reason ? ` (${s.reason})` : ''}`)
     .join('\n');
+  const detail =
+    statusDetail ||
+    unmapped
+      .slice(0, 8)
+      .map((s) => `  - ${s}`)
+      .join('\n');
   const message =
-    `Compact workflow NL coverage incomplete (${cov.mapped}/${cov.nlTotal}). Unmapped:\n${detail}` +
+    `Compact workflow NL coverage incomplete (${cov.mapped}/${cov.nlTotal}). ` +
+    `Browser-use did not fully execute / ground these steps:\n${detail}` +
     (unmapped.length > 8 ? `\n  … +${unmapped.length - 8} more` : '');
   // Block by default when running codegen unless explicitly warn-only.
   const shouldBlock = options.codegen !== false && !warnOnly;

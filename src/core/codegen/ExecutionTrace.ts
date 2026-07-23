@@ -43,6 +43,8 @@ export interface TraceStep {
   assertions?: AssertionCandidate[];
   /** Parsed semantic assertion plan when the intent uses the DSL. */
   semanticPlan?: SemanticPlan;
+  /** Cookie/dialog dismiss — pageMethodBody emits if-present click. */
+  optional?: boolean;
 }
 
 export interface ExecutionTrace {
@@ -66,6 +68,8 @@ export interface RawExecutionStep {
   description: string;
   /** Optional ActHistory locator candidates (preferred over parsing selector JSON). */
   locators?: Array<{ kind: string; value?: string; name?: string; tag?: string }>;
+  /** Cookie/dialog dismiss — emit if-present click in codegen. */
+  optional?: boolean;
 }
 
 /** All URL candidates for page mapping — step.url alone loses assert/merged-step context. */

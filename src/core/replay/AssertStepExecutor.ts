@@ -67,7 +67,15 @@ export function groundAssertStep(step: ActStep, locators: ActLocator[]): AssertI
   }
 
   if (locators.length > 0) {
-    return { kind: 'visible', locators, source };
+    const enriched: ActLocator[] = [...locators];
+    // Text-only nav/filter labels often duplicate in hidden menus; prefer role too.
+    for (const loc of locators) {
+      if (loc.kind === 'text' && loc.value) {
+        enriched.push({ kind: 'role', value: 'link', name: loc.value, exact: false });
+        enriched.push({ kind: 'role', value: 'tab', name: loc.value, exact: false });
+      }
+    }
+    return { kind: 'visible', locators: enriched, source };
   }
 
   const text = extractAssertText(nl) || (value && !value.startsWith('__') ? value : null);
@@ -112,7 +120,41 @@ export async function executeAssertStep(
 
   if (intent.kind === 'url_contains') {
     const current = page.url();
-    if (!current.toLowerCase().includes(intent.fragment.toLowerCase())) {
+    const normalize = (s: string) =>
+      decodeURIComponent(s.replace(/\+/g, ' '))
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    const haystack = normalize(current);
+    const needle = normalize(intent.fragment);
+    // Also accept URL-encoded / plus-joined forms of the same phrase.
+    const needleCompact = needle.replace(/\s+/g, '');
+    const haystackCompact = haystack.replace(/\s+/g, '');
+    const plusForm = intent.fragment.toLowerCase().replace(/\s+/g, '+');
+    const encodedForm = encodeURIComponent(intent.fragment).toLowerCase();
+
+    let matched =
+      haystack.includes(needle) ||
+      haystackCompact.includes(needleCompact) ||
+      current.toLowerCase().includes(plusForm) ||
+      current.toLowerCase().includes(encodedForm);
+
+    // Path-like fragments (repo slugs) must appear in the pathname, not only
+    // in ?q=… — otherwise search URLs falsely satisfy "on repo page" asserts.
+    if (matched && needle.includes('/')) {
+      try {
+        const path = normalize(new URL(current).pathname);
+        const pathCompact = path.replace(/\s+/g, '');
+        matched =
+          path.includes(needle) ||
+          pathCompact.includes(needleCompact) ||
+          path.includes(needle.replace(/\s+/g, '-'));
+      } catch {
+        matched = false;
+      }
+    }
+
+    if (!matched) {
       throw new Error(
         `assert URL contains "${intent.fragment}" failed (url=${current})`
       );

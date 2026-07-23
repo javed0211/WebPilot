@@ -174,6 +174,27 @@ export function filterLocatorsForAction(action: string, locators: ActLocator[]):
   return good;
 }
 
+/**
+ * Pick the first currently-visible match. GitHub (and many sites) duplicate
+ * nav labels in hidden mobile menus — `.first()` often lands on a hidden node.
+ */
+async function firstVisibleMatch(
+  bound: Locator,
+  timeoutMs: number
+): Promise<Locator | null> {
+  const deadline = Date.now() + Math.max(timeoutMs, 0);
+  do {
+    const count = await bound.count();
+    for (let i = 0; i < count; i++) {
+      const nth = bound.nth(i);
+      if (await nth.isVisible().catch(() => false)) return nth;
+    }
+    if (Date.now() >= deadline) break;
+    await new Promise((r) => setTimeout(r, 150));
+  } while (Date.now() < deadline);
+  return null;
+}
+
 export async function resolveUniqueLocator(
   page: Page,
   locators: ActLocator[],
@@ -199,13 +220,17 @@ export async function resolveUniqueLocator(
           target = filtered;
           count = 1;
         } else if (filteredCount > 1 && options?.allowFirst) {
-          target = filtered.first();
+          const visible = await firstVisibleMatch(filtered, timeout);
+          if (!visible) continue;
+          target = visible;
           count = 1;
         } else if (!options?.allowFirst) {
           // Prefer strict uniqueness; try next candidate.
           continue;
         } else {
-          target = target.first();
+          const visible = await firstVisibleMatch(target, timeout);
+          if (!visible) continue;
+          target = visible;
         }
       }
 
@@ -215,8 +240,17 @@ export async function resolveUniqueLocator(
       if (afterWait > 1 && !options?.allowFirst) {
         continue;
       }
+      if (afterWait > 1) {
+        const visible = await firstVisibleMatch(target, Math.min(timeout, 2_000));
+        if (!visible) continue;
+        return {
+          locator: visible,
+          used: candidate,
+          description: describeLocator(candidate),
+        };
+      }
       return {
-        locator: afterWait > 1 ? target.first() : target,
+        locator: target,
         used: candidate,
         description: describeLocator(candidate),
       };
@@ -225,16 +259,16 @@ export async function resolveUniqueLocator(
     }
   }
 
-  // Last resort: first-match on any visible candidate (with filters applied).
+  // Last resort: first visible match on any candidate (with filters applied).
   for (const candidate of ranked) {
     const bound = bindLocator(page, candidate);
     if (!bound) continue;
     try {
       const filtered = disambiguateWithHints(bound, candidate, ranked);
-      const first = filtered.first();
-      await first.waitFor({ state: 'visible', timeout: Math.min(timeout, 2_000) });
+      const visible = await firstVisibleMatch(filtered, Math.min(timeout, 2_000));
+      if (!visible) continue;
       return {
-        locator: first,
+        locator: visible,
         used: candidate,
         description: `${describeLocator(candidate)}.first()`,
       };

@@ -142,6 +142,9 @@ export function methodNameFromStep(step: TraceStep, used: Set<string>): string {
   if (step.action === 'assert' && !base.toLowerCase().startsWith('assert')) {
     base = `assert${base.charAt(0).toUpperCase()}${base.slice(1)}`;
   }
+  if (step.optional && step.action === 'click' && !/ifpresent$/i.test(base)) {
+    base = `${base}IfPresent`;
+  }
 
   base = base.replace(/[^a-zA-Z0-9]/g, '');
   if (base.length > MAX_METHOD_NAME_LENGTH) base = base.slice(0, MAX_METHOD_NAME_LENGTH);
@@ -162,15 +165,16 @@ function ensureUnique(base: string, used: Set<string>, index: number): string {
 
 /** Overlay dismissals (cookie banners, sign-in modals) may not appear on fresh contexts. */
 function isOptionalOverlayStep(step: TraceStep): boolean {
-  const haystack = `${step.intent || ''} ${step.description || ''} ${step.selector?.value || ''}`.toLowerCase();
-  return /dismiss|close.*(dialog|modal|popup|banner)|sign.?in information|got it|no thanks|maybe later/i.test(
+  if (step.optional) return true;
+  const haystack = `${step.intent || ''} ${step.description || ''} ${step.selector?.value || ''} ${step.selector?.expression || ''}`.toLowerCase();
+  return /dismiss|close.*(dialog|modal|popup|banner)|sign.?in information|got it|no thanks|maybe later|cookie|consent|onetrust|one.?trust|continue shopping|accept all|accept cookies|if a (location|cookie)/i.test(
     haystack
   );
 }
 
 function optionalOverlayClick(locator: string): string[] {
   return [
-    `// Overlay may not appear on fresh sessions — dismiss only when present.`,
+    `// Optional overlay/dialog — dismiss only when present so the script never fails either way.`,
     `const overlay = ${locator}.first();`,
     `if (await overlay.isVisible({ timeout: 5000 }).catch(() => false)) {`,
     `  await overlay.click();`,

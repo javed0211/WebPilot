@@ -758,8 +758,9 @@ export class BasePage {
 
   /** Use instead of non-existent assertCountAtLeast */
   public async assertCountAtLeast(locator: Locator, minimum: number): Promise<void> {
-    const n = await locator.count();
-    expect(n).toBeGreaterThanOrEqual(minimum);
+    await expect
+      .poll(async () => locator.count(), { timeout: BASE_PAGE_DEFAULT_TIMEOUT })
+      .toBeGreaterThanOrEqual(minimum);
   }
 
   public async assertVisibleByRole(role: Role, options?: RoleOptions): Promise<void> {

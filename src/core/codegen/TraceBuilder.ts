@@ -374,6 +374,7 @@ export class TraceBuilder {
         urlBefore,
         urlAfter: step.urlAfter || undefined,
         semanticTarget,
+        optional: Boolean((step as RawExecutionStep).optional),
       });
     }
 
