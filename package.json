@@ -132,5 +132,8 @@
     "playwright": "^1.60.0",
     "typescript": "^6.0.3",
     "web-tree-sitter": "^0.26.9"
+  },
+  "overrides": {
+    "fast-uri": "3.1.4"
   }
 }
