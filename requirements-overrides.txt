@@ -7,3 +7,5 @@
 pillow==12.3.0
 # mcp 1.26.0 has CVE-2026-52870 / 52869 / 59950; require patched release.
 mcp==1.28.1
+# pypdf 6.13.3 has CVE-2026-59935..59938; require patched release.
+pypdf==6.14.2
