@@ -11,11 +11,19 @@ from integrations.browser_use.discovery_tuning import (
 )
 
 
-def test_fast_mode_defaults_on(monkeypatch):
+def test_full_agent_defaults_on(monkeypatch):
     monkeypatch.delenv("WEBPILOT_FULL_AGENT_MODE", raising=False)
     monkeypatch.delenv("WEBPILOT_DISCOVERY_FAST_MODE", raising=False)
-    assert discovery_fast_mode_enabled({}) is True
+    assert discovery_fast_mode_enabled({}) is False
     tuned = apply_discovery_fast_mode({})
+    assert tuned["_discoveryFastModeActive"] is False
+
+
+def test_fast_mode_opt_in(monkeypatch):
+    monkeypatch.setenv("WEBPILOT_FULL_AGENT_MODE", "0")
+    monkeypatch.setenv("WEBPILOT_DISCOVERY_FAST_MODE", "1")
+    assert discovery_fast_mode_enabled({}) is True
+    tuned = apply_discovery_fast_mode({"discoveryFastMode": True})
     assert tuned["_discoveryFastModeActive"] is True
     assert tuned["judgeMode"] == "off"
     assert tuned["flashMode"] is True

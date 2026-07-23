@@ -478,8 +478,9 @@ PERFORMANCE_DEFAULTS = {
     # native = one browser-use Agent for the full scenario (default — preserves engine intelligence).
     # scoped = one Agent per NL step (legacy WebPilot wrapper; use for knowledge repair only).
     'engineMode': 'native',
-    # Lean agent for heavy SPAs (Nexus-style). Set false / WEBPILOT_FULL_AGENT_MODE=1 for full agent.
-    'discoveryFastMode': True,
+    # Full agent by default (judge/thinking/planning on). Opt into lean mode with
+    # discoveryFastMode: true or WEBPILOT_DISCOVERY_FAST_MODE=1 (and WEBPILOT_FULL_AGENT_MODE=0).
+    'discoveryFastMode': False,
     'judgeMode': 'verification',
     'maxActionsPerStep': 6,
     'useVision': 'auto',
@@ -561,8 +562,13 @@ def load_performance_config() -> dict:
         cfg['discoveryFastMode'] = True
     elif env_fast in ('0', 'false', 'no', 'off'):
         cfg['discoveryFastMode'] = False
-    if os.environ.get('WEBPILOT_FULL_AGENT_MODE', '').strip().lower() in ('1', 'true', 'yes', 'on'):
+    # Default to full agent when unset (WEBPILOT_FULL_AGENT_MODE=1).
+    full_agent = os.environ.get('WEBPILOT_FULL_AGENT_MODE', '1').strip().lower()
+    if full_agent in ('1', 'true', 'yes', 'on'):
         cfg['discoveryFastMode'] = False
+    elif full_agent in ('0', 'false', 'no', 'off'):
+        # Allow yaml / WEBPILOT_DISCOVERY_FAST_MODE to enable lean discovery.
+        pass
     env_fresh = os.environ.get('WEBPILOT_FRESH_AGENT_PER_STEP', '').strip().lower()
     if env_fresh in ('1', 'true', 'yes', 'on'):
         cfg['freshAgentPerStep'] = True
@@ -872,7 +878,8 @@ async def run_native_browser_use_scenario(
     if fast:
         print(
             "[WebPilot] Discovery fast mode — judge/planning/thinking off, flash on "
-            "(set WEBPILOT_FULL_AGENT_MODE=1 to restore full agent)"
+            "(default is full agent; unset WEBPILOT_DISCOVERY_FAST_MODE / set "
+            "WEBPILOT_FULL_AGENT_MODE=1 to restore)"
         )
 
     agent_kwargs: dict[str, Any] = {

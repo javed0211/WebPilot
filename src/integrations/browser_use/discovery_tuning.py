@@ -15,10 +15,14 @@ def discovery_fast_mode_enabled(perf: dict | None = None) -> bool:
     """
     Lean agent knobs for heavy SPAs (Booking, etc.).
 
-    Default ON — matches Nexus fast mode. Restore full agent with:
-      WEBPILOT_FULL_AGENT_MODE=1  or  intelligentRunner.performance.discoveryFastMode: false
+    Default OFF — stock browser-use (judge/thinking/planning on, flash off).
+    Opt into fast mode with:
+      WEBPILOT_DISCOVERY_FAST_MODE=1  or  intelligentRunner.performance.discoveryFastMode: true
+    Force full agent (overrides yaml fast opt-in) with WEBPILOT_FULL_AGENT_MODE=1
     """
-    if os.environ.get("WEBPILOT_FULL_AGENT_MODE", "").strip().lower() in ("1", "true", "yes", "on"):
+    # Default to full agent when unset (same as WEBPILOT_FULL_AGENT_MODE=1).
+    full = os.environ.get("WEBPILOT_FULL_AGENT_MODE", "1").strip().lower()
+    if full in ("1", "true", "yes", "on"):
         return False
     env = os.environ.get("WEBPILOT_DISCOVERY_FAST_MODE", "").strip().lower()
     if env in ("1", "true", "yes", "on"):
@@ -28,7 +32,7 @@ def discovery_fast_mode_enabled(perf: dict | None = None) -> bool:
     perf = perf or {}
     if "discoveryFastMode" in perf:
         return bool(perf.get("discoveryFastMode"))
-    return True
+    return False
 
 
 def apply_discovery_fast_mode(perf: dict) -> dict:
