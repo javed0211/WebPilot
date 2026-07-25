@@ -564,6 +564,7 @@ def _nl_consistent_with_act(
         return True
     blob = f"{action} {value or ''} {description or ''} {json.dumps(locator or {})}".lower()
     a = (action or "").lower()
+    lower = text.lower()
 
     if _is_language_nl(text):
         # Language NL must not bind to a Search submit button.
@@ -573,6 +574,16 @@ def _nl_consistent_with_act(
 
     if _is_search_submit_nl(text):
         return _blob_is_search_submit(blob, a)
+
+    # Cookie/consent dismiss must not steal navigation clicks (Products, Search, …)
+    # when the NL line is not itself a consent/dialog instruction.
+    if a == "click" and _is_overlay_dismiss_blob(blob):
+        consentish = any(
+            k in lower
+            for k in ("cookie", "consent", "accept", "dismiss", "if a", "location", "sign-in", "sign in")
+        )
+        if not consentish:
+            return False
 
     # Generic "select …" without language — allow select/click, not search submit alone.
     if text.lower().startswith("select ") and _blob_is_search_submit(blob, a) and "search" not in text.lower():
@@ -693,6 +704,14 @@ def _align_nl_step(
             # Destination suggestion clicks
             if value and str(value).lower()[:20] in lower:
                 score += 6
+            # Strong bind when clicked control name appears in the NL (Products, Cart, …).
+            loc_name = ""
+            if isinstance(locator, dict):
+                loc_name = str(
+                    locator.get("name") or locator.get("filterText") or ""
+                ).strip().lower()
+            if loc_name and len(loc_name) >= 4 and loc_name in lower:
+                score += 8
             if "london" in blob and "london" in lower and not dateish:
                 score += 4
             # Search button — bind to submit/search NL, never language NL (consistency already filters).
@@ -1489,7 +1508,16 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
     (url contains, homepage load, Sign in, 'X is displayed').
     """
     urls = [str(s.get("url") or "") for s in steps if s.get("url")]
-    for step in steps:
+    # Values the flow entered earlier (search terms, destinations, …). When a hollow
+    # assert mentions one of them and the value is reflected in an observed URL
+    # (e.g. Booking's ?ss=London…), that URL is concrete evidence for the assert.
+    entered_values = [
+        str(s.get("value") or "").strip()
+        for s in steps
+        if str(s.get("action") or "").lower() in ("input", "fill", "type", "select")
+        and len(str(s.get("value") or "").strip()) >= 3
+    ]
+    for pos, step in enumerate(steps):
         if str(step.get("action") or "").lower() not in ("assert", "verify"):
             continue
         if _assert_is_grounded(step):
@@ -1499,6 +1527,26 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
             continue
         lower = nl.lower()
 
+        # Only URLs observed at or after this assert count as evidence for it —
+        # replay checks the current URL at the assert's position in the flow.
+        urls_from_here = [
+            str(s.get("url") or "")
+            for s in steps[max(pos - 1, 0):]
+            if s.get("url")
+        ]
+        grounded_from_value = False
+        for entered in entered_values:
+            if entered.lower() not in lower:
+                continue
+            hit = next((u for u in urls_from_here if entered.lower() in u.lower()), None)
+            if hit:
+                step["value"] = f"__url_contains__:{entered}"
+                step["url"] = hit
+                grounded_from_value = True
+                break
+        if grounded_from_value:
+            continue
+
         url_m = re.search(r"url\s+contains\s+(.+)$", nl, re.I)
         if url_m:
             fragment = url_m.group(1).replace(".", "").strip().strip("\"'")
@@ -1507,10 +1555,14 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
                 step["url"] = next((u for u in urls if fragment.lower() in u.lower()), step.get("url"))
                 continue
 
-        if re.search(r"\b(loads?\s+successfully|homepage\s+loads)\b", lower):
+        # Home / landing page visibility — use first observed URL (usually the navigate target).
+        if re.search(
+            r"\b(loads?\s+successfully|homepage\s+loads|home\s+page\s+is\s+(visible|displayed|shown)|"
+            r"home\s+page\s+.*\bsuccessfully\b)\b",
+            lower,
+        ):
             home = next((u for u in urls if u), None)
             if home:
-                # Prefer first navigate-like URL
                 step["value"] = f"__url_equals__:{home}"
                 step["url"] = home
                 continue
@@ -1574,13 +1626,42 @@ def _ground_asserts_from_related_acts(steps: list[dict[str, Any]]) -> list[dict[
     return steps
 
 
+def _destination_hints_from_steps(steps: list[dict[str, Any]]) -> list[str]:
+    """Collect URL/path hints from step URLs and click locator hrefs/names."""
+    hints: list[str] = []
+    for s in steps:
+        url = str(s.get("url") or "").strip()
+        if url:
+            hints.append(url)
+        for loc in (
+            [s.get("locator")]
+            + list(s.get("semanticLocators") or [])
+            + list(s.get("selectorCandidates") or [])
+        ):
+            if not isinstance(loc, dict):
+                continue
+            for key in ("value", "name", "filterText"):
+                raw = str(loc.get(key) or "").strip()
+                if not raw:
+                    continue
+                hints.append(raw)
+                for m in re.finditer(r"""href\s*=\s*['"]([^'"]+)['"]""", raw, re.I):
+                    hints.append(m.group(1))
+                # css a[href="/products"] without quotes around attr in some dumps
+                for m in re.finditer(r"href\s*=\s*([^\s\]]+)", raw, re.I):
+                    hints.append(m.group(1).strip("'\""))
+    return hints
+
+
 def _ground_page_state_asserts(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Hollow 'page is displayed' asserts get URL-token evidence from observed act URLs.
     Prefers any visited URL that contains NL tokens (not the final URL after go_back).
+    Also uses click locator hrefs (e.g. a[href="/products"]) when post-nav URL was not captured.
     """
     urls = [str(s.get("url") or "") for s in steps if s.get("url")]
-    if not urls:
+    dest_hints = _destination_hints_from_steps(steps)
+    if not urls and not dest_hints:
         return steps
     for step in steps:
         if str(step.get("action") or "").lower() not in ("assert", "verify"):
@@ -1588,21 +1669,39 @@ def _ground_page_state_asserts(steps: list[dict[str, Any]]) -> list[dict[str, An
         if _assert_is_grounded(step):
             continue
         nl = str(step.get("nlStep") or step.get("value") or "")
-        if not re.search(r"page is (displayed|shown|visible)|article page|results page", nl, re.I):
+        lower = nl.lower()
+        if not re.search(
+            r"page is (displayed|shown|visible)|article page|results page|home page",
+            lower,
+            re.I,
+        ):
             continue
+
+        # Explicit home/landing page verify — ground to first URL even when token "home"
+        # is too short to appear in the path.
+        if re.search(r"\bhome\s+page\b", lower) and re.search(
+            r"\b(visible|displayed|shown|successfully)\b", lower
+        ):
+            home = urls[0] if urls else (dest_hints[0] if dest_hints else None)
+            if home and home.startswith("http"):
+                step["value"] = f"__url_equals__:{home}"
+                step["url"] = home
+                continue
+
         tokens = [
             t
             for t in re.split(r"[^a-zA-Z0-9]+", nl)
-            if len(t) >= 5
+            if len(t) >= 4
             and not re.match(
-                r"^(verify|assert|check|ensure|visible|displayed|shown|present|loaded|page|results?|article)$",
+                r"^(verify|assert|check|ensure|visible|displayed|shown|present|loaded|page|results?|article|successfully|that|the|home)$",
                 t,
                 re.I,
             )
         ]
         best_url = None
         best_len = -1
-        for u in urls:
+        search_pool = list(urls) + [h for h in dest_hints if h.startswith("http") or h.startswith("/")]
+        for u in search_pool:
             lower_url = u.lower()
             token_hit = any(token.lower() in lower_url for token in tokens)
             results_hit = bool(
@@ -1613,12 +1712,25 @@ def _ground_page_state_asserts(steps: list[dict[str, Any]]) -> list[dict[str, An
                 if len(u) > best_len:
                     best_url = u
                     best_len = len(u)
+        # Fallback: clicked link named Products / path hint without absolute URL.
+        if not best_url:
+            for token in tokens:
+                for hint in dest_hints:
+                    if token.lower() in hint.lower():
+                        best_url = f"/{token.lower()}"
+                        break
+                if best_url:
+                    break
         if best_url:
             grounded = False
             for token in tokens:
-                if token.lower() in best_url.lower():
+                if token.lower() in best_url.lower() or any(
+                    token.lower() in h.lower() for h in dest_hints
+                ):
                     step["value"] = f"__url_contains__:{token}"
-                    step["url"] = step.get("url") or best_url
+                    step["url"] = step.get("url") or (
+                        best_url if best_url.startswith("http") else (urls[-1] if urls else best_url)
+                    )
                     grounded = True
                     break
             if not grounded and re.search(r"results page|search results", nl, re.I):

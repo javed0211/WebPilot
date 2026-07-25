@@ -76,7 +76,13 @@ function stepLines(step: TraceStep, receiver = 'page'): string[] {
     case 'assert':
       return assertionLines.length > 0 ? assertionLines : locator ? [...metadata, `expect(${locator}).to_be_visible()`] : [`# assert: ${step.intent}`];
     case 'wait':
-      return [`${receiver}.wait_for_load_state("networkidle")`];
+      // Bounded: ad/analytics-heavy pages may never reach networkidle.
+      return [
+        `try:`,
+        `    ${receiver}.wait_for_load_state("networkidle", timeout=10000)`,
+        `except Exception:`,
+        `    pass`,
+      ];
     case 'go_back':
       return [`${receiver}.go_back()`, ...assertionLines];
     case 'screenshot':

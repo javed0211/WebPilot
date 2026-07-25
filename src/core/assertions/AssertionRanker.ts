@@ -126,6 +126,19 @@ function selectorAssertion(step: TraceStep): AssertionCandidate | null {
 
 function valueAssertion(step: TraceStep): AssertionCandidate | null {
   if (step.action !== 'fill' || !step.selector || !step.value) return null;
+  // Combobox/autocomplete fields (Booking destination, etc.) often keep an empty
+  // native value while showing typed text in a custom widget — toHaveValue flakes.
+  const role = String(step.selector.value || '').toLowerCase();
+  const expr = `${step.selector.expression || ''} ${step.selector.value || ''}`.toLowerCase();
+  if (
+    step.selector.kind === 'role' &&
+    (role === 'combobox' || role === 'searchbox')
+  ) {
+    return null;
+  }
+  if (/\b(combobox|autocomplete|suggestion)\b/.test(expr)) {
+    return null;
+  }
   const score = 0.72 + Math.min(0.12, step.selector.confidence / 10);
   return {
     kind: 'value_equals',

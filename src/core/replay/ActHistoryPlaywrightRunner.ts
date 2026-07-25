@@ -140,12 +140,63 @@ function finalizeHealedStep(args: {
   delete args.stepResult._healMeta;
 }
 
+/**
+ * Register Playwright locator handlers that auto-dismiss overlays whenever they
+ * appear — before every click/fill/visibility check. This replaces fixed-point
+ * dismissal, which cannot handle overlays that pop in at nondeterministic times
+ * (Booking Genius modal, late cookie banners, etc.).
+ */
+async function installOverlayAutoDismiss(page: Page): Promise<void> {
+  const safeClick = async (loc: import('playwright').Locator) => {
+    await loc.click({ timeout: 2_000, force: true }).catch(() => {});
+  };
+
+  // OneTrust cookie consent (Booking.com and many others).
+  await page
+    .addLocatorHandler(page.locator('#onetrust-accept-btn-handler'), safeClick, { noWaitAfter: true })
+    .catch(() => {});
+
+  // Generic Accept button inside a cookie/consent container.
+  await page
+    .addLocatorHandler(
+      page
+        .locator('#onetrust-banner-sdk, .fc-consent-root, [aria-label*="cookie" i], [id*="cookie-banner" i]')
+        .getByRole('button', { name: /^(accept( all)?|allow all|i agree|got it)$/i })
+        .first(),
+      safeClick,
+      { noWaitAfter: true }
+    )
+    .catch(() => {});
+
+  // Booking Genius sign-in modal.
+  await page
+    .addLocatorHandler(
+      page.getByRole('button', { name: /dismiss sign[\s-]?in/i }).first(),
+      safeClick,
+      { noWaitAfter: true }
+    )
+    .catch(() => {});
+
+  // Generic focus-trap dialog with an aria-labelled close/dismiss control.
+  await page
+    .addLocatorHandler(
+      page
+        .locator('[role="dialog"] button[aria-label*="dismiss" i], [role="dialog"] button[aria-label*="close" i]')
+        .first(),
+      safeClick,
+      { noWaitAfter: true }
+    )
+    .catch(() => {});
+}
+
 async function dismissBookingOverlays(page: Page): Promise<boolean> {
   const dismissors = [
     () => page.getByRole('button', { name: /dismiss sign[\s-]?in/i }),
     () => page.getByLabel(/dismiss sign[\s-]?in/i),
     () => page.locator('[aria-label*="Dismiss sign" i]'),
     () => page.locator('[data-testid="header-sign-in-dismiss"]'),
+    () => page.locator('button[aria-label="Close"], button[aria-label="Dismiss"]'),
+    () => page.locator('[role="dialog"] button[aria-label*="Dismiss" i], [role="dialog"] button[aria-label*="Close" i]'),
   ];
   let dismissed = false;
   for (const make of dismissors) {
@@ -162,18 +213,9 @@ async function dismissBookingOverlays(page: Page): Promise<boolean> {
     }
   }
 
-  // Only Escape when a focus-trap modal is actually present — Escape closes
-  // autocomplete suggestions too, which breaks destination selection.
-  try {
-    const trap = page.locator('[data-bui-trap-root], [role="dialog"]').first();
-    if ((await trap.count()) > 0 && (await trap.isVisible().catch(() => false))) {
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(150);
-      dismissed = true;
-    }
-  } catch {
-    // ignore
-  }
+  // No Escape here: Booking's destination autocomplete renders inside a
+  // dialog/focus-trap, so Escape-on-any-dialog closes the suggestions and breaks
+  // option selection. Real overlays are handled by installOverlayAutoDismiss.
   return dismissed;
 }
 
@@ -443,11 +485,21 @@ async function resolveCalendarDate(
 }
 
 
+async function ensureInteractiveFormReady(page: Page): Promise<void> {
+  // Best-effort single pass; overlays that appear later are auto-dismissed by
+  // the locator handlers registered in installOverlayAutoDismiss.
+  await page.waitForTimeout(500);
+  await dismissCookieBanner(page);
+}
+
 async function tryOptionalOverlayClick(
   page: Page,
   locators: ActLocator[],
   timeout: number
 ): Promise<{ locator: import('playwright').Locator; used: ActLocator; description: string } | null> {
+  // Give late Genius/cookie banners a moment to appear before concluding "absent".
+  await page.waitForTimeout(800);
+  await dismissCookieBanner(page);
   const visibilityTimeout = Math.min(Math.max(timeout, 1_000), 5_000);
   for (const loc of locators) {
     try {
@@ -457,7 +509,8 @@ async function tryOptionalOverlayClick(
       // Match codegen if-present: wait briefly for the overlay; skip quietly if absent.
       const visible = await target.isVisible({ timeout: visibilityTimeout }).catch(() => false);
       if (!visible) continue;
-      await target.click({ timeout: Math.min(timeout, 3_000) });
+      await target.click({ timeout: Math.min(timeout, 3_000), force: true });
+      await dismissCookieBanner(page);
       return {
         locator: target,
         used: loc,
@@ -467,6 +520,8 @@ async function tryOptionalOverlayClick(
       // try next
     }
   }
+  // Named dismiss control absent — still clear any focus-trap modal.
+  await dismissBookingOverlays(page);
   return null;
 }
 
@@ -716,6 +771,7 @@ export class ActHistoryPlaywrightRunner {
           : undefined,
       });
       page = await context.newPage();
+      await installOverlayAutoDismiss(page);
 
       if (ledger) {
         const flags = resolveFeatureFlags();
@@ -746,7 +802,7 @@ export class ActHistoryPlaywrightRunner {
             const url = step.value || step.url || step.actionParams?.url;
             if (!url || typeof url !== 'string') throw new Error('navigate missing url');
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: Math.max(timeout, 30_000) });
-            await dismissCookieBanner(page);
+            await ensureInteractiveFormReady(page);
             stepResult.ok = true;
             stepResult.locatorUsed = url;
           } else if (action === 'go_back') {
@@ -930,6 +986,7 @@ export class ActHistoryPlaywrightRunner {
             stepResult.locatorUsed = resolved.description;
             }
           } else if (action === 'assert') {
+            await ensureInteractiveFormReady(page);
             const used = await executeAssertStep(
               page,
               step,

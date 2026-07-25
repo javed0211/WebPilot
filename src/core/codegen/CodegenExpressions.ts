@@ -173,13 +173,33 @@ function isOptionalOverlayStep(step: TraceStep): boolean {
 }
 
 function optionalOverlayClick(locator: string): string[] {
+  // BasePage.installOverlayGuards() auto-dismisses overlays whenever they appear,
+  // so this step only needs a best-effort click when the control is present.
   return [
     `// Optional overlay/dialog — dismiss only when present so the script never fails either way.`,
     `const overlay = ${locator}.first();`,
-    `if (await overlay.isVisible({ timeout: 5000 }).catch(() => false)) {`,
-    `  await overlay.click();`,
+    `if (await overlay.isVisible({ timeout: 3000 }).catch(() => false)) {`,
+    `  await overlay.click({ force: true }).catch(() => {});`,
     `}`,
   ];
+}
+
+function isComboboxFill(step: TraceStep): boolean {
+  const sel = step.selector;
+  if (!sel) return false;
+  if (sel.kind === 'role' && /^(combobox|searchbox)$/i.test(sel.value || '')) return true;
+  return /\b(combobox|autocomplete|suggestion)\b/i.test(
+    `${sel.expression || ''} ${sel.value || ''} ${step.intent || ''} ${step.description || ''}`
+  );
+}
+
+function fillAssertionLines(step: TraceStep, receiver: string): string[] {
+  const primaryAssertion = (step.assertions || [])[0];
+  if (!primaryAssertion) return [];
+  if (primaryAssertion.kind === 'value_equals' && isComboboxFill(step)) {
+    return [];
+  }
+  return AssertionEmitter.typeScriptPlaywright(primaryAssertion, receiver);
 }
 
 function dynamicCalendarDateClick(offsetDays: number): string[] {
@@ -209,10 +229,7 @@ export function pageMethodBody(
 ): string[] {
   const locator = locatorExpression(step.selector, 'this.page');
   const metadata = selectorMetadataComment(step.selector);
-  const primaryAssertion = (step.assertions || [])[0];
-  const assertionLines = primaryAssertion
-    ? AssertionEmitter.typeScriptPlaywright(primaryAssertion, 'this.page')
-    : [];
+  const assertionLines = fillAssertionLines(step, 'this.page');
   switch (step.action) {
     case 'navigate':
       return step.url ? [`await this.navigate('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
@@ -236,6 +253,16 @@ export function pageMethodBody(
       return [...metadata, `await ${locator}.click();`, ...assertionLines];
     case 'fill':
       if (!locator) return [`// fill: ${step.intent}`];
+      if (isComboboxFill(step)) {
+        // Click-focus then fill — Booking.com destination combobox ignores fill when covered/unfocused.
+        return [
+          ...metadata,
+          `const field = ${locator}.first();`,
+          `await field.click({ timeout: 8000 });`,
+          `await field.fill('${escapeTsString(step.value || '')}');`,
+          ...assertionLines,
+        ];
+      }
       return [...metadata, `await ${locator}.fill('${escapeTsString(step.value || '')}');`, ...assertionLines];
     case 'select':
       if (!locator) return [`// select: ${step.intent}`];
@@ -248,7 +275,11 @@ export function pageMethodBody(
       }
       return [`// assert: ${step.intent}`];
     case 'wait':
-      return [`await this.page.waitForLoadState('networkidle');`, ...assertionLines];
+      // Bounded: ad/analytics-heavy pages (Booking, …) may never reach networkidle.
+      return [
+        `await this.page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});`,
+        ...assertionLines,
+      ];
     case 'go_back':
       return [`await this.page.goBack();`];
     case 'screenshot':
@@ -273,10 +304,7 @@ export function pageMethodBody(
 export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
   const locator = locatorExpression(step.selector, pageVar);
   const metadata = selectorMetadataComment(step.selector);
-  const primaryAssertion = (step.assertions || [])[0];
-  const assertionLines = primaryAssertion
-    ? AssertionEmitter.typeScriptPlaywright(primaryAssertion, pageVar)
-    : [];
+  const assertionLines = fillAssertionLines(step, pageVar);
   switch (step.action) {
     case 'navigate':
       return step.url ? [`await ${pageVar}.goto('${escapeTsString(step.url)}');`, ...assertionLines] : assertionLines;
@@ -289,9 +317,17 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
       }
       return locator ? [...metadata, `await ${locator}.click();`, ...assertionLines] : [`// click: ${step.intent}`, ...assertionLines];
     case 'fill':
-      return locator
-        ? [...metadata, `await ${locator}.fill('${escapeTsString(step.value || '')}');`, ...assertionLines]
-        : [`// fill: ${step.intent}`, ...assertionLines];
+      if (!locator) return [`// fill: ${step.intent}`, ...assertionLines];
+      if (isComboboxFill(step)) {
+        return [
+          ...metadata,
+          `const field = ${locator}.first();`,
+          `await field.click({ timeout: 8000 });`,
+          `await field.fill('${escapeTsString(step.value || '')}');`,
+          ...assertionLines,
+        ];
+      }
+      return [...metadata, `await ${locator}.fill('${escapeTsString(step.value || '')}');`, ...assertionLines];
     case 'select':
       return locator
         ? [...metadata, `await ${locator}.selectOption('${escapeTsString(step.value || '')}');`, ...assertionLines]
@@ -310,7 +346,11 @@ export function specStepBody(step: TraceStep, pageVar = 'page'): string[] {
       }
       return [`// assert: ${step.intent}`];
     case 'wait':
-      return [`await ${pageVar}.waitForLoadState('networkidle');`, ...assertionLines];
+      // Bounded: ad/analytics-heavy pages (Booking, …) may never reach networkidle.
+      return [
+        `await ${pageVar}.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});`,
+        ...assertionLines,
+      ];
     case 'go_back':
       return [`await ${pageVar}.goBack();`];
     case 'screenshot':

@@ -16,9 +16,9 @@
     "endpoint": "http://localhost:11434"
   },
   "azure": {
-    "model": "gpt-5",
+    "model": "gpt-5.4",
     "endpoint": "https://rfpqualityai2.services.ai.azure.com/",
-    "deploymentId": "gpt-5",
+    "deploymentId": "gpt-5.4",
     "apiVersion": "2025-03-01-preview",
     "apiKey": "${AZURE_OPENAI_API_KEY}"
   },

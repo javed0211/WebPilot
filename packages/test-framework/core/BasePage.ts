@@ -24,8 +24,63 @@ type RoleOptions = Parameters<Page['getByRole']>[1];
 export class BasePage {
   protected page: Page;
 
+  /** Pages that already have overlay auto-dismiss handlers installed. */
+  private static overlayGuardedPages = new WeakSet<Page>();
+
   constructor(page: Page) {
     this.page = page;
+  }
+
+  /**
+   * Auto-dismiss overlays (cookie consent, sign-in modals) whenever they appear.
+   * Uses page.addLocatorHandler so Playwright runs the dismiss before every
+   * action/assertion that the overlay would otherwise block — regardless of
+   * when the overlay pops in. Installed once per Page, on first navigate().
+   */
+  protected async installOverlayGuards(): Promise<void> {
+    if (BasePage.overlayGuardedPages.has(this.page)) return;
+    BasePage.overlayGuardedPages.add(this.page);
+
+    const dismiss = async (loc: Locator) => {
+      await loc.click({ timeout: 2_000, force: true }).catch(() => {});
+    };
+
+    // OneTrust cookie consent (Booking.com and many others).
+    await this.page
+      .addLocatorHandler(this.page.locator('#onetrust-accept-btn-handler'), dismiss, { noWaitAfter: true })
+      .catch(() => {});
+
+    // Generic Accept button inside a cookie/consent container.
+    await this.page
+      .addLocatorHandler(
+        this.page
+          .locator('#onetrust-banner-sdk, .fc-consent-root, [aria-label*="cookie" i], [id*="cookie-banner" i]')
+          .getByRole('button', { name: /^(accept( all)?|allow all|i agree|got it)$/i })
+          .first(),
+        dismiss,
+        { noWaitAfter: true }
+      )
+      .catch(() => {});
+
+    // Sign-in / membership promo modals (e.g. Booking Genius).
+    await this.page
+      .addLocatorHandler(
+        this.page.getByRole('button', { name: /dismiss sign[\s-]?in/i }).first(),
+        dismiss,
+        { noWaitAfter: true }
+      )
+      .catch(() => {});
+
+    // Generic dialog with an aria-labelled close/dismiss control.
+    await this.page
+      .addLocatorHandler(
+        this.page
+          .locator('[role="dialog"] button[aria-label*="dismiss" i], [role="dialog"] button[aria-label*="close" i]')
+          .first(),
+        dismiss,
+        { noWaitAfter: true }
+      )
+      .catch(() => {});
   }
 
   /** Resolve CSS/XPath string or pass through an existing Locator. */
@@ -67,6 +122,7 @@ export class BasePage {
     url: string,
     options?: Parameters<Page['goto']>[1]
   ): Promise<void> {
+    await this.installOverlayGuards();
     await this.page.goto(url, { waitUntil: 'domcontentloaded', ...options });
   }
 

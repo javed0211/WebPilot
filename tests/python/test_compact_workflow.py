@@ -614,3 +614,134 @@ def test_continue_shopping_click_marked_optional_and_bound_to_cookie_nl():
     assert "cookie" in (clicks[0].get("nlStep") or "").lower() or "if a" in (
         clicks[0].get("nlStep") or ""
     ).lower()
+
+
+def test_automationexercise_home_and_products_page_verifies_ground():
+    """Consent must not steal Products NL; page verifies ground from URL/href hints."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://automationexercise.com/",
+            "value": "https://automationexercise.com/",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "click",
+            "description": 'click | Consent | Clicked button role=button "Consent"',
+            "url": "https://automationexercise.com/",
+            "locators": [
+                {"kind": "role", "value": "button", "name": "Consent", "filterText": "Consent", "exact": True}
+            ],
+        },
+        {
+            "index": 3,
+            "action": "click",
+            "description": 'click | Products | Clicked a "Products"',
+            "url": "https://automationexercise.com/",
+            "locators": [
+                {
+                    "kind": "role",
+                    "value": "link",
+                    "name": "Products",
+                    "filterText": "Products",
+                    "exact": True,
+                    "scope": {"kind": "css", "value": "header"},
+                },
+                {"kind": "css", "value": 'a[href="/products"]', "filterText": "Products"},
+            ],
+        },
+    ]
+    nl = [
+        "Navigate to https://automationexercise.com/",
+        "Verify that the home page is visible successfully",
+        "Click Products in the navigation menu",
+        "Verify that the products page is visible",
+    ]
+    plan = [
+        {"index": 2, "kind": "assert", "nlStep": nl[1]},
+        {"index": 4, "kind": "assert", "nlStep": nl[3]},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    by_status = {s["nlStep"]: s for s in compact["coverage"]["stepStatuses"]}
+    assert by_status[nl[1]]["status"] == "assertGrounded", by_status[nl[1]]
+    assert by_status[nl[2]]["status"] == "executed", by_status[nl[2]]
+    assert by_status[nl[3]]["status"] == "assertGrounded", by_status[nl[3]]
+    assert compact["coverage"]["unmapped"] == []
+    products_click = next(
+        s
+        for s in compact["steps"]
+        if s.get("action") == "click"
+        and (
+            (isinstance(s.get("locator"), dict) and "Products" in str(s.get("locator")))
+            or any(
+                isinstance(c, dict) and "Products" in str(c)
+                for c in (s.get("selectorCandidates") or [])
+            )
+        )
+    )
+    assert "products" in (products_click.get("nlStep") or "").lower()
+
+
+def test_trailing_assert_grounds_from_entered_value_in_results_url():
+    """A hollow trailing verify that mentions an earlier entered value (e.g. the
+    Booking destination) grounds as url_contains when the value shows up in the
+    results URL (?ss=London…)."""
+    results_url = (
+        "https://www.booking.com/searchresults.en-gb.html"
+        "?ss=London%2C+Greater+London%2C+United+Kingdom&efdco=1"
+    )
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://www.booking.com/",
+            "value": "https://www.booking.com/",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "input",
+            "value": "London",
+            "url": "https://www.booking.com/",
+            "description": "input | Enter destination | Typed 'London'",
+            "locators": [
+                {"kind": "role", "value": "combobox", "name": "Enter destination", "exact": True}
+            ],
+        },
+        {
+            "index": 3,
+            "action": "click",
+            "description": 'click | Search | Clicked button "Search"',
+            "url": "https://www.booking.com/",
+            "locators": [
+                {"kind": "role", "value": "button", "name": "Search", "filterText": "Search", "exact": True}
+            ],
+        },
+        {
+            "index": 4,
+            "action": "wait",
+            "value": "5",
+            "url": results_url,
+            "description": "wait | 5 | Waited for 5 seconds",
+            "locators": [],
+        },
+    ]
+    nl = [
+        "Navigate to https://www.booking.com/",
+        'Enter "London" in the destination field',
+        "Click the Search button",
+        "Verify the search results page is displayed",
+        "Verify the destination is London and accommodation results are visible",
+    ]
+    plan = [
+        {"index": 4, "kind": "assert", "nlStep": nl[3]},
+        {"index": 5, "kind": "assert", "nlStep": nl[4]},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    by_status = {s["nlStep"]: s for s in compact["coverage"]["stepStatuses"]}
+    assert by_status[nl[4]]["status"] == "assertGrounded", by_status[nl[4]]
+    dest_assert = next(s for s in compact["steps"] if s.get("nlStep") == nl[4])
+    assert str(dest_assert.get("value") or "") == "__url_contains__:London"
+    assert compact["coverage"]["unmapped"] == []
