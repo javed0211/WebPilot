@@ -1,6 +1,6 @@
 {
   "name": "@qubiqlabs/webpilot",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "AI-native web automation on top of Playwright: natural language execution, codegen, healing, and reports",
   "main": "./dist/src/cli/index.js",
   "bin": {
