@@ -5,6 +5,7 @@ import { ExecutionTrace } from '../ExecutionTrace';
 import { CodegenProfilePlan, GenerationPlan } from '../GenerationPlan';
 import { CodegenProfile } from './CodegenProfile';
 import { inferSitePageFromUrl } from '../SitePageNaming';
+import { generatedSpecPath } from '../GeneratedPaths';
 
 export class TypeScriptPlaywrightProfile implements CodegenProfile {
   public readonly id = 'typescript-playwright-pom';
@@ -18,7 +19,7 @@ export class TypeScriptPlaywrightProfile implements CodegenProfile {
   }
 
   public specPath(slug: string): string {
-    return `packages/test-framework/tests/${slug}.spec.ts`;
+    return generatedSpecPath(slug);
   }
 
   public pagePath(className: string, _profile?: CodegenProfilePlan, url?: string): string {

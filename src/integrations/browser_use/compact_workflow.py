@@ -27,6 +27,12 @@ _DROP_ACTIONS = frozenset(
         "custom",
         "think",
         "plan",
+        "write_file",
+        "replace_file",
+        "read_file",
+        "append_file",
+        "write_todos",
+        "update_todo",
     }
 )
 

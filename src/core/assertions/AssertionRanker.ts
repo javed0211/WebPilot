@@ -1,6 +1,7 @@
 import { AssertionCandidate, AssertionStrength, AssertionSummary } from './AssertionCandidate';
 import { TraceSelector, TraceStep } from '../codegen/ExecutionTrace';
 import { AssertionDslParser } from './AssertionDslParser';
+import { stripLocaleFromUrlFragment } from './LocaleUrl';
 
 const SUCCESS_WORDS = [
   'added',
@@ -83,7 +84,7 @@ function homepageUrlAssertion(step: TraceStep): AssertionCandidate | null {
 
 function routeAssertion(step: TraceStep, previous?: TraceStep): AssertionCandidate | null {
   if (!step.url) return null;
-  const segment = lastPathSegment(step.url);
+  const segment = stripLocaleFromUrlFragment(lastPathSegment(step.url) || '');
   if (!segment) return null;
   if (previous?.url === step.url && step.action !== 'navigate') return null;
   const score = step.action === 'navigate' ? 0.68 : 0.6;
@@ -173,7 +174,9 @@ function successTextAssertion(step: TraceStep): AssertionCandidate | null {
 function assertTextOrUrlValue(step: TraceStep): AssertionCandidate | null {
   if (step.action !== 'assert' || !step.value) return null;
   if (step.value.startsWith('__url_contains__:')) {
-    const expected = step.value.slice('__url_contains__:'.length).trim();
+    const expected = stripLocaleFromUrlFragment(
+      step.value.slice('__url_contains__:'.length).trim()
+    );
     if (!expected) return null;
     return {
       kind: 'url_contains',

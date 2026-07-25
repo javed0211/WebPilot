@@ -45,6 +45,7 @@ export interface JobSummaryOptions {
   usage: UsageSnapshot;
   stepsExecuted?: number;
   extra?: string;
+  phases?: string[];
 }
 
 export class CliDisplay {
@@ -103,6 +104,13 @@ export class CliDisplay {
     console.log(`  ${chalk.dim('Duration'.padEnd(10))} ${formatDuration(opts.durationMs)}`);
     if (opts.stepsExecuted !== undefined) {
       console.log(`  ${chalk.dim('Steps'.padEnd(10))} ${opts.stepsExecuted}`);
+    }
+    if (opts.phases?.length) {
+      console.log('');
+      console.log(chalk.dim('  Pipeline phases'));
+      for (const line of opts.phases) {
+        console.log(`  ${chalk.white(line)}`);
+      }
     }
     if (opts.extra) {
       console.log(`  ${chalk.dim('Note'.padEnd(10))} ${chalk.dim(opts.extra)}`);

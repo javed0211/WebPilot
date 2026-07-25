@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 
 export const PROJECT_ROOT = path.resolve(process.env.WEBPILOT_PROJECT_ROOT || process.cwd());
@@ -38,3 +39,34 @@ export const ADO_TEST_MAP_PATH = path.join(CONFIG_ROOT, 'ado-test-map.yaml');
 export const ADO_RUNTIME_DIR = path.join(RUNTIME_ROOT, 'ado');
 export const TESTS_WEB_ROOT = path.join(PROJECT_ROOT, 'tests', 'web');
 export const TESTS_API_ROOT = path.join(PROJECT_ROOT, 'tests', 'api');
+
+/**
+ * runtime/ is gitignored working state — it is no longer scaffolded by
+ * `webpilot init`. Commands that write under runtime/ call this at startup so
+ * every writer can assume its directory exists.
+ */
+export function ensureRuntimeDirs(): void {
+  const dirs = [
+    path.join(REPORTS_ROOT, 'html'),
+    path.join(REPORTS_ROOT, 'data', 'summaries'),
+    path.join(REPORTS_ROOT, 'data', 'execution-history'),
+    path.join(REPORTS_ROOT, 'data', 'llm-usage'),
+    path.join(REPORTS_ROOT, 'data', 'api'),
+    path.join(REPORTS_ROOT, 'data', 'logs'),
+    path.join(REPORTS_ROOT, 'markdown'),
+    path.join(REPORTS_ROOT, 'junit'),
+    path.join(REPORTS_ROOT, 'videos'),
+    path.join(REPORTS_ROOT, 'traces'),
+    path.join(REPORTS_ROOT, 'assets'),
+    ARTIFACTS_ROOT,
+    HEALING_CACHE_ROOT,
+    KNOWLEDGE_ROOT,
+    path.join(RUNTIME_ROOT, 'site-knowledge', 'pages'),
+    path.join(RUNTIME_ROOT, 'site-knowledge', 'scenarios'),
+    CODEGEN_ROOT,
+    path.join(CODEGEN_ROOT, 'failures'),
+  ];
+  for (const dir of dirs) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}

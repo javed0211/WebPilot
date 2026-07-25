@@ -10,6 +10,7 @@ import {
   resolveCodegenArchitecture,
 } from '../core/knowledge/RepoArchitectureDetect';
 import { PromptLoader } from '../core/PromptLoader';
+import { generatedSpecPath } from '../core/codegen/GeneratedPaths';
 import { Logger } from '../utils/Logger';
 import {
   inferSitePageFromUrl,
@@ -441,7 +442,7 @@ test.describe('${testName}', () => {
 });
 `;
       return {
-        files: [{ path: `packages/test-framework/tests/${slug}.spec.ts`, content: specContent }],
+        files: [{ path: generatedSpecPath(slug), content: specContent }],
         summary: `Minimal flat spec scaffold for ${testName} (RepoEdit wrote nothing).`,
       };
     }
@@ -477,7 +478,7 @@ test.describe('${testName}', () => {
     return {
       files: [
         { path: inferred.pagePath, content: pageContent },
-        { path: `packages/test-framework/tests/${slug}.spec.ts`, content: specContent },
+        { path: generatedSpecPath(slug), content: specContent },
       ],
       summary: `Minimal site-folder scaffold for ${inferred.className} (RepoEdit wrote nothing).`,
     };

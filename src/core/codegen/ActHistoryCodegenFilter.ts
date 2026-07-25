@@ -15,6 +15,12 @@ const DROP_ACTIONS = new Set([
   'close',
   'done',
   'custom',
+  'write_file',
+  'replace_file',
+  'read_file',
+  'append_file',
+  'write_todos',
+  'update_todo',
 ]);
 
 const KEEP_ACTIONS = new Set([
@@ -60,6 +66,7 @@ function isNoiseDescription(description: string): boolean {
   if (/^\s*custom\s*\|/i.test(d) && /match(es)? found/i.test(d)) return true;
   if (/extract\s*\|/i.test(d)) return true;
   if (/find_elements/i.test(d)) return true;
+  if (/data written to file|successfully replaced all occurrences|todo\.md/i.test(d)) return true;
   return false;
 }
 

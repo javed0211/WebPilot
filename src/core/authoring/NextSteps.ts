@@ -1,3 +1,5 @@
+import { generatedSpecsDir } from '../codegen/GeneratedPaths';
+
 export interface NextStepBlock {
   title: string;
   lines: string[];
@@ -26,15 +28,20 @@ export class AuthoringOutput {
     reportPath?: string;
     manifestPath?: string;
     codegenEnabled?: boolean;
+    phaseLines?: string[];
   }): NextStepBlock {
     const lines = [
       `${options.passed} passed, ${options.failed} failed`,
       options.reportPath ? `Report: ${options.reportPath}` : 'Report: run again with --report to generate HTML',
       options.manifestPath ? `Artifacts: ${options.manifestPath}` : 'Artifacts: runtime/reports/',
     ];
+    if (options.phaseLines?.length) {
+      lines.push(...options.phaseLines);
+    }
     if (options.codegenEnabled) {
-      lines.push('Generated tests: packages/test-framework/tests/');
-      lines.push('Replay: webpilot replay packages/test-framework/tests');
+      const specsDir = generatedSpecsDir();
+      lines.push(`Generated tests: ${specsDir}/`);
+      lines.push(`Replay: webpilot replay ${specsDir}`);
     } else {
       lines.push('Generate code: add --codegen or set codegen: true in the scenario file');
     }

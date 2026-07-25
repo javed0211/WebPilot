@@ -36,6 +36,14 @@ import { decideHistoryReuse, isSuccessfulActHistory } from './codegen/HistoryReu
 import { ActHistoryCodegenAdapter } from './codegen/ActHistoryCodegenAdapter';
 import { isReplayHealEnabled } from './replay/ReplayHealPolicy';
 import { ActHistoryReplayService } from './replay/ActHistoryReplayService';
+import {
+  emptyPhases,
+  formatPhases,
+  harvestCodegenValidationVideo,
+  hasUsableReportVideo,
+  overallSuccess,
+  type RunPhases,
+} from './RunPhases';
 import { ExecutionEventLedger } from './events/ExecutionEventLedger';
 import { resolveFeatureFlags, shouldRunFixtureLifecycle } from './lifecycle/FeatureFlags';
 import { CleanupStack } from './lifecycle/CleanupStack';
@@ -66,6 +74,7 @@ function resolvePricingModelName(): string {
 export interface EngineRunResult {
   success: boolean;
   stepsExecuted: number;
+  phases?: import('./RunPhases').RunPhases;
 }
 
 function safeUnlinkCodegenTemp(filePath: string): void {
@@ -196,28 +205,90 @@ export class Engine {
     return !discoveryOk; // retain-on-failure
   }
 
-  private async attachPlaywrightReportVideo(slug: string, discoveryOk: boolean): Promise<void> {
-    if (!this.shouldAttachPlaywrightReportVideo(discoveryOk)) return;
+  /** Playwright .webm for HTML reports — prefer discovery/codegen video; last resort ActHistory replay. */
+  private async attachPlaywrightReportVideo(
+    slug: string,
+    discoveryOk: boolean,
+    phases: RunPhases
+  ): Promise<void> {
+    if (hasUsableReportVideo(slug)) {
+      phases.evidenceVideo = 'from-discovery';
+      phases.reasons = {
+        ...(phases.reasons || {}),
+        evidenceVideo: 'already recorded during discovery — skipped extra browser session',
+      };
+      Logger.detail('Evidence video already attached from discovery — skipping extra Playwright session');
+      return;
+    }
+
+    const harvested = harvestCodegenValidationVideo(slug);
+    if (harvested) {
+      phases.evidenceVideo = 'from-codegen';
+      phases.reasons = {
+        ...(phases.reasons || {}),
+        evidenceVideo: `harvested from codegen Playwright run: ${harvested}`,
+      };
+      Logger.detail(`Evidence video harvested from codegen validation: ${harvested}`);
+      return;
+    }
+
+    if (!this.shouldAttachPlaywrightReportVideo(discoveryOk)) {
+      phases.evidenceVideo = 'skipped';
+      phases.reasons = {
+        ...(phases.reasons || {}),
+        evidenceVideo: 'browser.video off or retain-on-failure with successful discovery',
+      };
+      return;
+    }
+
     const historyPath = resolveExecutionHistoryPath(slug);
-    if (!fs.existsSync(historyPath)) return;
+    if (!fs.existsSync(historyPath)) {
+      phases.evidenceVideo = 'skipped';
+      return;
+    }
     try {
-      Logger.info('Recording Playwright evidence video for report (ffmpeg not used)…');
-      // Force video:on for this attach pass — report evidence must keep the .webm even
-      // when browser.video is retain-on-failure and the replay itself succeeds.
+      Logger.info(
+        'Recording Playwright evidence video (last resort — discovery/codegen had no usable video)…'
+      );
       const result = await ActHistoryReplayService.replay(slug, {
         heal: false,
         video: 'on',
+        evidenceOnly: true,
       });
-      if (result.videoPath) {
+      if (result.videoPath && hasUsableReportVideo(slug)) {
+        phases.evidenceVideo = result.success ? 'passed' : 'passed';
+        phases.reasons = {
+          ...(phases.reasons || {}),
+          evidenceVideo: result.success
+            ? 'recorded via ActHistory evidence replay'
+            : `video saved but replay incomplete: ${result.failure || 'unknown'}`,
+        };
         Logger.detail(`Report video attached: ${result.videoPath}`);
+      } else if (result.failure) {
+        phases.evidenceVideo = 'failed';
+        phases.reasons = {
+          ...(phases.reasons || {}),
+          evidenceVideo: result.failure,
+        };
+        Logger.warn(`Evidence video replay failed (does not fail the run): ${result.failure}`);
       } else {
+        phases.evidenceVideo = 'failed';
         Logger.warn(
           'Playwright replay finished without a usable .webm — check Chrome/Chromium install and browser.video'
         );
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      phases.evidenceVideo = 'failed';
+      phases.reasons = { ...(phases.reasons || {}), evidenceVideo: msg };
       Logger.warn(`Playwright report video skipped: ${msg}`);
+    }
+  }
+
+  private logPhases(phases: RunPhases): void {
+    Logger.info('Phase status:');
+    for (const line of formatPhases(phases)) {
+      Logger.detail(line);
     }
   }
 
@@ -229,6 +300,7 @@ export class Engine {
       statusReason?: string;
       failureContext?: string;
       status?: string;
+      phases?: RunPhases;
     }
   ): void {
     try {
@@ -240,6 +312,7 @@ export class Engine {
       if (patch.failureContext) summary.failureContext = patch.failureContext;
       if (patch.status) summary.status = patch.status;
       if (patch.statusReason && !summary.summary) summary.summary = patch.statusReason;
+      if (patch.phases) summary.phases = patch.phases;
       fs.writeFileSync(p, JSON.stringify(summary, null, 2), 'utf8');
     } catch {
       // best-effort
@@ -488,19 +561,56 @@ export class Engine {
           );
         }
 
-        // 2. Post-process codegen output (deterministic or LLM-generated files)
+        const phases = emptyPhases({ discovery: 'passed' });
         const tempCodegenPath = path.join(process.cwd(), 'packages', 'test-framework', 'temp_codegen.json');
         const baseName = path.basename(this.testFilePath, path.extname(this.testFilePath));
         const codegenRequested = process.env.WEBPILOT_CODEGEN === '1';
+
+        // Confirm discovery success from ActHistory (execFileSync can exit 0 even when
+        // Python marked isSuccessful=false in some edge paths).
+        const historyPathEarly = resolveExecutionHistoryPath(baseName);
+        let discoveryOk = false;
+        let stepsExecuted = 0;
+        if (fs.existsSync(historyPathEarly)) {
+          try {
+            const hist = JSON.parse(fs.readFileSync(historyPathEarly, 'utf8'));
+            stepsExecuted = (hist.actHistory || hist.executionHistory)?.length ?? 0;
+            discoveryOk = isSuccessfulActHistory(hist);
+          } catch {
+            discoveryOk = false;
+          }
+        }
+        phases.discovery = discoveryOk ? 'passed' : 'failed';
+        if (!discoveryOk) {
+          phases.reasons = {
+            ...(phases.reasons || {}),
+            discovery: 'ActHistory isSuccessful=false or missing',
+          };
+        }
+
         if (!fs.existsSync(tempCodegenPath)) {
           if (codegenRequested) {
+            phases.codegen = 'failed';
+            phases.specRerun = 'failed';
+            phases.reasons = {
+              ...(phases.reasons || {}),
+              codegen: 'temp_codegen.json missing after discovery',
+            };
             Logger.error(
               'Codegen was requested (--codegen) but packages/test-framework/temp_codegen.json is missing. ' +
                 'Discovery may have skipped codegen (failed run) or the Python handoff failed.'
             );
+            await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases);
+            this.logPhases(phases);
+            this.patchSummaryProvenance(baseName, {
+              status: overallSuccess(phases) ? 'PASSED' : 'FAILED',
+              phases,
+            });
             this.finalizeJobUsage(baseName);
-            return { success: false, stepsExecuted: 0 };
+            return { success: false, stepsExecuted: 0, phases };
           }
+          phases.codegen = 'not-requested';
+          phases.specRerun = 'not-requested';
         } else {
           Logger.info('Post-processing generated POMs and specs');
           UsageTracker.setPhase('codegen');
@@ -516,15 +626,19 @@ export class Engine {
               const raw = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
               historyDocument = raw;
               steps = (raw.actHistory || raw.executionHistory || raw.steps || []) as RawExecutionStep[];
+              stepsExecuted = steps.length || stepsExecuted;
             }
             if (historyDocument && !isSuccessfulActHistory(historyDocument)) {
-              Logger.warn(
-                'Skipping codegen — only successful executions generate code'
-              );
+              phases.discovery = 'failed';
+              phases.codegen = 'skipped';
+              phases.specRerun = 'skipped';
+              Logger.warn('Skipping codegen — only successful executions generate code');
               safeUnlinkCodegenTemp(tempCodegenPath);
-              await this.attachPlaywrightReportVideo(baseName, false);
+              await this.attachPlaywrightReportVideo(baseName, false, phases);
+              this.logPhases(phases);
+              this.patchSummaryProvenance(baseName, { status: 'FAILED', phases });
               this.finalizeJobUsage(baseName);
-              return { success: false, stepsExecuted: steps.length };
+              return { success: false, stepsExecuted: steps.length, phases };
             }
             const codegenResult = await runPostExecutionCodegen({
               testName: baseName,
@@ -536,12 +650,28 @@ export class Engine {
               historyDocument,
             });
             if (!codegenResult.success) {
+              phases.codegen = 'failed';
+              phases.specRerun = 'failed';
+              phases.reasons = {
+                ...(phases.reasons || {}),
+                codegen: codegenResult.summary,
+              };
               Logger.error(codegenResult.summary);
               safeUnlinkCodegenTemp(tempCodegenPath);
-              await this.attachPlaywrightReportVideo(baseName, false);
+              await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases);
+              this.logPhases(phases);
+              this.patchSummaryProvenance(baseName, {
+                status: 'FAILED',
+                statusReason: codegenResult.summary,
+                failureContext: codegenResult.summary,
+                phases,
+              });
               this.finalizeJobUsage(baseName);
-              return { success: false, stepsExecuted: 0 };
+              return { success: false, stepsExecuted: 0, phases };
             }
+            // writeAndValidate inside deterministic codegen includes Playwright spec rerun.
+            phases.codegen = 'passed';
+            phases.specRerun = 'passed';
             Logger.success(codegenResult.summary);
             await this.mergeCodegenIntoReport(baseName, codegenResult);
           } else if (codegenData?.files?.length) {
@@ -552,12 +682,21 @@ export class Engine {
               urls: execCtx?.urlSequence,
             });
             if (!ok) {
+              phases.codegen = 'failed';
+              phases.specRerun = 'failed';
               Logger.error('Generated code failed validation');
               safeUnlinkCodegenTemp(tempCodegenPath);
-              await this.attachPlaywrightReportVideo(baseName, false);
+              await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases);
+              this.logPhases(phases);
+              this.patchSummaryProvenance(baseName, { status: 'FAILED', phases });
               this.finalizeJobUsage(baseName);
-              return { success: false, stepsExecuted: 0 };
+              return { success: false, stepsExecuted: 0, phases };
             }
+            phases.codegen = 'passed';
+            phases.specRerun = 'passed';
+          } else {
+            phases.codegen = codegenRequested ? 'failed' : 'not-requested';
+            phases.specRerun = phases.codegen;
           }
 
           if (codegenData?.artifacts) {
@@ -578,32 +717,33 @@ export class Engine {
           safeUnlinkCodegenTemp(tempCodegenPath);
         }
 
-        const historyPath = resolveExecutionHistoryPath(baseName);
-        let discoveryOk = false;
-        let stepsExecuted = 0;
-        if (fs.existsSync(historyPath)) {
-          try {
-            const hist = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
-            stepsExecuted = (hist.actHistory || hist.executionHistory)?.length ?? 0;
-            discoveryOk = isSuccessfulActHistory(hist);
-          } catch {
-            discoveryOk = false;
-          }
-        }
-        await this.attachPlaywrightReportVideo(baseName, discoveryOk);
+        await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases);
+        this.logPhases(phases);
+        const ok = overallSuccess(phases);
+        this.patchSummaryProvenance(baseName, {
+          status: ok ? 'PASSED' : 'FAILED',
+          executionMode: 'browser-use-discovery',
+          phases,
+        });
         this.finalizeJobUsage(baseName);
-        return { success: discoveryOk, stepsExecuted };
+        return { success: ok, stepsExecuted, phases };
       } catch (err: any) {
         Logger.error(`WebPilot agent execution failed: ${err.message}`);
         const failedSlug = path.basename(this.testFilePath, path.extname(this.testFilePath));
+        const failedPhases = emptyPhases({
+          discovery: 'failed',
+          reasons: { discovery: err.message },
+        });
         // Python still saves usage in finally before exit — pick it up for Job summary.
         const failedUsagePath = resolveLlmUsagePath(failedSlug);
         if (UsageTracker.getSnapshot().totalTokens === 0) {
           UsageTracker.loadExecutionFromFile(failedUsagePath);
         }
-        await this.attachPlaywrightReportVideo(failedSlug, false);
+        await this.attachPlaywrightReportVideo(failedSlug, false, failedPhases);
+        this.logPhases(failedPhases);
+        this.patchSummaryProvenance(failedSlug, { status: 'FAILED', phases: failedPhases });
         this.finalizeJobUsage(failedSlug);
-        return { success: false, stepsExecuted: 0 };
+        return { success: false, stepsExecuted: 0, phases: failedPhases };
       }
     }
     

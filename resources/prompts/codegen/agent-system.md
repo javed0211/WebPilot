@@ -21,7 +21,7 @@ Output ONLY valid raw JSON (no markdown fences):
 {
   "files": [
     { "path": "packages/test-framework/pages/example/ExamplePage.ts", "content": "..." },
-    { "path": "packages/test-framework/tests/example.spec.ts", "content": "..." }
+    { "path": "packages/test-framework/specs/example.spec.ts", "content": "..." }
   ],
   "summary": "Brief explanation listing each page class created or updated",
   "fixReport": "If fallback_reason was provided, explain why it failed and how you fixed it."

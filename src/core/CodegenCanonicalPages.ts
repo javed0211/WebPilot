@@ -1,3 +1,5 @@
+import { generatedSpecsDir } from './codegen/GeneratedPaths';
+
 /**
  * Battle-tested POM implementations for automationexercise.com.
  * CodegenNormalizer replaces LLM page output with these files so Playwright runs pass without manual edits.
@@ -373,13 +375,18 @@ export const CANONICAL_PAGE_CONTENT: Record<string, string> = {
   'packages/test-framework/pages/automationexercise/AutomationExerciseContactUsPage.ts': AUTOMATION_EXERCISE_CONTACT_US_PAGE,
 };
 
-export const CANONICAL_SPEC_BY_SLUG: Record<string, { path: string; content: string }> = {
-  automationexercise_smoke: {
-    path: 'packages/test-framework/tests/automationexercise_smoke.spec.ts',
-    content: CANONICAL_AUTOMATIONEXERCISE_SMOKE_SPEC,
-  },
-  automationexercise_contact_us: {
-    path: 'packages/test-framework/tests/contact-us-form.spec.ts',
-    content: CANONICAL_CONTACT_US_SPEC,
-  },
-};
+export function canonicalSpecBySlug(slug: string): { path: string; content: string } | undefined {
+  const bySlug: Record<string, { file: string; content: string }> = {
+    automationexercise_smoke: {
+      file: 'automationexercise_smoke.spec.ts',
+      content: CANONICAL_AUTOMATIONEXERCISE_SMOKE_SPEC,
+    },
+    automationexercise_contact_us: {
+      file: 'contact-us-form.spec.ts',
+      content: CANONICAL_CONTACT_US_SPEC,
+    },
+  };
+  const entry = bySlug[slug];
+  if (!entry) return undefined;
+  return { path: `${generatedSpecsDir()}/${entry.file}`, content: entry.content };
+}

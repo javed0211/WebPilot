@@ -39,7 +39,8 @@ export class CodegenPlaywrightValidator {
       return { passed: true, output: 'No spec files to run.', specPaths: [] };
     }
 
-    const playwrightCli = require.resolve('@playwright/test/cli');
+    const { resolvePlaywrightCli } = require('./PlaywrightCliPath');
+    const playwrightCli = resolvePlaywrightCli();
     const args = [
       playwrightCli,
       'test',
@@ -52,7 +53,12 @@ export class CodegenPlaywrightValidator {
       cwd: process.cwd(),
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, FORCE_COLOR: '0' },
+      env: {
+        ...process.env,
+        FORCE_COLOR: '0',
+        // Keep video on success so Engine can harvest it and skip a 3rd browser session.
+        WEBPILOT_PW_VIDEO: 'on',
+      },
     });
 
     const output = [result.stdout, result.stderr, result.error?.message]

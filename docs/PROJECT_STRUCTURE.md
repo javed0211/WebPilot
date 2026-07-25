@@ -27,6 +27,8 @@ runtime/     Generated and local-only output
 - `browser-use/`: pinned upstream Browser Use source plus documented WebPilot patches
 - `test-framework/`: canonical and generated **TypeScript Playwright** pages, APIs, fixtures, and tests
 
+Generated Playwright specs live in `packages/test-framework/specs/` for projects scaffolded by `webpilot init` (1.5+). Projects created earlier (including this repository) use `packages/test-framework/tests/`; codegen detects which directory exists and keeps writing there, so nothing moves on upgrade. The rename avoids confusion with the natural-language scripts in the top-level `tests/` directory.
+
 Initialized projects using other codegen profiles store generated code in profile-specific paths (for example `tests/generated/` for Python, `test/specs/generated/` for WebdriverIO, `tests/WebPilot.Playwright.Tests/Generated/` for C# Playwright). See [guides/multi-language-codegen.md](./guides/multi-language-codegen.md).
 
 ### `resources/`
@@ -37,7 +39,7 @@ Initialized projects using other codegen profiles store generated code in profil
 
 ### `runtime/`
 
-Everything here is generated or machine-local:
+Everything here is generated or machine-local. `webpilot init` no longer scaffolds this tree — it is created on demand the first time a command runs inside the project:
 
 - `reports/html/` — suite and per-test HTML dashboards
 - `reports/data/` — JSON summaries, execution history, LLM usage, API results, CLI logs

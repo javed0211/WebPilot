@@ -29,7 +29,7 @@ Output strict JSON (no markdown):
 {
   "files": [
     { "path": "packages/test-framework/pages/automationexercise/...", "content": "..." },
-    { "path": "packages/test-framework/tests/<name>.spec.ts", "content": "..." }
+    { "path": "packages/test-framework/specs/<name>.spec.ts", "content": "..." }
   ],
   "summary": "List each page class created or updated"
 }

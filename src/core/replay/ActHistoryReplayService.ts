@@ -31,6 +31,11 @@ export interface ReplayFromHistoryOptions {
   stepTimeoutMs?: number;
   /** Override browser.video for this replay (Playwright .webm only — never ffmpeg). */
   video?: 'off' | 'on' | 'retain-on-failure';
+  /**
+   * Evidence-only: attach .webm for the HTML report without changing the
+   * pipeline overall status (discovery/codegen remain the source of truth).
+   */
+  evidenceOnly?: boolean;
 }
 
 function loadDocument(slug: string): ActHistoryDocument {
@@ -132,7 +137,12 @@ function persistReplayStepResults(
 function persistReplayArtifacts(
   slug: string,
   result: ActReplayResult,
-  extras?: { eventBundlePath?: string; stepResultsPath?: string; runId?: string }
+  extras?: {
+    eventBundlePath?: string;
+    stepResultsPath?: string;
+    runId?: string;
+    evidenceOnly?: boolean;
+  }
 ): void {
   const summaryPath = resolveSummaryPath(slug);
   if (!fs.existsSync(summaryPath)) return;
@@ -166,29 +176,37 @@ function persistReplayArtifacts(
     if (extras?.stepResultsPath) artifacts.stepResults = extras.stepResultsPath;
 
     summary.artifacts = artifacts;
-    // Preserve an existing pipeline statusReason (e.g. codegen failure) — replay
-    // artifacts must not silently flip an overall FAILED into PASSED.
-    const priorReason = typeof summary.statusReason === 'string' ? summary.statusReason : '';
-    const priorFailed =
-      String(summary.status || '').toUpperCase() === 'FAILED' &&
-      /codegen|validation/i.test(priorReason);
-    if (!priorFailed) {
-      summary.status = result.success ? 'PASSED' : 'FAILED';
+
+    // Evidence-only video attach must never flip discovery/codegen PASSED → FAILED.
+    if (!extras?.evidenceOnly) {
+      const priorReason = typeof summary.statusReason === 'string' ? summary.statusReason : '';
+      const priorFailed =
+        String(summary.status || '').toUpperCase() === 'FAILED' &&
+        /codegen|validation/i.test(priorReason);
+      if (!priorFailed) {
+        summary.status = result.success ? 'PASSED' : 'FAILED';
+      }
+      summary.executionMode =
+        typeof summary.executionMode === 'string' ? summary.executionMode : 'act-history-replay';
+      summary.stepsExecuted = result.stepsExecuted;
+      if (!result.success && result.failure) {
+        summary.failureContext = result.failure;
+        if (!summary.statusReason) {
+          summary.statusReason = `ActHistory replay failed: ${result.failure}`;
+        }
+      }
+    } else if (!result.success && result.failure) {
+      summary.evidenceVideoStatus = 'FAILED';
+      summary.evidenceVideoReason = result.failure;
+    } else if (result.success) {
+      summary.evidenceVideoStatus = 'PASSED';
     }
-    summary.executionMode =
-      typeof summary.executionMode === 'string' ? summary.executionMode : 'act-history-replay';
-    summary.stepsExecuted = result.stepsExecuted;
+
     summary.timestamp = new Date().toISOString();
     if (typeof summary.durationMs !== 'number' && typeof result.durationMs === 'number') {
       summary.durationMs = result.durationMs;
     }
     if (extras?.runId) summary.runId = extras.runId;
-    if (!result.success && result.failure) {
-      summary.failureContext = result.failure;
-      if (!summary.statusReason) {
-        summary.statusReason = `ActHistory replay failed: ${result.failure}`;
-      }
-    }
     fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2), 'utf8');
   } catch (err) {
     console.warn(
@@ -348,9 +366,10 @@ export class ActHistoryReplayService {
         eventBundlePath: bundlePath,
         stepResultsPath,
         runId: bundle.header.runId,
+        evidenceOnly: Boolean(options.evidenceOnly),
       });
     } else {
-      persistReplayArtifacts(slug, result);
+      persistReplayArtifacts(slug, result, { evidenceOnly: Boolean(options.evidenceOnly) });
     }
     try {
       await generateExecutionReports({

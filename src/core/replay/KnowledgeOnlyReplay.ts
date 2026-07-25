@@ -81,7 +81,8 @@ export class KnowledgeOnlyReplay {
     }
 
     if (plan.strategy === 'spec' && plan.specPath) {
-      const playwrightCli = require.resolve('@playwright/test/cli');
+      const { resolvePlaywrightCli } = require('../PlaywrightCliPath');
+      const playwrightCli = resolvePlaywrightCli();
       const headed = BrowserProviderRegistry.resolveHeaded();
       const args = [
         playwrightCli,

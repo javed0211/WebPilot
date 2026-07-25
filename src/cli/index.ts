@@ -104,6 +104,19 @@ program
   .description('WebPilot: Production-Grade AI-Native Quality Engineering Platform')
   .version(readCliPackageVersion());
 
+// runtime/ is not scaffolded by init — create it lazily for every command that
+// runs inside an existing WebPilot project (identified by webpilot.yaml).
+program.hook('preAction', (_thisCommand, actionCommand) => {
+  if (actionCommand.name() === 'init') return;
+  if (!fs.existsSync(path.join(process.cwd(), 'resources', 'config', 'webpilot.yaml'))) return;
+  try {
+    const { ensureRuntimeDirs } = require('../core/ProjectPaths');
+    ensureRuntimeDirs();
+  } catch {
+    // Non-fatal: individual writers still mkdir where they can.
+  }
+});
+
 interface DoctorCheck {
   ok: boolean;
   required: boolean;
@@ -1093,38 +1106,23 @@ program
       const frameworkDeps = readFrameworkDependencyVersions(installRoot);
       const cypressDeps = readCypressDependencyVersions(installRoot);
       const wdioDeps = readWdioDependencyVersions(installRoot);
+      // runtime/ is gitignored and created on demand by ensureRuntimeDirs() at run time,
+      // so init only scaffolds source-controlled directories.
+      const targetIncludesApi = String(profile.target || '').includes('api');
       const dirs = [
         'resources/config/environments',
         'resources/prompts',
         'tests/web',
-        'tests/api',
-        'runtime/reports/html',
-        'runtime/reports/data/summaries',
-        'runtime/reports/data/execution-history',
-        'runtime/reports/data/llm-usage',
-        'runtime/reports/data/api',
-        'runtime/reports/data/logs',
-        'runtime/reports/markdown',
-        'runtime/reports/junit',
-        'runtime/reports/videos',
-        'runtime/reports/traces',
-        'runtime/artifacts',
-        'runtime/healing-cache',
-        'runtime/knowledge',
-        'runtime/reports/assets',
-        'runtime/site-knowledge',
-        'runtime/site-knowledge/pages',
-        'runtime/site-knowledge/scenarios',
-        'runtime/codegen',
-        'runtime/codegen/failures',
+        ...(targetIncludesApi ? ['tests/api'] : []),
         ...(isFullTypeScriptPlaywright(profile)
           ? [
-              'packages/test-framework/apis',
+              ...(targetIncludesApi ? ['packages/test-framework/apis'] : []),
               'packages/test-framework/config',
               'packages/test-framework/core',
               'packages/test-framework/data',
               'packages/test-framework/pages',
-              'packages/test-framework/tests',
+              'packages/test-framework/specs',
+              'packages/test-framework/utils',
             ]
           : []),
         ...(isPythonPlaywrightProfile(profile)
@@ -1192,9 +1190,18 @@ program
         }
       };
 
+      // Copy only the config a fresh project needs. ado-test-map.yaml is written
+      // on demand by `webpilot ado sync-cases` and is not scaffolded.
+      for (const configFile of ['webpilot.yaml', 'llm.json', 'llm-models.json']) {
+        const source = path.join(installRoot, 'resources', 'config', configFile);
+        const destination = path.join(projectRoot, 'resources', 'config', configFile);
+        if (fs.existsSync(source) && !fs.existsSync(destination)) {
+          fs.copyFileSync(source, destination);
+        }
+      }
       copyMissingTree(
-        path.join(installRoot, 'resources', 'config'),
-        path.join(projectRoot, 'resources', 'config')
+        path.join(installRoot, 'resources', 'config', 'environments'),
+        path.join(projectRoot, 'resources', 'config', 'environments')
       );
       copyMissingTree(
         path.join(installRoot, 'resources', 'prompts'),
@@ -1319,10 +1326,12 @@ obj/
         TestTemplateRegistry.render('checkout-flow', { name: 'Checkout flow' })
       );
 
-      writeProjectFile(
-        'tests/api/petstore_smoke.txt',
-        TestTemplateRegistry.render('api-smoke', { name: 'Petstore smoke' })
-      );
+      if (targetIncludesApi) {
+        writeProjectFile(
+          'tests/api/petstore_smoke.txt',
+          TestTemplateRegistry.render('api-smoke', { name: 'Petstore smoke' })
+        );
+      }
 
       const runScript = isFullTypeScriptPlaywright(profile)
         ? 'npm run test:web'
@@ -1362,6 +1371,15 @@ npm run doctor
 ${runScript}
 open runtime/reports/html/index.html
 \`\`\`
+
+## Project layout
+
+- \`tests/\` — natural-language test scripts (\`.txt\`). This is what you write and what \`webpilot run\` executes.
+- ${profile.language === 'typescript' && profile.automationTool === 'playwright'
+        ? '`packages/test-framework/specs/` — generated Playwright specs (codegen output). `pages/` holds generated page objects.'
+        : 'Generated test code is written to the path shown after each `webpilot run --codegen`.'}
+- \`resources/config/\` — project configuration (\`webpilot.yaml\`, LLM settings, environments).
+- \`runtime/\` — gitignored working state (reports, artifacts, history). Created automatically on first run.
 
 The WebPilot natural-language runner is available for discovery and reports. All major generated-test profiles (TypeScript/Playwright, Python/Playwright, Java/Selenium, TypeScript/Cypress, TypeScript/WebdriverIO, C#/Selenium, C#/Playwright) include full scaffolds.
 `);
@@ -1904,8 +1922,9 @@ function resolveHeadlessFromYaml(): boolean {
 }
 
 export default defineConfig({
-  testDir: './tests',
-  testMatch: '**/*.spec.ts',
+  // Generated specs live in specs/ (projects scaffolded before the rename use tests/).
+  testDir: '.',
+  testMatch: ['specs/**/*.spec.ts', 'tests/**/*.spec.ts'],
   timeout: config.variables.timeout || 60000,
   expect: {
     timeout: 10000
@@ -1924,7 +1943,7 @@ export default defineConfig({
     headless: resolveHeadlessFromYaml(),
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
-    video: 'retain-on-failure',
+    video: process.env.WEBPILOT_PW_VIDEO === 'on' ? 'on' : 'retain-on-failure',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
@@ -2419,10 +2438,18 @@ program
   .option('--no-heal', 'Disable automatic locator self-heal (strict: no heal, no cache upsert)')
   .option('--site-model-only', 'Deprecated alias for --knowledge-only')
   .option('--no-site-model', 'Deprecated alias for --force-discovery')
+  .option(
+    '-v, --verbose',
+    'Show full browser-use agent dumps (Eval/Memory/Thinking). Progress one-liners are always on.',
+    false
+  )
   .description('Run natural language scripts in fully autonomous execution mode')
   .action(async (paths: string[], options) => {
     if (options.knowledgeOnly || options.siteModelOnly) {
       process.env.WEBPILOT_KNOWLEDGE_ONLY = '1';
+    }
+    if (options.verbose) {
+      process.env.WEBPILOT_VERBOSE = '1';
     }
     if (options.forceDiscovery || options.siteModel === false) {
       process.env.WEBPILOT_DISABLE_SITE_KNOWLEDGE = '1';
@@ -2543,6 +2570,7 @@ program
       success: boolean;
       durationMs: number;
       stepsExecuted?: number;
+      phases?: string[];
     }> = [];
     
     const runTest = async (file: string) => {
@@ -2555,6 +2583,7 @@ program
       const isUI = !isApi && nlFile.endsWith('.txt');
       let success = false;
       let stepsExecuted: number | undefined;
+      let phaseLines: string[] | undefined;
       const testStart = Date.now();
       
       try {
@@ -2571,6 +2600,10 @@ program
           const result = await engine.execute();
           success = result.success;
           stepsExecuted = result.stepsExecuted;
+          if (result.phases) {
+            const { formatPhases } = require('../core/RunPhases');
+            phaseLines = formatPhases(result.phases);
+          }
         } else {
           const apiEngine = new ApiEngine({
             testFilePath: nlFile,
@@ -2592,6 +2625,7 @@ program
         success,
         durationMs: Date.now() - testStart,
         stepsExecuted,
+        phases: phaseLines,
       });
       if (!options.report) {
         CliDisplay.printJobSummary({
@@ -2635,6 +2669,7 @@ program
     }
 
     const manifest = writeArtifactManifest();
+    const lastPhases = pendingSummaries[pendingSummaries.length - 1]?.phases;
     console.log(
       AuthoringOutput.block(
         AuthoringOutput.runComplete({
@@ -2643,6 +2678,7 @@ program
           reportPath: options.report ? 'runtime/reports/html/index.html' : undefined,
           manifestPath: path.relative(process.cwd(), manifest.path),
           codegenEnabled: Boolean(options.codegen || metadataCodegen),
+          phaseLines: lastPhases,
         })
       )
     );
@@ -2661,7 +2697,7 @@ program
   .argument(
     '[paths...]',
     'Generated Playwright spec files or directories (ignored when --from is set)',
-    ['packages/test-framework/tests']
+    []
   )
   .option('--from <slug>', 'Replay saved ActHistory for this scenario slug via Playwright')
   .option('--project <name>', 'Playwright project to run (spec replay only)', 'chromium')
@@ -2750,7 +2786,12 @@ program
     }
     const headed = BrowserProviderRegistry.resolveHeaded();
     const { spawnSync } = require('child_process');
-    const playwrightCli = require.resolve('@playwright/test/cli');
+    const { resolvePlaywrightCli } = require('../core/PlaywrightCliPath');
+    const playwrightCli = resolvePlaywrightCli();
+    if (!paths.length) {
+      const { generatedSpecsDir } = require('../core/codegen/GeneratedPaths');
+      paths = [generatedSpecsDir()];
+    }
     const args = [
       playwrightCli,
       'test',

@@ -2,6 +2,7 @@ import { LLMClient, LLMMessage } from '../core/LLMClient';
 import { CodegenContext } from '../core/CodegenContext';
 import { CodegenFailureMemory } from '../core/codegen/CodegenFailureMemory';
 import { PromptLoader } from '../core/PromptLoader';
+import { generatedSpecPath } from '../core/codegen/GeneratedPaths';
 import { RepoEditCodegenAgent } from './RepoEditCodegenAgent';
 
 export interface GeneratedFile {
@@ -123,7 +124,7 @@ export class CodegenAgent {
       return {
         files: [
           {
-            path: `packages/test-framework/tests/${safeTestName}.spec.ts`,
+            path: generatedSpecPath(safeTestName),
             content: `import { test, expect } from '@playwright/test';\n\ntest('${testName}', async ({ page }) => {\n  // Fallback — codegen parse failed\n});`,
           },
         ],

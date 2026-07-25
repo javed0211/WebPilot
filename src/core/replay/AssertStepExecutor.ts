@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
 import type { ActLocator, ActStep } from './ActHistoryTypes';
+import { stripLocaleFromUrlFragment } from '../assertions/LocaleUrl';
 import { describeLocator, resolveUniqueLocator } from './LocatorResolver';
 
 export type AssertIntent =
@@ -40,7 +41,9 @@ export function groundAssertStep(step: ActStep, locators: ActLocator[]): AssertI
   const source = nl || value || `assert#${step.index}`;
 
   if (value.startsWith('__url_contains__:')) {
-    const fragment = value.slice('__url_contains__:'.length).trim();
+    const fragment = stripLocaleFromUrlFragment(
+      value.slice('__url_contains__:'.length).trim()
+    );
     if (!fragment) {
       return { kind: 'ungrounded', reason: 'empty __url_contains__ value', source };
     }

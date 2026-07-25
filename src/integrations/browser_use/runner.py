@@ -7,7 +7,9 @@ os.environ['ANONYMIZED_TELEMETRY'] = 'false'
 os.environ['BROWSER_USE_VERSION_CHECK'] = 'false'
 os.environ['BROWSER_USE_CLOUD_SYNC'] = 'false'
 os.environ['BROWSER_USE_CLOUD'] = 'false'
-# Quiet agent step dumps by default (override with WEBPILOT_VERBOSE=1 or BROWSER_USE_LOGGING_LEVEL=info).
+# Agent progress one-liners always print via agent_progress.py.
+# Full browser-use INFO dumps (Eval/Memory/Thinking) stay off unless verbose:
+#   WEBPILOT_VERBOSE=1  or  BROWSER_USE_LOGGING_LEVEL=info  or  webpilot run --verbose
 if os.environ.get('WEBPILOT_VERBOSE', '').strip().lower() in ('1', 'true', 'yes', 'on'):
     os.environ.setdefault('BROWSER_USE_LOGGING_LEVEL', 'info')
 else:
@@ -89,6 +91,7 @@ if BROWSER_USE_SOURCE_ROOT.is_dir():
     sys.path.insert(0, str(BROWSER_USE_SOURCE_ROOT))
 
 from browser_use import Agent, Browser
+from browser_use.tools.service import Tools
 from .llm_config import (
     _load_dotenv,
     create_browser_use_llm,
@@ -125,6 +128,7 @@ from .knowledge import (
     url_pattern,
     validate_step_outcome,
 )
+from .agent_progress import branding_current_text, print_agent_step
 from .credentials import (
     credential_task_suffix,
     enrich_step_sensitive_data,
@@ -622,6 +626,23 @@ async def _release_scoped_agent(scoped_agent: Any | None) -> None:
         print(f"Warning: scoped agent release did not finish cleanly: {close_error}")
 
 
+# Non-browser agent tools that pollute ActHistory / break Playwright replay.
+_EXCLUDED_AGENT_FILE_ACTIONS = [
+    'write_file',
+    'replace_file',
+    'read_file',
+    'append_file',
+]
+
+
+def _discovery_tools(use_vision: Any) -> Tools:
+    """Tools for discovery — browser actions only (no todo.md / write_file)."""
+    exclude = list(_EXCLUDED_AGENT_FILE_ACTIONS)
+    if use_vision != 'auto':
+        exclude.append('screenshot')
+    return Tools(exclude_actions=exclude)
+
+
 def _build_scoped_agent_kwargs(
     *,
     scoped_task: str,
@@ -639,6 +660,7 @@ def _build_scoped_agent_kwargs(
         'task': scoped_task,
         'llm': llm,
         'browser': browser,
+        'tools': _discovery_tools(resolved_use_vision),
         'calculate_cost': True,
         'register_new_step_callback': on_scoped_step,
         'use_vision': resolved_use_vision,
@@ -811,6 +833,10 @@ async def run_native_browser_use_scenario(
             captured_actions.extend(new_actions)
             if loop_breaker.observe_actions(new_actions) and loop_breaker.message:
                 print(f"[WebPilot] Control-loop breaker: {loop_breaker.message}")
+        try:
+            print_agent_step(int(_agent_step or 0), output, new_actions)
+        except Exception:
+            pass
         # Capture selector_map inventory while live DOM is still available
         try:
             from .page_inventory import snapshot_from_browser_state, upsert_inventory
@@ -856,7 +882,9 @@ async def run_native_browser_use_scenario(
                 {
                     'currentIndex': min(len(steps), max(1, len(captured_actions))),
                     'totalSteps': len(steps),
-                    'currentText': 'WebPilot agent running full scenario',
+                    'currentText': branding_current_text(
+                        output, 'WebPilot agent running full scenario'
+                    ),
                     'tokens': total,
                     'cost': f"{llm_usage_totals['estimatedCostUsd'] + priced:.4f}",
                     'allSteps': [
@@ -886,6 +914,7 @@ async def run_native_browser_use_scenario(
         'task': task,
         'llm': llm,
         'browser': browser,
+        'tools': _discovery_tools(resolved_use_vision),
         'calculate_cost': True,
         'register_new_step_callback': on_native_step,
         'register_should_stop_callback': loop_breaker.should_stop,
@@ -910,7 +939,9 @@ async def run_native_browser_use_scenario(
             "unless the test steps require authentication. "
             "Never call done(success=true) until EVERY numbered step is done — including opening the "
             "date picker, selecting check-in/check-out dates, clicking Search, and verifications. "
-            "Do not invent raw URLs for in-app navigation — use on-page click/search."
+            "Do not invent raw URLs for in-app navigation — use on-page click/search. "
+            "Do NOT use write_file, replace_file, or todo.md — track progress in memory only. "
+            "Verify UI with browser visibility/URL checks, never by writing checklist files."
         ),
     }
     vision_detail = str(perf.get('visionDetailLevel') or 'auto').strip().lower()
@@ -1218,8 +1249,19 @@ async def run_intelligent_steps(
             )
 
     async def on_scoped_step(state, output, _agent_step):
+        new_actions: list[dict] = []
         if output is not None:
-            active_capture.extend(actions_from_output(state, output))
+            new_actions = actions_from_output(state, output)
+            active_capture.extend(new_actions)
+        try:
+            print_agent_step(
+                int(_agent_step or 0),
+                output,
+                new_actions,
+                nl_hint=active_step_text,
+            )
+        except Exception:
+            pass
         if scoped_agent is not None:
             try:
                 prompt, completion, cost, _calls = await read_browser_use_usage_snapshot(scoped_agent)
@@ -1235,7 +1277,7 @@ async def run_intelligent_steps(
                     {
                         'currentIndex': active_step_index,
                         'totalSteps': len(steps),
-                        'currentText': active_step_text,
+                        'currentText': branding_current_text(output, active_step_text),
                         'tokens': total,
                         'cost': f"{llm_usage_totals['estimatedCostUsd'] + priced:.4f}",
                         'allSteps': [
@@ -1668,7 +1710,7 @@ def load_browser_artifact_config():
                     print(f"[WebPilot] Viewport scale {scale}x → {defaults['viewport']['width']}×{defaults['viewport']['height']}")
             except ValueError:
                 print(f"Warning: Ignoring invalid WEBPILOT_VIEWPORT_SCALE={scale_raw!r}")
-        defaults['record_video'] = False  # BA never uses ffmpeg; Playwright owns video
+        defaults['record_video'] = False  # set below from browser.video + ffmpeg availability
         ss_mode = str(browser.get('screenshots', 'only-on-failure') or 'only-on-failure').strip().lower()
         if ss_mode in ('off', 'on', 'only-on-failure'):
             defaults['screenshots_mode'] = ss_mode
@@ -1687,17 +1729,40 @@ def load_browser_artifact_config():
         artifacts = yaml_config.get('framework', {}).get('artifactsPath', str(ARTIFACTS_ROOT))
         if artifacts:
             pass
+        video_raw = str(browser.get('video', 'on') or 'on').strip().lower()
+        defaults['video_mode'] = video_raw
     except Exception as e:
         print("Warning: Could not parse config/webpilot.yaml for artifacts:", e)
-    # browser.video configures Playwright ActHistory / generated-spec recording only.
-    # Force BA screencast off so blocked ffmpeg.exe cannot break discovery teardown.
-    defaults['record_video'] = False
+        defaults.setdefault('video_mode', 'on')
+
     env_video = os.environ.get('WEBPILOT_VIDEO', '').strip().lower()
-    if env_video in ('on', '1', 'true', 'yes'):
+    if env_video in ('off', '0', 'false', 'no'):
+        defaults['video_mode'] = 'off'
+    elif env_video in ('on', '1', 'true', 'yes'):
+        defaults['video_mode'] = 'on'
+    elif env_video == 'retain-on-failure':
+        defaults['video_mode'] = 'retain-on-failure'
+
+    # Prefer recording inside the discovery (browser-use) session so we do not need a
+    # second Playwright browser just for report video. Requires bundled ffmpeg.
+    video_mode = str(defaults.get('video_mode') or 'on').lower()
+    want_video = video_mode in ('on', '1', 'true', 'yes', 'retain-on-failure')
+    if want_video and _FFMPEG_AVAILABLE:
+        defaults['record_video'] = True
         print(
-            '[WebPilot] WEBPILOT_VIDEO=on — Playwright will record ActHistory/report video; '
-            'BA discovery does not use ffmpeg.'
+            '[WebPilot] Discovery video recording ON (browser-use CDP screencast + ffmpeg) — '
+            'no extra Playwright session needed for report video.'
         )
+    elif want_video and not _FFMPEG_AVAILABLE:
+        defaults['record_video'] = False
+        print(
+            '[WebPilot] Discovery video unavailable (ffmpeg not found). '
+            'Report video will come from codegen Playwright validation when --codegen runs, '
+            'or a one-shot ActHistory evidence replay as last resort.'
+        )
+    else:
+        defaults['record_video'] = False
+
     # Headless comes from webpilot.yaml only (browserProviders.<active>.headless → browser.headless).
     # Do not honor WEBPILOT_HEADLESS — that env was previously able to override yaml.
     os.makedirs(defaults['video_dir'], exist_ok=True)
@@ -2228,7 +2293,7 @@ async def main():
             print(f"Warning: browser cleanup did not finish cleanly: {close_error}")
         artifact_paths = finalize_artifacts(
             base_file_name,
-            None,  # Playwright owns video — never collect BA ffmpeg/mp4 stubs
+            browser_cfg['video_dir'] if browser_cfg.get('record_video') else None,
             browser_cfg['traces_dir'] if browser_cfg['record_trace'] else None,
         )
         artifact_paths = artifact_paths or {}

@@ -10,7 +10,7 @@
 | Artifact | Path |
 |----------|------|
 | API client | `packages/test-framework/apis/<Name>Api.ts` |
-| Playwright spec | `packages/test-framework/tests/api/<slug>.api.spec.ts` |
+| Playwright spec | `packages/test-framework/specs/api/<slug>.api.spec.ts` (older projects: `tests/api/`) |
 
 ## Test sources
 1. **Plain text** (`tests/api/*.txt`) — `Send GET request to ...`, `Assert status is 200`, `@api` tags.
@@ -22,5 +22,5 @@
 ```bash
 npm run webpilot -- run tests/api/login_api.txt --env qa
 npm run webpilot -- import-api https://petstore.swagger.io/v2/swagger.json -o tests/api/petstore_smoke.txt
-npx playwright test packages/test-framework/tests/api --config=packages/test-framework/playwright.config.ts
+npx playwright test packages/test-framework/specs/api --config=packages/test-framework/playwright.config.ts
 ```

@@ -8,6 +8,7 @@ export const FRAMEWORK_PATH_ALIASES: Record<string, string[]> = {
   '@core/*': ['packages/test-framework/core/*'],
   '@pages/*': ['packages/test-framework/pages/*'],
   '@tests/*': ['packages/test-framework/tests/*'],
+  '@specs/*': ['packages/test-framework/specs/*'],
   '@config/*': ['packages/test-framework/config/*'],
   '@utils/*': ['packages/test-framework/utils/*'],
   '@data/*': ['packages/test-framework/data/*'],

@@ -40,7 +40,21 @@ _ACT_ACTIONS = frozenset(
     }
 )
 
-_SKIP_ACTIONS = frozenset({"done", "think", "plan"})
+_SKIP_ACTIONS = frozenset(
+    {
+        "done",
+        "think",
+        "plan",
+        # Agent filesystem / todo tools — not browser work. Pollute ActHistory and
+        # break Playwright replay (unsupported write_file / replace_file).
+        "write_file",
+        "replace_file",
+        "read_file",
+        "append_file",
+        "write_todos",
+        "update_todo",
+    }
+)
 
 _LOCATOR_KIND_PRIORITY = {
     "role": 0,

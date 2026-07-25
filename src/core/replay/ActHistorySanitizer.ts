@@ -9,6 +9,12 @@ const NON_REPLAY_ACTIONS = new Set([
   'search',
   'done',
   'custom',
+  'write_file',
+  'replace_file',
+  'read_file',
+  'append_file',
+  'write_todos',
+  'update_todo',
 ]);
 
 const SKIP_LINK_PATTERNS = [

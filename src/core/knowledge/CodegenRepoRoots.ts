@@ -1,6 +1,7 @@
 import * as path from 'path';
 import { ConfigManager } from '../ConfigManager';
 import type { CodegenProfilePlan } from '../codegen/GenerationPlan';
+import { generatedSpecsDir } from '../codegen/GeneratedPaths';
 import { readProjectCodegenProfile } from '../codegen/PostExecutionCodegen';
 
 /**
@@ -66,7 +67,7 @@ export function defaultTestsDir(profile?: CodegenProfilePlan): string {
   if (p.language === 'java') return 'src/test/java';
   if (p.language === 'csharp') return 'tests/WebPilot.Tests';
   if (p.automationTool === 'cypress') return 'cypress/e2e';
-  return 'packages/test-framework/tests';
+  return generatedSpecsDir();
 }
 
 export function guessSpecCandidates(slug: string, profile?: CodegenProfilePlan): string[] {

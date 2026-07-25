@@ -1,4 +1,5 @@
 import { GeneratedFile } from '../../agents/CodegenAgent';
+import { generatedSpecsDir } from '../codegen/GeneratedPaths';
 import { ApiRequestStep, ApiStepExecutionRecord, ApiTestScenario } from './types';
 
 function slugify(name: string): string {
@@ -118,7 +119,7 @@ ${tests}
     }
 
     const specFile: GeneratedFile = {
-      path: `packages/test-framework/tests/api/${slug}.api.spec.ts`,
+      path: `${generatedSpecsDir()}/api/${slug}.api.spec.ts`,
       content: `import { test } from '@core/fixtures';
 import { ${className} } from '../../apis/${className}';
 

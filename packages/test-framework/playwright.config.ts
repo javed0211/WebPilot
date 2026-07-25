@@ -48,7 +48,7 @@ export default defineConfig({
     headless: resolveHeadlessFromYaml(),
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
-    video: 'retain-on-failure',
+    video: process.env.WEBPILOT_PW_VIDEO === 'on' ? 'on' : 'retain-on-failure',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },

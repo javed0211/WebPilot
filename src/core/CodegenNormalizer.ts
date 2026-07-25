@@ -2,8 +2,9 @@ import { GeneratedFile } from '../agents/CodegenAgent';
 import {
   AUTOMATION_EXERCISE_CANONICAL_PATHS,
   CANONICAL_PAGE_CONTENT,
-  CANONICAL_SPEC_BY_SLUG,
+  canonicalSpecBySlug,
 } from './CodegenCanonicalPages';
+import { generatedSpecsDir } from './codegen/GeneratedPaths';
 import {
   FRAMEWORK_BASE_PAGE_REL_PATH,
   ensureFrameworkTsConfig,
@@ -79,10 +80,7 @@ export class CodegenNormalizer {
       pathsPresent.add(canonicalPath);
     }
 
-    const canonicalSpec =
-      options?.testSlug && CANONICAL_SPEC_BY_SLUG[options.testSlug]
-        ? CANONICAL_SPEC_BY_SLUG[options.testSlug]
-        : undefined;
+    const canonicalSpec = options?.testSlug ? canonicalSpecBySlug(options.testSlug) : undefined;
 
     for (const file of withImports) {
       const filePath = file.path.replace(/\\/g, '/');
@@ -122,10 +120,10 @@ export class CodegenNormalizer {
         return `../pages/${normalizedSuffix}`;
       }
       const from = normalizeProjectRelativePath(specPath);
-      const testsIdx = from.lastIndexOf('/tests/');
+      const specsRootIdx = Math.max(from.lastIndexOf('/tests/'), from.lastIndexOf('/specs/'));
       const pagesTarget =
-        testsIdx >= 0
-          ? `${from.slice(0, testsIdx)}/pages/${normalizedSuffix}`
+        specsRootIdx >= 0
+          ? `${from.slice(0, specsRootIdx)}/pages/${normalizedSuffix}`
           : `packages/test-framework/pages/${normalizedSuffix}`;
       return relativeImportPath(from, `${pagesTarget}.ts`);
     };
@@ -147,14 +145,22 @@ export class CodegenNormalizer {
   }
 
   public static sanitizeGeneratedFiles(files: GeneratedFile[]): GeneratedFile[] {
+    const specsDir = generatedSpecsDir();
     return files.map((file) => {
-      const normalizedPath = file.path.replace(/\\/g, '/');
+      let normalizedPath = file.path.replace(/\\/g, '/');
       if (!normalizedPath.endsWith('.spec.ts')) {
         return file;
       }
+      // LLM output may target the other spec dir name (tests/ vs specs/) —
+      // remap to the directory this project actually uses.
+      normalizedPath = normalizedPath.replace(
+        /^packages\/test-framework\/(?:tests|specs)\//,
+        `${specsDir}/`
+      );
       return {
         ...file,
-        content: CodegenNormalizer.normalizeSpecImports(file.content, file.path),
+        path: normalizedPath,
+        content: CodegenNormalizer.normalizeSpecImports(file.content, normalizedPath),
       };
     });
   }
