@@ -348,7 +348,10 @@ def _search_page_to_assert(
         }
 
     locs: list[dict[str, Any]] = [{"kind": "text", "value": query, "exact": False}]
-    if any(k in matched_nl.lower() for k in ("section", "heading", "page")):
+    # search_page only proves the *text* exists. Promote to a heading role when the NL
+    # explicitly names a section/heading — "page" alone is far too loose ("This page was
+    # last edited" is footer copy, not a heading).
+    if re.search(r"\b(section|heading|title)\b", matched_nl, re.I):
         locs.insert(0, {"kind": "role", "value": "heading", "name": query})
 
     return {
@@ -482,6 +485,13 @@ def _is_overlay_dismiss_blob(blob: str) -> bool:
             r"accept cookies|got it|no thanks|maybe later|dismiss|close.*(dialog|modal|banner)",
             b,
         )
+    )
+
+
+def _is_bare_dismiss_click(blob: str) -> bool:
+    """A dismiss control named only "Close"/"No thanks" (Wikipedia's donation banner)."""
+    return bool(
+        re.search(r"\b(close|dismiss|no thanks|not now|maybe later)\b", blob or "", re.I)
     )
 
 
@@ -673,6 +683,14 @@ def _align_nl_step(
                     score += 8
                 if "search" in lower and "cookie" not in lower:
                     score -= 6
+            # A bare "Close" click (donation/promo banner) shares only the generic word
+            # "click" with NL like "Click View history" — just enough to reach the bind
+            # threshold and shift every later click onto the wrong control.
+            if _is_bare_dismiss_click(blob) and not any(
+                k in lower
+                for k in ("close", "dismiss", "cookie", "consent", "banner", "popup", "no thanks")
+            ):
+                score -= 8
             # Dismiss / close / sign-in interstitial — never map to Search or destination.
             if any(k in blob for k in ("dismiss", "sign in information", "close dialog", "genius")):
                 if any(k in lower for k in ("cookie", "consent", "dismiss", "if a")):
@@ -1450,7 +1468,10 @@ def _ensure_optional_dismiss_steps(
         if str(step.get("action") or "").lower() != "click":
             continue
         blob = f"{step.get('description') or ''} {json.dumps(step.get('locator') or {})}"
-        if not _is_overlay_dismiss_blob(blob):
+        unbound = not (step.get("nlStep") or "").strip()
+        # A dismiss click the agent made on its own (no NL asked for it) is banner noise:
+        # replaying it as a required click fails whenever the banner does not show up.
+        if not _is_overlay_dismiss_blob(blob) and not (unbound and _is_bare_dismiss_click(blob)):
             continue
         step["optional"] = True
         if not (step.get("nlStep") or "").strip():
@@ -1573,6 +1594,36 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
                 step["url"] = home
                 continue
 
+        # "Verify X section" / "Verify the Sign in button is visible" — the NL names the
+        # element type, so use its role. Agents often assert sections by reading the page
+        # instead of probing it, leaving no locator evidence behind.
+        noun = re.match(
+            r"^(?:verify|assert|check|ensure)\s+(?:that\s+)?(?:the\s+)?(.+?)\s+"
+            r"(section|heading|title|tab|link|button)"
+            r"(?:\s+(?:is|are)\s+(?:displayed|visible|shown|present))?\s*$",
+            nl,
+            re.I,
+        )
+        if noun:
+            name = noun.group(1).strip().strip("\"'")
+            role = {
+                "section": "heading",
+                "heading": "heading",
+                "title": "heading",
+                "tab": "tab",
+                "link": "link",
+                "button": "button",
+            }[noun.group(2).lower()]
+            if name and len(name) <= 64:
+                loc = {"kind": "role", "value": role, "name": name, "exact": False}
+                step["locator"] = loc
+                step["selectorCandidates"] = [
+                    loc,
+                    {"kind": "text", "value": name, "exact": False},
+                ]
+                step["verified"] = True
+                continue
+
         if re.search(r"\bsign\s*in\b", lower) and "visible" in lower:
             loc = {"kind": "role", "value": "link", "name": "Sign in", "exact": True}
             step["locator"] = loc
@@ -1580,17 +1631,42 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
             step["verified"] = True
             continue
 
-        disp = re.match(r"^(?:verify|assert|check|ensure)\s+(.+?)\s+is\s+displayed\s*$", nl, re.I)
+        # "Verify X is visible/displayed/shown" — text/role locator from the NL name.
+        disp = re.match(
+            r"^(?:verify|assert|check|ensure)\s+(.+?)\s+is\s+(?:displayed|visible|shown)\s*$",
+            nl,
+            re.I,
+        )
         if disp:
             name = disp.group(1).strip().strip("\"'")
-            if name and len(name) <= 48 and "page" not in name.lower():
-                # Prefer role=link for nav tabs (Code, Issues, …); text for README.md etc.
+            # "the search results page" is page state with no literal copy behind it, but
+            # "This page was last edited" is real footer text — only the trailing noun
+            # marks the page-state phrasing.
+            page_state = bool(re.search(r"\b(page|screen|view)\s*$", name, re.I))
+            if name and len(name) <= 64 and not page_state:
                 if re.search(r"\.md$|readme", name, re.I):
                     loc = {"kind": "text", "value": name, "exact": False}
+                elif re.search(r"\bsearch\b", name, re.I):
+                    # Wikipedia / Booking search fields — prefer searchbox/combobox role,
+                    # with text fallback matching placeholder ("Search Wikipedia").
+                    loc = {"kind": "role", "value": "searchbox", "name": name, "exact": False}
+                    step["selectorCandidates"] = [
+                        loc,
+                        {"kind": "role", "value": "combobox", "name": name, "exact": False},
+                        {"kind": "placeholder", "value": name},
+                        {"kind": "text", "value": name, "exact": False},
+                    ]
                 else:
-                    loc = {"kind": "role", "value": "link", "name": name, "exact": False}
+                    # "X is displayed" asserts page copy, and nothing observed says the
+                    # copy is a link or heading ("Revision history" is part of an h1 on
+                    # Wikipedia). getByText matches the text in any element. Keep this a
+                    # lone candidate: codegen ranks role above text, so an invented role
+                    # would outrank the only locator we can actually stand behind.
+                    loc = {"kind": "text", "value": name, "exact": False}
+                    step["selectorCandidates"] = [loc]
                 step["locator"] = loc
-                step["selectorCandidates"] = [loc]
+                if not step.get("selectorCandidates"):
+                    step["selectorCandidates"] = [loc]
                 step["verified"] = True
                 continue
     return steps
@@ -1598,11 +1674,13 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
 
 def _ground_asserts_from_related_acts(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
-    Hollow 'logo and search input' asserts can reuse the search input locator from a
-    prior fill on the same page when browser-use never probed the logo explicitly.
+    Hollow search-field verifies can reuse the locator from a nearby fill when
+    browser-use never probed the control as a standalone assert (e.g. Wikipedia
+    'Verify Search Wikipedia is visible' right before typing into searchInput).
     """
-    input_locs: list[dict[str, Any]] = []
-    for s in steps:
+    # Collect every input locator with its step index for proximity matching.
+    input_entries: list[tuple[int, dict[str, Any], str]] = []
+    for idx, s in enumerate(steps):
         if str(s.get("action") or "").lower() != "input":
             continue
         for loc in (
@@ -1611,18 +1689,30 @@ def _ground_asserts_from_related_acts(steps: list[dict[str, Any]]) -> list[dict[
             + list(s.get("selectorCandidates") or [])
         ):
             if isinstance(loc, dict) and (loc.get("value") or loc.get("name")):
-                input_locs.append(loc)
-    if not input_locs:
+                blob = f"{loc.get('name') or ''} {loc.get('value') or ''} {loc.get('filterText') or ''}".lower()
+                input_entries.append((idx, loc, blob))
+    if not input_entries:
         return steps
-    for step in steps:
+    for pos, step in enumerate(steps):
         if str(step.get("action") or "").lower() not in ("assert", "verify"):
             continue
         if _assert_is_grounded(step):
             continue
-        nl = str(step.get("nlStep") or "").lower()
-        if "search input" not in nl and not ("logo" in nl and "search" in nl):
+        nl = str(step.get("nlStep") or step.get("value") or "").lower()
+        if "search" not in nl:
             continue
-        loc = input_locs[0]
+        if not re.search(r"\b(visible|displayed|shown|search input|search box|search field)\b", nl):
+            continue
+        # Prefer an input within ±3 steps; else first search-ish locator.
+        nearby = [
+            (abs(i - pos), loc)
+            for i, loc, blob in input_entries
+            if abs(i - pos) <= 3 and ("search" in blob or "searchbox" in blob or "combobox" in blob or i >= pos)
+        ]
+        if not nearby:
+            nearby = [(abs(i - pos), loc) for i, loc, _blob in input_entries]
+        nearby.sort(key=lambda t: t[0])
+        loc = nearby[0][1]
         step["locator"] = loc
         cands = list(step.get("selectorCandidates") or [])
         if loc not in cands:

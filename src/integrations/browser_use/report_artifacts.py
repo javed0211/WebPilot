@@ -151,6 +151,15 @@ def finalize_artifacts(
                 shutil.copy2(src, dest)
             if is_usable_video(dest):
                 artifacts["video"] = dest
+                # A previous run may have left {slug} under the other extension; leaving it
+                # behind makes report tooling pick evidence from a run that never happened.
+                for stale_ext in (".webm", ".mp4"):
+                    stale = videos_root / f"{test_slug}{stale_ext}"
+                    if stale_ext != ext and stale.exists():
+                        try:
+                            stale.unlink()
+                        except OSError:
+                            pass
                 print(f"Saved execution video: {dest}")
             else:
                 print(f"Warning: skipped unusable video artifact ({dest})")

@@ -519,6 +519,172 @@ def test_wikipedia_hollow_heading_assert_is_unmapped():
     assert status["status"] == "assertHollow"
 
 
+def test_section_verifies_ground_to_heading_role_without_agent_probe():
+    """'Verify See also section' must map even when the agent never searched the page."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "value": "https://en.wikipedia.org/wiki/Software_testing",
+            "locators": [],
+        },
+    ]
+    nl = [
+        "Verify See also section",
+        "Verify References section",
+        "Verify the Sign in button is visible",
+    ]
+    plan = [
+        {"index": 2, "kind": "assert", "nlStep": nl[0]},
+        {"index": 3, "kind": "assert", "nlStep": nl[1]},
+        {"index": 4, "kind": "assert", "nlStep": nl[2]},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    assert compact["coverage"]["unmapped"] == []
+    see_also = next(s for s in compact["steps"] if s.get("nlStep") == nl[0])
+    assert see_also["locator"]["value"] == "heading"
+    assert see_also["locator"]["name"] == "See also"
+    sign_in = next(s for s in compact["steps"] if s.get("nlStep") == nl[2])
+    assert sign_in["locator"]["value"] == "button"
+    assert sign_in["locator"]["name"] == "Sign in"
+
+
+def test_unrequested_close_click_is_optional_but_requested_one_is_not():
+    """Banner closes the agent did on its own must replay as if-present, not required."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "value": "https://en.wikipedia.org/wiki/Software_testing",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "click",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "description": 'click | Close | Clicked button "Close"',
+            "locators": [{"kind": "role", "value": "button", "name": "Close", "exact": True}],
+        },
+        {
+            "index": 3,
+            "action": "click",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "description": 'click | Talk | Clicked link "Talk"',
+            "locators": [{"kind": "role", "value": "link", "name": "Talk", "exact": True}],
+        },
+    ]
+    nl = ["Click Talk"]
+    compact = build_compact_workflow(acts, nl, [])
+    close_step = next(
+        s for s in compact["steps"] if "Close" in str(s.get("description") or "")
+    )
+    assert close_step.get("optional") is True
+    talk_step = next(s for s in compact["steps"] if s.get("nlStep") == "Click Talk")
+    assert not talk_step.get("optional")
+
+
+def test_displayed_assert_grounds_copy_containing_the_word_page():
+    """'This page was last edited' is footer copy; only trailing 'page' means page state."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "value": "https://en.wikipedia.org/wiki/Software_testing",
+            "locators": [],
+        },
+    ]
+    nl = [
+        "Verify This page was last edited is displayed",
+        "Verify the search results page is displayed",
+    ]
+    plan = [
+        {"index": 2, "kind": "assert", "nlStep": nl[0]},
+        {"index": 3, "kind": "assert", "nlStep": nl[1]},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    footer = next(s for s in compact["steps"] if s.get("nlStep") == nl[0])
+    assert footer["locator"] == {
+        "kind": "text",
+        "value": "This page was last edited",
+        "exact": False,
+    }
+    page_state = next(s for s in compact["steps"] if s.get("nlStep") == nl[1])
+    assert not page_state.get("locator")
+
+
+def test_nl_only_displayed_assert_prefers_text_over_invented_link_role():
+    """'Verify Revision history is displayed' must emit getByText, not a guessed link role."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "value": "https://en.wikipedia.org/wiki/Software_testing",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "click",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "description": "click | View history",
+            "locators": [
+                {"kind": "role", "value": "link", "name": "View history", "exact": True}
+            ],
+        },
+    ]
+    nl = ["Click View history", "Verify Revision history is displayed"]
+    plan = [{"index": 3, "kind": "assert", "nlStep": nl[1]}]
+    compact = build_compact_workflow(acts, nl, plan)
+    step = next(s for s in compact["steps"] if s.get("nlStep") == nl[1])
+    assert step["locator"]["kind"] == "text", step["locator"]
+    assert step["locator"]["value"] == "Revision history"
+    # Codegen ranks role above text, so a role candidate here would win and be emitted.
+    assert all(c["kind"] == "text" for c in step["selectorCandidates"]), step["selectorCandidates"]
+
+
+def test_search_page_heading_role_requires_section_or_heading_nl():
+    """Footer copy matched by search_page must stay a text assert, not a heading role."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "value": "https://en.wikipedia.org/wiki/Software_testing",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "search_page",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "description": 'custom | Searched page for "This page was last edited": 1 match found.',
+            "locators": [],
+        },
+        {
+            "index": 3,
+            "action": "search_page",
+            "url": "https://en.wikipedia.org/wiki/Software_testing",
+            "description": 'custom | Searched page for "See also": 1 match found.',
+            "locators": [],
+        },
+    ]
+    nl = [
+        "Verify This page was last edited is displayed",
+        "Verify See also section",
+    ]
+    plan = [
+        {"index": 2, "kind": "assert", "nlStep": nl[0]},
+        {"index": 3, "kind": "assert", "nlStep": nl[1]},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    footer = next(s for s in compact["steps"] if s.get("nlStep") == nl[0])
+    assert footer["locator"]["kind"] == "text", footer["locator"]
+    section = next(s for s in compact["steps"] if s.get("nlStep") == nl[1])
+    assert section["locator"] == {"kind": "role", "value": "heading", "name": "See also"}
+
+
 def test_submit_search_not_optional_when_missing():
     """Submit the search without a Search/Enter act is a hard miss."""
     acts = [
@@ -745,3 +911,58 @@ def test_trailing_assert_grounds_from_entered_value_in_results_url():
     dest_assert = next(s for s in compact["steps"] if s.get("nlStep") == nl[4])
     assert str(dest_assert.get("value") or "") == "__url_contains__:London"
     assert compact["coverage"]["unmapped"] == []
+
+
+def test_search_wikipedia_visible_grounds_from_nearby_input():
+    """Homepage 'Verify Search Wikipedia is visible' must not stay assertHollow."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://www.wikipedia.org/",
+            "description": "navigate",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "input",
+            "value": "Software testing",
+            "url": "https://www.wikipedia.org/",
+            "description": "input | Search Wikipedia",
+            "locators": [
+                {"kind": "css", "value": 'input[id="searchInput"]', "verified": True},
+                {
+                    "kind": "text",
+                    "value": "Search Wikipedia",
+                    "tag": "input",
+                    "filterText": "Search Wikipedia",
+                    "exact": True,
+                    "verified": True,
+                },
+            ],
+        },
+        {
+            "index": 3,
+            "action": "click",
+            "url": "https://www.wikipedia.org/",
+            "description": 'click | Search',
+            "locators": [{"kind": "role", "value": "button", "name": "Search", "exact": True}],
+        },
+    ]
+    nl = [
+        "Navigate to https://www.wikipedia.org/",
+        "Verify Wikipedia homepage loads successfully",
+        "Verify Search Wikipedia is visible",
+        "Enter Software testing into the search input",
+        "Click Search",
+    ]
+    plan = [
+        {"index": 2, "kind": "assert", "nlStep": nl[1]},
+        {"index": 3, "kind": "assert", "nlStep": nl[2]},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    by_status = {s["nlStep"]: s for s in compact["coverage"]["stepStatuses"]}
+    assert by_status[nl[2]]["status"] == "assertGrounded", by_status[nl[2]]
+    assert nl[2] not in compact["coverage"]["unmapped"]
+    search_assert = next(s for s in compact["steps"] if s.get("nlStep") == nl[2])
+    assert search_assert.get("locator") or search_assert.get("selectorCandidates")

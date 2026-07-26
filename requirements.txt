@@ -3,9 +3,9 @@
 #
 # Browser Use is vendored from upstream tag 0.13.4 so WebPilot can customize
 # the agent, browser, DOM, tools, and observability internals. Keep this editable.
-# Do NOT install the [video] extra — BA discovery does not use ffmpeg screencast.
-# Report video is Playwright .webm (ActHistory replay / generated specs).
--e "./packages/browser-use"
+# [video] installs imageio + bundled ffmpeg so discovery can record report video
+# in the same browser-use session (no extra Playwright evidence replay).
+-e "./packages/browser-use[video]"
 openai>=1.0.0
 PyYAML>=6.0
 python-dotenv>=1.0.0

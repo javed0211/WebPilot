@@ -102,8 +102,12 @@ export function hasUsableReportVideo(slug: string): boolean {
 /**
  * After codegen Playwright validation, copy the newest usable video under
  * test-results/ into runtime/reports/videos/{slug}.webm and patch the summary.
+ * Only accepts videos newer than runStartedAt (avoids scavenging prior runs).
  */
-export function harvestCodegenValidationVideo(slug: string): string | undefined {
+export function harvestCodegenValidationVideo(
+  slug: string,
+  runStartedAt?: number
+): string | undefined {
   const roots = [
     path.join(process.cwd(), 'test-results'),
     path.join(process.cwd(), 'packages', 'test-framework', 'test-results'),
@@ -113,6 +117,7 @@ export function harvestCodegenValidationVideo(slug: string): string | undefined 
     if (!fs.existsSync(root)) continue;
     collectVideos(root, candidates);
   }
+  const minMtime = typeof runStartedAt === 'number' ? runStartedAt - 5_000 : 0;
   candidates.sort((a, b) => {
     try {
       return fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs;
@@ -122,7 +127,8 @@ export function harvestCodegenValidationVideo(slug: string): string | undefined 
   });
   const src = candidates.find((p) => {
     try {
-      return fs.statSync(p).size >= MIN_VIDEO_BYTES;
+      const st = fs.statSync(p);
+      return st.size >= MIN_VIDEO_BYTES && st.mtimeMs >= minMtime;
     } catch {
       return false;
     }
@@ -152,6 +158,33 @@ export function harvestCodegenValidationVideo(slug: string): string | undefined 
     }
   }
   return dest;
+}
+
+/** true = fresh / unknown; false = clearly stale vs this run. */
+export function isReportVideoFromThisRun(slug: string, runStartedAt?: number): boolean | undefined {
+  if (typeof runStartedAt !== 'number') return undefined;
+  const minMtime = runStartedAt - 5_000;
+  for (const ext of ['.webm', '.mp4']) {
+    const candidate = path.join(REPORTS_VIDEOS_DIR, `${slug}${ext}`);
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).mtimeMs >= minMtime) return true;
+    } catch {
+      /* ignore */
+    }
+  }
+  const summaryPath = resolveSummaryPath(slug);
+  if (fs.existsSync(summaryPath)) {
+    try {
+      const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8')) as {
+        artifacts?: { video?: string };
+      };
+      const video = summary.artifacts?.video;
+      if (video && fs.existsSync(video) && fs.statSync(video).mtimeMs >= minMtime) return true;
+    } catch {
+      /* ignore */
+    }
+  }
+  return false;
 }
 
 function collectVideos(dir: string, out: string[], depth = 0): void {

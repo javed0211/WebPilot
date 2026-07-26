@@ -27,6 +27,36 @@ function toPlaywrightSpecArg(relativePath: string): string {
   return relativePath.replace(/\\/g, '/');
 }
 
+/** First assertion failure, so each round's cause is visible instead of only the last one's. */
+function firstFailureExcerpt(output: string, maxLines = 12): string {
+  const lines = output.split('\n');
+  const start = lines.findIndex((line) => /^\s*(Error|TimeoutError|\d+\)\s)/.test(line));
+  if (start < 0) return output.split('\n').slice(-maxLines).join('\n');
+  return lines
+    .slice(start, start + maxLines)
+    .filter((line) => line.trim())
+    .join('\n');
+}
+
+/**
+ * Keep each round's files and Playwright output so a failing pipeline can be diagnosed
+ * without re-running discovery (rounds after the first are LLM rewrites of the previous).
+ */
+function snapshotRound(round: number, files: GeneratedFile[], output: string): void {
+  const dir = path.join(process.cwd(), 'runtime', 'codegen', 'validation', `round-${round + 1}`);
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'playwright-output.log'), output, 'utf8');
+    for (const file of files) {
+      const dest = path.join(dir, file.path.replace(/[\\/]/g, '__'));
+      fs.writeFileSync(dest, file.content, 'utf8');
+    }
+  } catch {
+    // Diagnostics only — never fail a run because a snapshot could not be written.
+  }
+}
+
 /**
  * Runs generated Playwright specs and optionally auto-fixes via LLM from failure output.
  */
@@ -102,6 +132,8 @@ export class CodegenPlaywrightValidator {
       console.warn(
         `\x1b[33m[CodegenPlaywrightValidator] Playwright run failed (round ${round + 1}).\x1b[0m`
       );
+      console.warn(firstFailureExcerpt(result.output));
+      snapshotRound(round, currentFiles, result.output);
 
       if (isMissingPlaywrightBrowserError(result.output)) {
         console.error(
