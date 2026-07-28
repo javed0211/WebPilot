@@ -1,0 +1,36 @@
+{
+  "id": "digital",
+  "title": "Digital / public web",
+  "priority": 10,
+  "always": false,
+  "origins": [
+    "booking.com",
+    "www.booking.com",
+    "wikipedia.org",
+    "www.wikipedia.org",
+    "en.wikipedia.org",
+    "amazon.com",
+    "www.amazon.com",
+    "amazon.co.uk",
+    "playwright.dev",
+    "github.com",
+    "www.github.com",
+    "automationexercise.com",
+    "www.automationexercise.com",
+    "kameleoon.com",
+    "www.kameleoon.com",
+    "bupa.co.uk",
+    "www.bupa.co.uk",
+    "demo.applitools.com"
+  ],
+  "originSuffixes": [
+    ".booking.com",
+    ".wikipedia.org",
+    ".amazon.com",
+    ".amazon.",
+    ".github.com",
+    ".kameleoon.com",
+    ".bupa."
+  ],
+  "description": "Marketing sites, content sites, e-commerce smoke flows."
+}

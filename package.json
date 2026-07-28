@@ -23,6 +23,7 @@
     "resources/config/",
     "resources/templates/",
     "resources/prompts/",
+    "resources/rulebooks/",
     "resources/report-ui/",
     "resources/assets/webpilot-logo.png",
     "resources/assets/webpilot-logo-light.png",
@@ -72,6 +73,7 @@
     "test:compact-workflow": "npm run build && node scripts/test-compact-workflow-adapter.cjs",
     "test:python-path-split": "npm run build && node scripts/test-python-path-split.cjs",
     "test:ado-mcp-launcher": "npm run build && node scripts/test-ado-mcp-launcher.cjs",
+    "test:dataverse-mcp-launcher": "npm run build && node scripts/test-dataverse-mcp-launcher.cjs",
     "test:event-ledger": "npm run build && node scripts/test-feature-12-event-ledger.cjs",
     "test:fixture-lifecycle": "npm run build && node scripts/test-feature-13-fixture-lifecycle.cjs",
     "test:semantic-assertions": "npm run build && node scripts/test-feature-16-semantic-assertions.cjs",
@@ -119,6 +121,7 @@
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@azure-devops/mcp": "^2.8.1",
+    "@microsoft/dataverse": "^1.0.59",
     "@playwright/test": "^1.60.0",
     "@vscode/tree-sitter-wasm": "^0.3.1",
     "ajv": "^8.20.0",
@@ -134,6 +137,8 @@
     "web-tree-sitter": "^0.26.9"
   },
   "overrides": {
-    "fast-uri": "3.1.4"
+    "fast-uri": "3.1.4",
+    "@hono/node-server": "^2.0.5",
+    "@modelcontextprotocol/sdk": "^1.30.0"
   }
 }

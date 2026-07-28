@@ -120,35 +120,73 @@ def persist_screenshots(
     return saved
 
 
+def _is_stable_report_video_name(path: str, test_slug: str) -> bool:
+    """True for `{slug}.webm` / `{slug}.mp4` outputs — never treat as a new session source."""
+    name = os.path.basename(path)
+    return name in (f"{test_slug}.webm", f"{test_slug}.mp4")
+
+
+def _is_session_recording_candidate(path: str, test_slug: str) -> bool:
+    """Session UUID recordings only — exclude prior report outputs and ActHistory temp dirs."""
+    if _is_stable_report_video_name(path, test_slug):
+        return False
+    normalized = path.replace("\\", "/")
+    if "/.act-replay-" in normalized:
+        return False
+    return True
+
+
 def finalize_artifacts(
     test_slug: str,
     video_dir: Optional[str],
     traces_dir: Optional[str],
     videos_out: Optional[Path] = None,
     traces_out: Optional[Path] = None,
+    preferred_video: Optional[str] = None,
+    min_mtime: Optional[float] = None,
 ) -> dict:
     """Copy session recordings into reports/ with stable names.
 
     Only attaches video when recording was enabled for this run (video_dir set)
-    and the file is large enough to be a real recording — never scavenge /tmp.
+    and the file is large enough to be a real recording — never scavenge /tmp
+    or a previous run's `{slug}.webm` when discovery wrote into the same folder.
     """
     artifacts: dict = {}
     videos_root = Path(videos_out) if videos_out is not None else REPORTS_VIDEOS_DIR
     traces_root = Path(traces_out) if traces_out is not None else REPORTS_TRACES_DIR
 
     if video_dir:
-        videos = [
-            path
-            for path in latest_files([os.path.abspath(video_dir)], ("*.webm", "*.mp4"))
-            if is_usable_video(path)
-        ]
+        preferred = (preferred_video or "").strip()
+        if preferred and is_usable_video(preferred):
+            videos = [preferred]
+        else:
+            videos = [
+                path
+                for path in latest_files([os.path.abspath(video_dir)], ("*.webm", "*.mp4"))
+                if is_usable_video(path) and _is_session_recording_candidate(path, test_slug)
+            ]
+            if min_mtime is not None:
+                filtered: List[str] = []
+                for path in videos:
+                    try:
+                        if os.path.getmtime(path) >= float(min_mtime):
+                            filtered.append(path)
+                    except OSError:
+                        continue
+                videos = filtered
         if videos:
             src = videos[-1]
             ext = os.path.splitext(src)[1] or ".webm"
             dest = str(videos_root / f"{test_slug}{ext}")
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             if os.path.abspath(src) != os.path.abspath(dest):
-                shutil.copy2(src, dest)
+                # copyfile + utime: do not preserve old mtime (copy2) or Node freshness
+                # checks treat a scavenged prior recording as "from this run".
+                shutil.copyfile(src, dest)
+                try:
+                    os.utime(dest, None)
+                except OSError:
+                    pass
             if is_usable_video(dest):
                 artifacts["video"] = dest
                 # A previous run may have left {slug} under the other extension; leaving it
@@ -163,6 +201,11 @@ def finalize_artifacts(
                 print(f"Saved execution video: {dest}")
             else:
                 print(f"Warning: skipped unusable video artifact ({dest})")
+        elif preferred or video_dir:
+            print(
+                "Warning: discovery video recording finished without a usable session file "
+                f"(slug={test_slug}) — report will not attach a stale prior video"
+            )
 
     if traces_dir:
         traces = latest_files([os.path.abspath(traces_dir)], ("*.zip",))

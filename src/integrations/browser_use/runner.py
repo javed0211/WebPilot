@@ -428,7 +428,7 @@ def parse_txt_file(file_path):
             continue
         if line_strip.startswith('#'):
             continue
-        if re.match(r'^(target|baseUrl|codegen|report)\s*:', line_strip, re.IGNORECASE):
+        if re.match(r'^(target|baseUrl|codegen|report|sitePack|fixture)\s*:', line_strip, re.IGNORECASE):
             continue
         if line_strip.lower().startswith('test:'):
             test_name = line_strip[5:].strip()
@@ -446,6 +446,40 @@ def parse_txt_file(file_path):
     if numbered_steps:
         return test_name, numbered_steps
     return test_name, plain_steps
+
+
+def _read_scenario_source(file_path: str | None) -> str:
+    if not file_path or not os.path.isfile(file_path):
+        return ""
+    try:
+        with open(file_path, "r", encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return ""
+
+
+def resolve_discovery_rules_for_scenario(
+    *,
+    steps: list[str],
+    test_file_path: str | None = None,
+    scenario_text: str | None = None,
+) -> tuple[str, list[str], str | None]:
+    """Base discovery rules + origin-gated rulebooks. Returns (rules, packs, url)."""
+    from .discovery_tuning import extract_initial_navigate_url
+    from .prompt_loader import load_discovery_native_rules
+    from .rulebooks import compose_discovery_rules, parse_site_pack_override
+
+    text = scenario_text if scenario_text is not None else _read_scenario_source(test_file_path)
+    site_pack = parse_site_pack_override(text)
+    initial_url = extract_initial_navigate_url(steps or [])
+    if not initial_url and text:
+        # Fall back to baseUrl: metadata when steps use relative navigation.
+        m = re.search(r"^baseUrl\s*:\s*(\S+)", text, re.I | re.M)
+        if m:
+            initial_url = m.group(1).strip()
+    base = load_discovery_native_rules()
+    rules, packs = compose_discovery_rules(base, url=initial_url, site_pack=site_pack)
+    return rules, packs, initial_url
 
 def load_codegen_guidelines():
     """Framework rules from prompts/ (locator strictness, POM layout, catalog)."""
@@ -709,12 +743,15 @@ def _resolve_use_vision(use_vision: str):
     return use_vision in ('always', 'true', 'on', '1')
 
 
-async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> None:
+async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> str | None:
     """Force-close the browser after a run.
 
     keep_alive=True is required during multi-step discovery so agent.run() does not
     kill Chrome between steps, but the window must be closed when the job finishes.
+
+    Returns the finalized discovery video path when recording was active, else None.
     """
+    finalized_video: str | None = None
     # browser-use only flushes MP4 files when the ffmpeg writer closes (BrowserStopEvent
     # or an explicit stop_recording call). Finalize before kill so artifact collection
     # can find the file on disk.
@@ -723,6 +760,7 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
         try:
             saved = await watchdog.stop_recording()
             if saved:
+                finalized_video = str(saved)
                 print(f"Finalized execution video: {saved}")
         except Exception as rec_err:
             print(f"Warning: could not finalize video recording: {rec_err}")
@@ -743,13 +781,13 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
 
     try:
         await asyncio.wait_for(browser.kill(), timeout=25)
-        return
+        return finalized_video
     except Exception as kill_error:
         print(f"Warning: browser shutdown did not finish cleanly: {kill_error}")
 
     try:
         await asyncio.wait_for(browser.kill(), timeout=25)
-        return
+        return finalized_video
     except Exception as retry_error:
         print(f"Warning: browser.kill() retry failed: {retry_error}")
 
@@ -762,6 +800,7 @@ async def shutdown_browser(browser: Any, scoped_agent: Any | None = None) -> Non
             print('[WebPilot] Forced local browser process cleanup after kill() failure.')
         except Exception as force_error:
             print(f"Warning: forced browser process cleanup failed: {force_error}")
+    return finalized_video
 
 
 def build_native_scenario_task(steps: list[str], discovery_rules: str) -> str:
@@ -784,6 +823,7 @@ async def run_native_browser_use_scenario(
     upload_paths: list[str],
     llm_usage_totals: dict,
     perf: dict | None = None,
+    test_file_path: str | None = None,
 ) -> tuple[bool, dict, Any | None]:
     """Run one browser-use Agent on the full scenario; history/codegen follow engine actions."""
     from .discovery_tuning import (
@@ -795,9 +835,13 @@ async def run_native_browser_use_scenario(
     perf = apply_discovery_fast_mode(perf or dict(PERFORMANCE_DEFAULTS))
     judge_mode = str(perf.get('judgeMode', 'verification')).strip().lower()
     resolved_use_vision = _resolve_use_vision(perf.get('useVision', 'auto'))
-    from .prompt_loader import load_discovery_native_rules
 
-    discovery_rules = load_discovery_native_rules()
+    discovery_rules, active_packs, _hint_url = resolve_discovery_rules_for_scenario(
+        steps=steps,
+        test_file_path=test_file_path,
+    )
+    if active_packs:
+        print(f"[WebPilot] Rulebooks active: {', '.join(active_packs)}")
 
     await browser.start()
     await ensure_window_maximized(browser)
@@ -1197,6 +1241,7 @@ async def run_intelligent_steps(
     upload_paths: list[str],
     llm_usage_totals: dict,
     perf: dict | None = None,
+    test_file_path: str | None = None,
 ) -> tuple[bool, dict, Any | None]:
     """Execute known steps deterministically and delegate only missing steps to WebPilot discovery."""
     perf = _apply_long_scenario_tuning(perf or dict(PERFORMANCE_DEFAULTS), len(steps))
@@ -1210,6 +1255,19 @@ async def run_intelligent_steps(
     knowledge_repo = KnowledgeRepository(load_knowledge_config(), test_slug)
     force_discovery = os.environ.get('WEBPILOT_DISABLE_SITE_KNOWLEDGE') == '1'
     knowledge_only = os.environ.get('WEBPILOT_KNOWLEDGE_ONLY') == '1'
+
+    from .prompt_loader import load_discovery_step_rules
+    from .rulebooks import compose_discovery_rules, parse_site_pack_override
+    from .discovery_tuning import extract_initial_navigate_url
+
+    site_pack = parse_site_pack_override(_read_scenario_source(test_file_path))
+    scoped_discovery_rules, active_packs = compose_discovery_rules(
+        load_discovery_step_rules(),
+        url=extract_initial_navigate_url(steps),
+        site_pack=site_pack,
+    )
+    if active_packs:
+        print(f"[WebPilot] Rulebooks active: {', '.join(active_packs)}")
     execution_history: list[dict] = []
     url_sequence: list[str] = []
     learned = 0
@@ -1448,7 +1506,7 @@ async def run_intelligent_steps(
             step,
             page_state=page_state,
             credential_suffix=credential_task_suffix(step_sensitive),
-            discovery_rules=load_discovery_step_rules(),
+            discovery_rules=scoped_discovery_rules,
             repair_mode=repair_mode,
             failure_class=repair_failure_class,
             failure_reason=repair_failure_reason,
@@ -1635,7 +1693,74 @@ async def run_intelligent_steps(
             auth_guard_steps, unsafe_skipped, quarantined_skipped, blocking_unknown_steps,
         ),
     }
+    _learn_rulebooks_from_execution(
+        agent_ok=True,
+        execution_context=context,
+        knowledge_repo=knowledge_repo,
+    )
     return True, context, scoped_agent
+
+
+def _learn_rulebooks_from_execution(
+    *,
+    agent_ok: bool,
+    execution_context: dict,
+    knowledge_repo: Any | None = None,
+) -> None:
+    """Distill high-trust locators into runtime/rulebooks/<pack>/learned.md."""
+    if not agent_ok:
+        return
+    try:
+        from .rulebooks import (
+            update_rulebook_from_capabilities,
+            update_rulebooks_from_knowledge_repo,
+        )
+
+        written: list[Any] = []
+        if knowledge_repo is not None:
+            written.extend(update_rulebooks_from_knowledge_repo(knowledge_repo))
+
+        # Also distill from this run's ActHistory (native engine may not promote knowledge yet).
+        by_origin: dict[str, list[dict]] = {}
+        for step in execution_context.get("actHistory") or execution_context.get("executionHistory") or []:
+            if not isinstance(step, dict):
+                continue
+            url = str(step.get("url") or "")
+            if not url:
+                continue
+            from .rulebooks import hostname_from_url
+
+            origin = hostname_from_url(url) or url
+            locs = []
+            if step.get("locator"):
+                locs.append(step["locator"])
+            locs.extend(step.get("locators") or [])
+            locs.extend(step.get("selectorCandidates") or [])
+            if not locs and step.get("selector"):
+                locs.append({"kind": "css", "value": str(step.get("selector"))})
+            if not locs:
+                continue
+            cap = {
+                "step": step.get("nlStep") or step.get("description") or step.get("action") or "",
+                "origin": origin,
+                "successCount": 2,  # treat successful discovery acts as learnable
+                "actions": [{"locators": locs}],
+            }
+            by_origin.setdefault(origin, []).append(cap)
+        for origin, caps in by_origin.items():
+            path = update_rulebook_from_capabilities(origin, caps)
+            if path:
+                written.append(path)
+        if written:
+            from pathlib import Path as _Path
+
+            unique = sorted({str(p) for p in written})
+            print(
+                f"[WebPilot] Rulebooks learned ({len(unique)}): "
+                + ", ".join(_Path(p).name for p in unique[:6])
+            )
+    except Exception as exc:
+        print(f"[WebPilot] Warning: rulebook learning skipped: {exc}")
 
 
 def _knowledge_metrics_payload(
@@ -1994,6 +2119,7 @@ async def main():
                 upload_paths=upload_paths,
                 llm_usage_totals=llm_usage_totals,
                 perf=perf,
+                test_file_path=test_file_path,
             )
         else:
             if engine_mode == 'native' and knowledge_only:
@@ -2013,9 +2139,15 @@ async def main():
                 upload_paths=upload_paths,
                 llm_usage_totals=llm_usage_totals,
                 perf=perf,
+                test_file_path=test_file_path,
             )
         execution_history = execution_context.get('executionHistory', [])
         runtime_insights = execution_context.get('runtimeInsights', {})
+        _learn_rulebooks_from_execution(
+            agent_ok=bool(agent_ok),
+            execution_context=execution_context,
+            knowledge_repo=None,
+        )
         
         ensure_report_dirs()
         history_path = str(execution_history_path(base_file_name))
@@ -2292,14 +2424,16 @@ async def main():
             history_path,
             mode=browser_cfg.get('screenshots_mode', 'only-on-failure'),
         )
+        finalized_video = None
         try:
-            await shutdown_browser(browser, scoped_agent)
+            finalized_video = await shutdown_browser(browser, scoped_agent)
         except Exception as close_error:
             print(f"Warning: browser cleanup did not finish cleanly: {close_error}")
         artifact_paths = finalize_artifacts(
             base_file_name,
             browser_cfg['video_dir'] if browser_cfg.get('record_video') else None,
             browser_cfg['traces_dir'] if browser_cfg['record_trace'] else None,
+            preferred_video=finalized_video,
         )
         artifact_paths = artifact_paths or {}
         artifact_paths['screenshots'] = screenshot_paths

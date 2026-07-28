@@ -32,3 +32,4 @@ Confirm the step's observable outcome on the page (navigation, field value, visi
 - If you **clicked** Continue / Next / Sign in / Confirm and the form **progressed** (e.g. password field appears, Continue disappears, URL changes), call `done(success=true)` immediately.
 - Do **not** search again for the same button and treat its absence as failure — that usually means the click already worked.
 - If you **entered** a value into the intended field, call `done(success=true)` — do not continue to the next scenario step.
+- **Act, don't inspect-loop:** once the target control is identified, perform the type/click. Do not burn steps on repeated screenshot / evaluate / search_page for the same easy action.

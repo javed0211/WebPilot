@@ -142,6 +142,88 @@ def test_compact_drops_agent_tools_and_keeps_login_path():
     assert len(prev_clicks) >= 2
     assert any(d["reason"].startswith("drop agent-tool") for d in compact["dropped"])
     assert compact["coverage"]["nlTotal"] == len(nl)
+    assert compact["coverage"]["mapped"] == len(nl), compact["coverage"].get("unmapped")
+    assert not compact["coverage"]["unmapped"]
+
+
+def test_compact_maps_secret_redacted_login_inputs():
+    """Real discovery stores <secret>…</secret> / •••• — must still claim login NL."""
+    nl = [
+        "Navigate to https://example.test/residents",
+        "Enter Email address as user@yopmail.com",
+        "And click on Continue button",
+        "Enter Password as Test@12345",
+        "And click on Sign in button",
+        "Enter verification code as 123456",
+        "And click on Confirm button",
+        "Verify that the home page is visible successfully",
+    ]
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://example.test/residents",
+            "value": "https://example.test/residents",
+            "description": "navigate",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "input",
+            "value": "<secret>username</secret>",
+            "description": "input | Typed username",
+            "locators": [
+                {"kind": "text", "value": "Email address", "verified": True, "verifiedBy": "playwright"},
+                {"kind": "testid", "value": "loginRegisterEmailInputBox"},
+            ],
+        },
+        {
+            "index": 3,
+            "action": "click",
+            "description": "Clicked Continue",
+            "locators": [{"kind": "role", "value": "button", "name": "Continue"}],
+        },
+        {
+            "index": 4,
+            "action": "input",
+            "value": "••••••••",
+            "description": "input | Typed password",
+            "locators": [{"kind": "testid", "value": "loginEnterPasswordTestId"}],
+        },
+        {
+            "index": 5,
+            "action": "click",
+            "description": "Clicked Sign in",
+            "locators": [{"kind": "role", "value": "button", "name": "Sign in"}],
+        },
+        {
+            "index": 6,
+            "action": "input",
+            "value": "<secret>otp</secret>",
+            "description": "input | Typed otp",
+            "locators": [{"kind": "testid", "value": "inputFileld"}],
+        },
+        {
+            "index": 7,
+            "action": "click",
+            "description": "Clicked Confirm",
+            "locators": [{"kind": "role", "value": "button", "name": "Confirm"}],
+        },
+    ]
+    compact = build_compact_workflow(acts, nl, [])
+    unmapped = compact["coverage"]["unmapped"]
+    # Home-page verify has no act in this fixture — login path must still be fully claimed.
+    assert unmapped == ["Verify that the home page is visible successfully"], unmapped
+    email = next(s for s in compact["steps"] if s["action"] == "input" and "email" in (s.get("nlStep") or "").lower())
+    assert (email.get("locator") or {}).get("kind") == "testid"
+    assert (email.get("locator") or {}).get("value") == "loginRegisterEmailInputBox"
+    claimed = {(s.get("nlStep") or "").strip().lower() for s in compact["steps"]}
+    assert "enter email address as user@yopmail.com" in claimed
+    assert "and click on continue button" in claimed
+    assert "enter password as test@12345" in claimed
+    assert "and click on sign in button" in claimed
+    assert "enter verification code as 123456" in claimed
+    assert "and click on confirm button" in claimed
 
 
 def test_compact_seeds_native_captured_locators():

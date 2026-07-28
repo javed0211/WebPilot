@@ -63,6 +63,7 @@ export function ensureRuntimeDirs(): void {
     KNOWLEDGE_ROOT,
     path.join(RUNTIME_ROOT, 'site-knowledge', 'pages'),
     path.join(RUNTIME_ROOT, 'site-knowledge', 'scenarios'),
+    path.join(RUNTIME_ROOT, 'rulebooks'),
     CODEGEN_ROOT,
     path.join(CODEGEN_ROOT, 'failures'),
   ];

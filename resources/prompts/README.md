@@ -9,6 +9,7 @@ Edit these Markdown files to change LLM behavior **without changing TypeScript o
 | `shared/locator-strict-rules.md` | All Playwright codegen and fix agents |
 | `shared/framework-guidelines.md` | Codegen, validators, browser-use codegen |
 | `shared/automationexercise-catalog.md` | Automation Exercise flows |
+| `../rulebooks/<pack>/seed.md` | Origin-gated site rulebooks (see `resources/rulebooks/`) |
 | `codegen/agent-system.md` | `CodegenAgent` (Engine path) |
 | `codegen/agent-user.md` | `CodegenAgent` user message template |
 | `codegen-fix/typescript-system.md` | `CodegenValidator` auto-fix |

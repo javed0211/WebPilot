@@ -63,6 +63,22 @@ ado:
   # command: "node"
   # args: []
 
+# 1c. Dataverse MCP (bundled official @microsoft/dataverse)
+# Data / schema plane for Dynamics / Dataverse — complements dynamics365 UI rulebooks.
+# No Cursor mcp.json: WebPilot spawns the pinned package over stdio.
+# Auth: Dataverse CLI profiles — run once:
+#   npx @microsoft/dataverse auth create --environment https://contoso.crm.dynamics.com
+# Admin prereqs: enable MCP in PPAC + allow Dataverse CLI client
+#   (app id 0c412cc3-0dd6-449b-987f-05b053db9457). See docs/guides/dataverse-mcp.md
+dataverse:
+  enabled: false
+  environmentUrl: ""        # e.g. https://contoso.crm.dynamics.com
+  preview: false            # true → /api/mcp_preview
+  timeoutMs: 120000
+  # Optional spawn override (defaults to bundled @microsoft/dataverse):
+  # command: "node"
+  # args: []
+
 # 1d. API / OpenAPI suite generation
 api:
   openapi:
@@ -117,6 +133,12 @@ intelligentRunner:
   # native = one WebPilot agent for the full scenario (default — preserves engine intelligence).
   # scoped = one agent per NL step (legacy wrapper; use for knowledge repair / WEBPILOT_KNOWLEDGE_ONLY).
   engineMode: native
+  # Origin-gated site rulebooks (resources/rulebooks/*) injected into discovery hints.
+  # autoLearn distills high-trust locators into runtime/rulebooks/<pack>/learned.md
+  rulebooks:
+    enabled: true
+    autoLearn: true
+    minSuccessCount: 2
   scopedAgentMaxSteps: 12
   nativeAgentMaxSteps: 80
   # Fresh agent per discovery step avoids LLM context drift on 15+ step scenarios (scoped mode only).

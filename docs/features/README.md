@@ -84,7 +84,7 @@ Already implemented or partially implemented:
 - Tree-sitter WASM extraction for Python, Java, C#, and Go.
 - React-based HTML reports.
 - Runtime artifact organization under `runtime/`.
-- Official MCP is the integration path for Azure DevOps (bundled `@azure-devops/mcp` + `webpilot ado`) and Jira requirements sync.
+- Official MCP is the integration path for Azure DevOps (bundled `@azure-devops/mcp` + `webpilot ado`), Dataverse (bundled `@microsoft/dataverse` + `webpilot dataverse`), and Jira requirements sync.
 
 ## Prioritization Rules
 

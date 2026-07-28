@@ -1,0 +1,8 @@
+{
+  "id": "generic",
+  "title": "Generic web",
+  "priority": 0,
+  "always": true,
+  "origins": [],
+  "description": "Baseline locator rules for every site."
+}

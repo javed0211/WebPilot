@@ -28,3 +28,5 @@ When choosing which element to interact with for the **current numbered test ste
 - Never invent URL navigations for in-app links such as "navigate to Contacts" — use click/search on the page.
 - Work through the numbered Test steps **in order**. Do not call `done(success=true)` until the **last** step's outcome is satisfied — including date pickers, Search, and verification steps.
 - Do **not** stop after a single field fill or click unless that click completes the entire scenario.
+- **Act, don't inspect-loop:** for simple type/click/navigate steps, interact immediately once the control is found. Do not spend multiple agent steps on screenshot / evaluate / search_page / find_elements just to re-confirm the same field. If an action fails, retry once with a better locator — then move on or report failure.
+- Prefer emitting the real user actions (type, click, select) so discovery can map them back to the numbered NL steps. Exploration tools are for finding a control, not for replaying the step.

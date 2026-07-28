@@ -178,6 +178,24 @@ Lookup ranks capabilities by **step signature + URL pattern + intent/pageType sc
 
 **System recipes** (no LLM): Microsoft login, booking flows, and a generic **app launcher / waffle** handler for CRM shells.
 
+### Site rulebooks (origin-gated discovery hints)
+
+Curated playbooks under `resources/rulebooks/<pack>/` are injected into discovery **only when the site matches**:
+
+| Pack | When |
+|------|------|
+| `generic` | Always |
+| `digital` | Booking, Wikipedia, Amazon, Kameleoon, … |
+| `dynamics365` | `*.dynamics.com` / `sitePack: dynamics365` |
+
+After successful runs, high-trust locators may be distilled into `runtime/rulebooks/<pack>/learned.md` (`intelligentRunner.rulebooks.autoLearn`). Seed files are never overwritten. Override with scenario metadata:
+
+```text
+sitePack: dynamics365
+```
+
+Disable: `WEBPILOT_RULEBOOKS=0` or `intelligentRunner.rulebooks.enabled: false`.
+
 ### Auth state machine + trust (Phase 3)
 
 Before non-login steps, WebPilot runs a generic **auth state machine**:

@@ -27,6 +27,7 @@ Complete reference for WebPilot CLI commands, flags, and environment variables.
 | `webpilot history list` | List saved ActHistory scenarios |
 | `webpilot history clear` | Clear ActHistory (one scenario or `--all`) |
 | `webpilot ado …` | Azure DevOps Test Plans (bundled MCP) |
+| `webpilot dataverse …` | Dataverse MCP (bundled `@microsoft/dataverse`) |
 
 ---
 
@@ -237,6 +238,22 @@ webpilot ado publish-results [--summary <slug>] [--dry-run]
 
 ---
 
+## `webpilot dataverse`
+
+Bundled Dataverse MCP for schema/data. See [Dataverse MCP](./dataverse-mcp.md).
+
+```bash
+webpilot dataverse status
+webpilot dataverse validate
+webpilot dataverse tools
+webpilot dataverse describe account
+webpilot dataverse search "contacts named Contoso"
+webpilot dataverse query "SELECT TOP 5 name FROM account"
+webpilot dataverse call --tool describe --arg query=account
+```
+
+---
+
 ## Environment variables
 
 ### WebPilot core
@@ -306,6 +323,12 @@ webpilot ado publish-results [--summary <slug>] [--dry-run]
 |----------|---------|
 | `AZURE_DEVOPS_EXT_PAT` / `ADO_MCP_AUTH_TOKEN` / `AZURE_DEVOPS_PAT` | PAT for MCP and result publish |
 | `AZURE_DEVOPS_ORG` / `AZURE_DEVOPS_PROJECT` | Optional overrides for `ado.organization` / `ado.project` |
+
+### Dataverse
+
+| Variable | Purpose |
+|----------|---------|
+| `DATAVERSE_URL` / `DATAVERSE_ENVIRONMENT_URL` | Override for `dataverse.environmentUrl` |
 
 ### Other
 

@@ -220,7 +220,7 @@ export class Engine {
     );
   }
 
-  /** Playwright .webm for HTML reports — never ffmpeg/BA screencast. */
+  /** Whether a last-resort evidence recording is allowed when discovery already succeeded. */
   private shouldAttachPlaywrightReportVideo(discoveryOk: boolean): boolean {
     const env = String(process.env.WEBPILOT_VIDEO || '').trim().toLowerCase();
     if (env === 'off' || env === '0' || env === 'false' || env === 'no') return false;
@@ -235,7 +235,11 @@ export class Engine {
     return !discoveryOk; // retain-on-failure
   }
 
-  /** Playwright .webm for HTML reports — prefer discovery/codegen video; last resort ActHistory replay. */
+  /**
+   * Attach report video. Prefer discovery (CDP/ffmpeg .mp4) or codegen Playwright .webm.
+   * ActHistory evidence replay is last resort only after a successful discovery with no video.
+   * Never open a second browser when discovery failed — codegen/spec rerun are already skipped.
+   */
   private async attachPlaywrightReportVideo(
     slug: string,
     discoveryOk: boolean,
@@ -254,6 +258,18 @@ export class Engine {
         Logger.detail('Evidence video already attached from discovery — skipping extra Playwright session');
         return;
       }
+    }
+
+    // Failed discovery: keep any fresh discovery recording above; never replay ActHistory
+    // just to manufacture a video (codegen + spec rerun are also skipped).
+    if (!discoveryOk) {
+      phases.evidenceVideo = 'skipped';
+      phases.reasons = {
+        ...(phases.reasons || {}),
+        evidenceVideo: 'skipped — discovery did not succeed',
+      };
+      Logger.detail('Evidence video skipped — discovery did not succeed');
+      return;
     }
 
     // Never scavenge a stale video from a previous codegen run when this run skipped codegen.

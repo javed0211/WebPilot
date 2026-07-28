@@ -4174,6 +4174,196 @@ adoCmd
     }
   });
 
+/**
+ * Dataverse via bundled official `@microsoft/dataverse` MCP (stdio).
+ * Complements dynamics365 UI rulebooks with data/schema tools.
+ */
+const dataverseCmd = program
+  .command('dataverse')
+  .description('Dataverse MCP: status, tools, query, describe (bundled @microsoft/dataverse)');
+
+dataverseCmd
+  .command('status')
+  .description('Verify Dataverse config and MCP connectivity (lists tools)')
+  .action(async () => {
+    try {
+      const {
+        assertDataverseEnabled,
+        loadDataverseConfig,
+        mcpEndpoint,
+      } = require('../integrations/dataverse/DataverseConfig');
+      const { DataverseService } = require('../integrations/dataverse/DataverseService');
+      const config = assertDataverseEnabled(loadDataverseConfig());
+      const svc = new DataverseService(config);
+      const launch = svc.launchPreview();
+      console.log(`\n${chalk.magenta('=== WebPilot Dataverse Status ===')}\n`);
+      console.log(`  Environment : ${chalk.cyan(config.environmentUrl)}`);
+      console.log(`  MCP endpoint: ${chalk.dim(mcpEndpoint(config.environmentUrl, config.preview))}`);
+      console.log(`  Preview     : ${config.preview ? chalk.yellow('yes') : chalk.dim('no')}`);
+      console.log(`  MCP command : ${chalk.dim(launch.command)}`);
+      console.log(
+        `  MCP args    : ${chalk.dim(
+          launch.args.slice(0, 5).join(' ') + (launch.args.length > 5 ? ' …' : '')
+        )}`
+      );
+      const status = await svc.status();
+      console.log(`  MCP tools   : ${chalk.bold(status.toolCount)}`);
+      console.log(`\n${chalk.green('Dataverse MCP connectivity OK')}`);
+      if (status.tools.length) {
+        console.log(chalk.dim(`  Sample tools: ${status.tools.slice(0, 10).join(', ')}`));
+      }
+    } catch (err) {
+      console.error(
+        chalk.red(`Dataverse status failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+      console.error(
+        chalk.dim(
+          'Prereqs: enable MCP in PPAC, allow Dataverse CLI client, run: npx @microsoft/dataverse auth create --environment <url>'
+        )
+      );
+      process.exitCode = 1;
+    }
+  });
+
+dataverseCmd
+  .command('validate')
+  .description('Run official mcp --validate (auth + endpoint prerequisites)')
+  .action(async () => {
+    try {
+      const { assertDataverseEnabled, loadDataverseConfig } = require('../integrations/dataverse/DataverseConfig');
+      const { DataverseService } = require('../integrations/dataverse/DataverseService');
+      const result = await new DataverseService(
+        assertDataverseEnabled(loadDataverseConfig())
+      ).validate();
+      console.log(`\n${chalk.magenta('=== Dataverse MCP Validate ===')}\n`);
+      console.log(`  Endpoint : ${chalk.cyan(result.endpoint)}`);
+      console.log(`  Exit code: ${result.code === 0 ? chalk.green(0) : chalk.red(result.code)}`);
+      if (result.output) console.log(`\n${result.output}`);
+      if (result.code !== 0) process.exitCode = 1;
+    } catch (err) {
+      console.error(
+        chalk.red(`Dataverse validate failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+      process.exitCode = 1;
+    }
+  });
+
+dataverseCmd
+  .command('tools')
+  .description('List Dataverse MCP tools')
+  .action(async () => {
+    try {
+      const { assertDataverseEnabled, loadDataverseConfig } = require('../integrations/dataverse/DataverseConfig');
+      const { DataverseService } = require('../integrations/dataverse/DataverseService');
+      const tools = await new DataverseService(
+        assertDataverseEnabled(loadDataverseConfig())
+      ).listTools();
+      console.log(`\n${chalk.magenta('=== Dataverse MCP Tools ===')} (${tools.length})\n`);
+      for (const t of tools) {
+        console.log(`  ${chalk.bold(t.name)}`);
+        if (t.description) console.log(chalk.dim(`    ${t.description}`));
+      }
+    } catch (err) {
+      console.error(
+        chalk.red(`Dataverse tools failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+      process.exitCode = 1;
+    }
+  });
+
+dataverseCmd
+  .command('call')
+  .description('Call a Dataverse MCP tool by name')
+  .requiredOption('--tool <name>', 'MCP tool name (e.g. describe, read_query, search_data)')
+  .option(
+    '--arg <key=value>',
+    'Tool argument (repeatable; JSON values allowed)',
+    (v: string, acc: string[]) => {
+      acc.push(v);
+      return acc;
+    },
+    [] as string[]
+  )
+  .action(async (options: { tool: string; arg: string[] }) => {
+    try {
+      const { assertDataverseEnabled, loadDataverseConfig } = require('../integrations/dataverse/DataverseConfig');
+      const { DataverseService } = require('../integrations/dataverse/DataverseService');
+      const result = await new DataverseService(
+        assertDataverseEnabled(loadDataverseConfig())
+      ).call(options.tool, options.arg || []);
+      console.log(`\n${chalk.magenta('=== Dataverse MCP Call ===')} ${chalk.cyan(options.tool)}\n`);
+      console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+    } catch (err) {
+      console.error(
+        chalk.red(`Dataverse call failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+      process.exitCode = 1;
+    }
+  });
+
+dataverseCmd
+  .command('describe')
+  .description('Describe a table / entity via MCP')
+  .argument('<table>', 'Table logical name or search term (e.g. account)')
+  .action(async (table: string) => {
+    try {
+      const { assertDataverseEnabled, loadDataverseConfig } = require('../integrations/dataverse/DataverseConfig');
+      const { DataverseService } = require('../integrations/dataverse/DataverseService');
+      const result = await new DataverseService(
+        assertDataverseEnabled(loadDataverseConfig())
+      ).describe(table);
+      console.log(`\n${chalk.magenta('=== Dataverse Describe ===')} ${chalk.cyan(table)}\n`);
+      console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+    } catch (err) {
+      console.error(
+        chalk.red(`Dataverse describe failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+      process.exitCode = 1;
+    }
+  });
+
+dataverseCmd
+  .command('search')
+  .description('Search Dataverse via MCP search / search_data')
+  .argument('<query>', 'Natural language or keyword query')
+  .action(async (query: string) => {
+    try {
+      const { assertDataverseEnabled, loadDataverseConfig } = require('../integrations/dataverse/DataverseConfig');
+      const { DataverseService } = require('../integrations/dataverse/DataverseService');
+      const result = await new DataverseService(
+        assertDataverseEnabled(loadDataverseConfig())
+      ).search(query);
+      console.log(`\n${chalk.magenta('=== Dataverse Search ===')}\n`);
+      console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+    } catch (err) {
+      console.error(
+        chalk.red(`Dataverse search failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+      process.exitCode = 1;
+    }
+  });
+
+dataverseCmd
+  .command('query')
+  .description('Run a Dataverse SQL SELECT via MCP read_query')
+  .argument('<sql>', 'SELECT statement')
+  .action(async (sql: string) => {
+    try {
+      const { assertDataverseEnabled, loadDataverseConfig } = require('../integrations/dataverse/DataverseConfig');
+      const { DataverseService } = require('../integrations/dataverse/DataverseService');
+      const result = await new DataverseService(
+        assertDataverseEnabled(loadDataverseConfig())
+      ).query(sql);
+      console.log(`\n${chalk.magenta('=== Dataverse Query ===')}\n`);
+      console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+    } catch (err) {
+      console.error(
+        chalk.red(`Dataverse query failed: ${err instanceof Error ? err.message : String(err)}`)
+      );
+      process.exitCode = 1;
+    }
+  });
+
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(chalk.red(err instanceof Error ? err.message : String(err)));
   process.exit(1);

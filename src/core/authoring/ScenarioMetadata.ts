@@ -3,6 +3,8 @@ export interface ScenarioMetadata {
   tags: string[];
   target?: 'web' | 'api' | string;
   baseUrl?: string;
+  /** Origin-gated rulebook pack id (e.g. dynamics365, digital). */
+  sitePack?: string;
   codegen?: boolean;
   report?: boolean;
   /** Relative path to a fixture manifest (e.g. fixtures/checkout.yaml). */
@@ -28,6 +30,7 @@ export class ScenarioMetadataParser {
     let name: string | undefined;
     let target: string | undefined;
     let baseUrl: string | undefined;
+    let sitePack: string | undefined;
     let codegen: boolean | undefined;
     let report: boolean | undefined;
     let fixture: string | undefined;
@@ -68,6 +71,7 @@ export class ScenarioMetadataParser {
         const value = pair[2].trim();
         if (key === 'target') target = value;
         else if (key === 'baseurl') baseUrl = value;
+        else if (key === 'sitepack') sitePack = value;
         else if (key === 'codegen') codegen = parseBoolean(value);
         else if (key === 'report') report = parseBoolean(value);
         else if (key === 'fixture') fixture = value;
@@ -82,6 +86,7 @@ export class ScenarioMetadataParser {
       tags: [...tags],
       target,
       baseUrl,
+      sitePack,
       codegen,
       report,
       fixture,

@@ -386,6 +386,18 @@ def _filter_locators(action: str, locators: list[dict[str, Any]]) -> list[dict[s
         if action == "input" and loc.get("kind") == "role" and loc.get("value") == "link":
             continue
         out.append(loc)
+    # Fills must not prefer verified `text` (label copy → getByText). When a semantic
+    # locator exists (testid/label/placeholder/role), drop text candidates.
+    if action == "input" and out:
+        semantic = [
+            loc for loc in out if str(loc.get("kind") or "").lower() in _SEMANTIC_KINDS
+        ]
+        if semantic:
+            without_text = [
+                loc for loc in out if str(loc.get("kind") or "").lower() != "text"
+            ]
+            if without_text:
+                return without_text
     return out
 
 
@@ -770,11 +782,57 @@ def _nl_consistent_with_act(
     if text.lower().startswith("select ") and _blob_is_search_submit(blob, a) and "search" not in text.lower():
         return False
 
+    # Secret/redacted fills must not claim the wrong credential NL family.
+    if a == "input":
+        family = _input_secret_family(value)
+        if family == "email" and any(
+            k in lower for k in ("password", "verification code", "otp", "mfa", "totp")
+        ):
+            if not any(k in lower for k in ("email", "username", "user name", "login")):
+                return False
+        if family == "password" and any(
+            k in lower for k in ("email", "username", "verification code", "otp")
+        ):
+            if "password" not in lower:
+                return False
+        if family == "otp" and any(k in lower for k in ("email", "password", "username")):
+            if not any(k in lower for k in ("verification", "otp", "code", "mfa", "totp")):
+                return False
+
     return True
 
 
-# Keep a module-level alias used by older call sites if any.
-_OPTIONAL_NL = _is_optional_nl
+def _input_secret_family(value: str | None) -> str | None:
+    """Map redacted/secret placeholders to email|password|otp for NL alignment."""
+    v = (value or "").strip()
+    if not v:
+        return None
+    lower = v.lower()
+    match = re.search(r"<secret>\s*([^<]+?)\s*</secret>", lower)
+    if match:
+        inner = match.group(1).strip().lower()
+        if inner in ("username", "user", "email", "login", "userid", "user_id", "user-id"):
+            return "email"
+        if inner in ("password", "pass", "pwd", "passwd"):
+            return "password"
+        if inner in ("otp", "code", "verification", "mfa", "totp", "pin", "verification_code"):
+            return "otp"
+        return None
+    # Bullet / star redaction after redact_for_logs — usually password, sometimes OTP.
+    if re.fullmatch(r"[•\*\u2022·\u25cf\u25e6]+", v) or re.fullmatch(r"\*+|•+|·+", v):
+        return "password"
+    if lower in ("********", "••••••••", "[redacted]", "<redacted>"):
+        return "password"
+    return None
+
+
+def _locator_align_blob(locator: dict[str, Any] | None) -> str:
+    if not isinstance(locator, dict):
+        return ""
+    return " ".join(
+        str(locator.get(key) or "")
+        for key in ("kind", "value", "name", "filterText")
+    )
 
 
 def _nl_occurrence_budget(nl_steps: list[str]) -> dict[str, int]:
@@ -800,15 +858,15 @@ def _align_nl_step(
     min_nl_index: int = 0,
 ) -> str | None:
     """Best-effort NL alignment for coverage (not inventing acts)."""
-    blob = f"{action} {value or ''} {description or ''}".lower()
+    loc_blob = _locator_align_blob(locator)
+    blob = f"{action} {value or ''} {description or ''} {loc_blob}".lower()
     used_counts = used_nl if used_nl is not None else {}
     budget = nl_budget if nl_budget is not None else _nl_occurrence_budget(nl_steps)
+    secret_family = _input_secret_family(value) if action == "input" else None
     best: tuple[int, int, str] | None = None  # score, -index (prefer earlier unused), text
     for idx, nl in enumerate(nl_steps or [], start=1):
         text = (nl or "").strip()
         if not text:
-            continue
-        if idx < min_nl_index:
             continue
         lower = text.lower()
         if used_counts.get(lower, 0) >= budget.get(lower, 1):
@@ -816,6 +874,10 @@ def _align_nl_step(
         if not _nl_consistent_with_act(text, action, value, description, locator):
             continue
         score = 0
+        # Soft zipper: prefer later NL after progress, but allow high-confidence
+        # earlier binds (secret email before Continue click, out-of-order history).
+        if idx < min_nl_index:
+            score -= 5
         if action in ("navigate", "open") and ("navigate" in lower or "http" in lower or "open" in lower):
             score += 3
         if action == "go_back":
@@ -830,6 +892,38 @@ def _align_nl_step(
             score += 5
         if action == "input" and any(k in lower for k in ("enter", "type", "fill", "email", "password", "code", "destination")):
             score += 2
+        # Redacted credentials: map <secret>username|password|otp</secret> / •••• to NL families.
+        if action == "input" and secret_family == "email":
+            if any(k in lower for k in ("email", "username", "user name", "login id", "user id")):
+                score += 8
+            elif "login" in lower and "password" not in lower:
+                score += 5
+        elif action == "input" and secret_family == "password":
+            if "password" in lower:
+                score += 8
+        elif action == "input" and secret_family == "otp":
+            if any(k in lower for k in ("verification", "otp", "code", "mfa", "totp", "pin")):
+                score += 8
+        # Locator / testid tokens for inputs (loginRegisterEmailInputBox → email NL).
+        if action == "input" and loc_blob:
+            loc_l = loc_blob.lower()
+            if any(k in loc_l for k in ("email", "username", "loginregister", "userid")) and any(
+                k in lower for k in ("email", "username", "user name", "login")
+            ):
+                score += 6
+            if "password" in loc_l and "password" in lower:
+                score += 6
+            if any(k in loc_l for k in ("otp", "verification", "mfa", "code", "inputfileld")) and any(
+                k in lower for k in ("verification", "otp", "code", "mfa")
+            ):
+                score += 6
+            loc_name = ""
+            if isinstance(locator, dict):
+                loc_name = str(
+                    locator.get("name") or locator.get("filterText") or locator.get("value") or ""
+                ).strip().lower()
+            if loc_name and len(loc_name) >= 4 and loc_name in lower:
+                score += 6
         # Inputs must not steal verify / heading NLs that merely mention the typed value.
         if action == "input" and any(k in lower for k in ("verify", "assert", "check", "ensure", "heading", "contains")):
             score -= 10

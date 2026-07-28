@@ -81,3 +81,46 @@ def test_finalize_artifacts_ignores_tmp_and_tiny_videos(tmp_path):
     )
     assert "video" in arts
     assert Path(arts["video"]).stat().st_size >= 10_000
+
+
+def test_finalize_artifacts_does_not_scavenge_stable_slug_video(tmp_path):
+    """When discovery records into reports/videos/, never promote a prior Digital.webm."""
+    videos = tmp_path / "videos"
+    videos.mkdir()
+    stale = videos / "Digital.webm"
+    stale.write_bytes(b"old" * 10_000)
+    # Tiny/broken session mp4 (ffmpeg WinError-style failure)
+    broken = videos / "06a68870-6b33-7abe-8000-4b36a9eae818.mp4"
+    broken.write_bytes(b"x" * 100)
+
+    arts = finalize_artifacts(
+        "Digital",
+        video_dir=str(videos),
+        traces_dir=None,
+        videos_out=videos,
+        traces_out=tmp_path / "traces",
+    )
+    assert "video" not in arts
+    # Stale report file must remain untouched as a source — do not claim it as this run
+    assert stale.exists()
+
+
+def test_finalize_artifacts_prefers_explicit_session_recording(tmp_path):
+    videos = tmp_path / "videos"
+    videos.mkdir()
+    stale = videos / "Digital.webm"
+    stale.write_bytes(b"old" * 10_000)
+    session = videos / "aabbccdd-1111-2222-3333-444444444444.mp4"
+    session.write_bytes(b"new" * 10_000)
+
+    arts = finalize_artifacts(
+        "Digital",
+        video_dir=str(videos),
+        traces_dir=None,
+        videos_out=videos,
+        traces_out=tmp_path / "traces",
+        preferred_video=str(session),
+    )
+    assert arts.get("video", "").endswith("Digital.mp4")
+    assert Path(arts["video"]).stat().st_size >= 10_000
+    assert not stale.exists()  # other-extension cleanup
