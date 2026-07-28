@@ -464,6 +464,171 @@ def _nl_wants_loops(nl_steps: list[str]) -> bool:
     return any(_LOOP_NL_RE.search(s or "") for s in nl_steps or [])
 
 
+def _is_hover_nl(text: str) -> bool:
+    t = (text or "").strip().lower()
+    return bool(
+        re.search(
+            r"\b(hover|mouse\s*over|move\s+the\s+mouse|pointer\s+over|mouseover)\b",
+            t,
+        )
+    )
+
+
+def _hover_target_from_nl(text: str) -> str | None:
+    """Extract 'Platform' from 'Move the mouse pointer over the Platform navigation menu'."""
+    t = (text or "").strip()
+    if not t:
+        return None
+    patterns = (
+        r"(?:hover\s+over|mouse\s*over|pointer\s+over|move\s+the\s+mouse(?:\s+pointer)?\s+over)\s+"
+        r"(?:the\s+)?(.+?)(?:\s+navigation)?(?:\s+menu)?\s*$",
+        r"(?:hover|mouseover)\s+(?:on\s+|over\s+)?(?:the\s+)?(.+?)\s*$",
+    )
+    for pat in patterns:
+        m = re.search(pat, t, re.I)
+        if not m:
+            continue
+        name = m.group(1).strip().strip("\"'")
+        name = re.sub(
+            r"\b(navigation|menu|item|link|button|nav)\b",
+            "",
+            name,
+            flags=re.I,
+        )
+        name = re.sub(r"[.\s]+$", "", name).strip(" -:,")
+        name = re.sub(r"\s+", " ", name).strip()
+        if name and 1 < len(name) <= 64:
+            return name
+    return None
+
+
+def _is_menu_expand_nl(text: str) -> bool:
+    t = (text or "").strip().lower()
+    return bool(
+        re.search(r"\b(menu|nav|navigation)\b", t)
+        and re.search(r"\b(expand|opens?|opened|dropdown|flyout|submenu)\b", t)
+    )
+
+
+def _is_menu_visible_nl(text: str) -> bool:
+    t = (text or "").strip().lower()
+    if not re.search(r"\b(verify|assert|check|ensure)\b", t):
+        return False
+    if not re.search(r"\b(menu|navigation|nav|submenu)\b", t):
+        return False
+    return bool(re.search(r"\b(visible|displayed|shown|present|expand)", t))
+
+
+def _menu_name_from_verify_nl(text: str) -> str | None:
+    """'Platform' from 'Verify that the Platform menu expands' / submenu options visible."""
+    t = (text or "").strip()
+    m = re.search(
+        r"(?:verify|assert|check|ensure)\s+(?:that\s+)?(?:the\s+)?"
+        r"(.+?)\s+(?:navigation\s+)?(?:menu|submenu|nav)\b",
+        t,
+        re.I,
+    )
+    if not m:
+        return None
+    name = m.group(1).strip().strip("\"'")
+    name = re.sub(r"\b(main|primary|top|site)\b", "", name, flags=re.I).strip(" -:,")
+    if name and 1 < len(name) <= 64 and name.lower() not in ("the", "a", "an"):
+        return name
+    return None
+
+
+def _evaluate_looks_like_hover(step: dict[str, Any]) -> bool:
+    blob = f"{step.get('description') or ''} {step.get('value') or ''}".lower()
+    return bool(
+        re.search(
+            r"hover|mouseover|mouseenter|mouse\s*over|dispatchEvent\(['\"]mouse|"
+            r"\.hover\(|pointerover|pointerenter",
+            blob,
+        )
+    )
+
+
+def _evaluate_to_hover(
+    step: dict[str, Any],
+    nl_steps: list[str],
+    *,
+    claimed_hovers: set[str] | None = None,
+) -> dict[str, Any] | None:
+    """Promote JS evaluate hover probes into durable hover acts for replay/codegen."""
+    if not _evaluate_looks_like_hover(step):
+        return None
+    claimed = claimed_hovers if claimed_hovers is not None else set()
+    description = str(step.get("description") or "")
+    value = step.get("value")
+    blob = f"{description} {value or ''}".lower()
+    hint = None
+    # Prefer a hover NL whose target is mentioned in the evaluate payload.
+    scored: list[tuple[int, str]] = []
+    for nl in nl_steps or []:
+        text = (nl or "").strip()
+        if not text or text.lower() in claimed:
+            continue
+        if not _is_hover_nl(text):
+            continue
+        target = (_hover_target_from_nl(text) or "").lower()
+        score = 1
+        if target and target in blob:
+            score += 10
+        scored.append((score, text))
+    if scored:
+        scored.sort(key=lambda t: t[0], reverse=True)
+        hint = scored[0][1]
+    if not hint:
+        # Fall back: align against any hover NL via token overlap with description.
+        hint = _align_nl_step("hover", value, description, nl_steps)
+        if hint and not _is_hover_nl(hint):
+            hint = None
+    target = _hover_target_from_nl(hint or "") if hint else None
+    if not target:
+        # Try to pull a quoted label from the evaluate payload.
+        m = re.search(r"""['"]([A-Za-z][\w\s&/-]{1,40})['"]""", description)
+        if m and _is_hover_nl(f"hover over {m.group(1)}"):
+            target = m.group(1).strip()
+        elif m:
+            # Still use a short label if the evaluate clearly hovered.
+            cand = m.group(1).strip()
+            if cand.lower() not in ("mouseover", "mouseenter", "hover", "div", "span", "nav"):
+                target = cand
+    if not target:
+        return None
+    locs = [
+        {"kind": "role", "value": "link", "name": target, "exact": False},
+        {"kind": "role", "value": "menuitem", "name": target, "exact": False},
+        {"kind": "text", "value": target, "exact": False},
+    ]
+    # Prefer locators captured on the evaluate step when present.
+    captured = []
+    for loc in (
+        [step.get("locator")]
+        + list(step.get("locators") or [])
+        + list(step.get("selectorCandidates") or [])
+    ):
+        if isinstance(loc, dict) and (loc.get("value") or loc.get("name")):
+            captured.append(loc)
+    if captured:
+        locs = captured + locs
+    if hint:
+        claimed.add(hint.lower())
+    return {
+        "index": int(step.get("index") or 0),
+        "action": "hover",
+        "value": target,
+        "url": step.get("url"),
+        "description": f"hover | {target} | promoted from evaluate",
+        "locators": locs,
+        "locator": locs[0],
+        "nlStep": hint,
+        "_nlHint": hint or "",
+        "_action": "hover",
+        "_locators": locs,
+    }
+
+
 def _is_optional_nl(text: str) -> bool:
     """True soft-optional NL — conditionals / consent only (not search submit)."""
     t = (text or "").strip().lower()
@@ -768,6 +933,16 @@ def _align_nl_step(
                     score -= 20
         if action == "press" and _is_search_submit_nl(text) and _blob_is_search_submit(blob, action):
             score += 10
+        if action == "hover":
+            if _is_hover_nl(text):
+                score += 10
+                target = _hover_target_from_nl(text)
+                if target and target.lower() in blob:
+                    score += 6
+            elif any(k in lower for k in ("menu", "nav", "platform", "solutions", "product")):
+                score += 2
+            else:
+                score -= 4
         if action == "select" and (_is_language_nl(text) or "select" in lower):
             score += 6
         if action == "assert" and any(k in lower for k in ("verify", "assert", "check", "ensure")):
@@ -941,6 +1116,41 @@ def _coverage(
             if has_date_click:
                 status = "executed"
                 reason = "calendar day click implies date picker opened"
+
+        # Hover NL covered by a hover act on the same menu/target.
+        if status == "notExecuted" and _is_hover_nl(text):
+            target = (_hover_target_from_nl(text) or "").lower()
+            for s in compact_steps:
+                if str(s.get("action") or "").lower() != "hover":
+                    continue
+                blob = f"{s.get('value') or ''} {s.get('nlStep') or ''} {json.dumps(s.get('locator') or {})}".lower()
+                if (target and target in blob) or (not target and _is_hover_nl(str(s.get("nlStep") or ""))):
+                    status = "executed"
+                    reason = "hover act covers NL"
+                    evidence_idx = s.get("index")
+                    break
+
+        # Menu expand / submenu visible implied by hover of that menu (or grounded assert).
+        if status in ("notExecuted", "assertHollow") and (
+            _is_menu_expand_nl(text) or (_is_menu_visible_nl(text) and "submenu" in lower)
+        ):
+            menu = (_menu_name_from_verify_nl(text) or "").lower()
+            has_hover = any(
+                str(s.get("action") or "").lower() == "hover"
+                and (
+                    not menu
+                    or menu in f"{s.get('value') or ''} {s.get('nlStep') or ''} {json.dumps(s.get('locator') or {})}".lower()
+                )
+                for s in compact_steps
+            )
+            if has_hover:
+                # Prefer grounded if the bound assert now has locators; else credit hover.
+                if bound and any(_assert_is_grounded(s) for s in bound):
+                    status = "assertGrounded"
+                    reason = "menu verify grounded after hover"
+                else:
+                    status = "executed"
+                    reason = "menu hover implies expand/submenu visible"
 
         step_statuses.append(
             {
@@ -1142,6 +1352,7 @@ def build_compact_workflow(
     kept_raw: list[dict[str, Any]] = []
     preserve_loops = _nl_wants_loops(nl_steps)
     claimed_verifies: set[str] = set()
+    claimed_hovers: set[str] = set()
 
     for step in act_steps or []:
         if not isinstance(step, dict):
@@ -1180,6 +1391,23 @@ def build_compact_workflow(
                         "index": idx,
                         "action": raw_action,
                         "reason": "drop agent-tool find_elements",
+                        "description": description[:120],
+                    }
+                )
+            continue
+
+        if action == "evaluate" or raw_action.lower() == "evaluate":
+            converted = _evaluate_to_hover(
+                step, nl_steps, claimed_hovers=claimed_hovers
+            )
+            if converted:
+                kept_raw.append(converted)
+            else:
+                dropped.append(
+                    {
+                        "index": idx,
+                        "action": raw_action,
+                        "reason": "drop agent-tool evaluate",
                         "description": description[:120],
                     }
                 )
@@ -1326,7 +1554,7 @@ def build_compact_workflow(
             # Only interactive acts advance the sequential zipper. Promoted
             # search_page asserts often claim late NL indices early and would
             # otherwise block Enter/Submit binding.
-            if act in ("navigate", "click", "input", "select", "press", "go_back"):
+            if act in ("navigate", "click", "input", "select", "press", "go_back", "hover"):
                 for idx, candidate in enumerate(nl_steps or [], start=1):
                     if (candidate or "").strip().lower() == key:
                         last_nl_index = max(last_nl_index, idx)
@@ -1437,6 +1665,7 @@ def build_compact_workflow(
     compact_steps = _ground_page_state_asserts(compact_steps)
     compact_steps = _ground_asserts_from_related_acts(compact_steps)
     compact_steps = _ground_hollow_asserts_from_nl_and_urls(compact_steps)
+    compact_steps = _ensure_hover_steps(compact_steps, nl_steps)
     compact_steps = _ensure_optional_dismiss_steps(compact_steps, nl_steps)
 
     for i, step in enumerate(compact_steps, start=1):
@@ -1450,6 +1679,94 @@ def build_compact_workflow(
         "dropped": dropped,
         "coverage": coverage,
     }
+
+
+def _ensure_hover_steps(
+    steps: list[dict[str, Any]],
+    nl_steps: list[str],
+) -> list[dict[str, Any]]:
+    """
+    Hover NL must become durable hover acts. When the agent used evaluate (or
+    skipped emitting hover) but later clicked a sibling nav link, scaffold a
+    hover on the named menu so replay/codegen cover the NL.
+    """
+    out = list(steps)
+    claimed = {(s.get("nlStep") or "").strip().lower() for s in out if (s.get("nlStep") or "").strip()}
+    hovered_targets = {
+        str(s.get("value") or "").strip().lower()
+        for s in out
+        if str(s.get("action") or "").lower() == "hover" and s.get("value")
+    }
+    for loc_blob in out:
+        if str(loc_blob.get("action") or "").lower() != "hover":
+            continue
+        for loc in (
+            [loc_blob.get("locator")]
+            + list(loc_blob.get("semanticLocators") or [])
+            + list(loc_blob.get("selectorCandidates") or [])
+        ):
+            if isinstance(loc, dict):
+                name = str(loc.get("name") or loc.get("value") or "").strip().lower()
+                if name:
+                    hovered_targets.add(name)
+
+    for nl in nl_steps or []:
+        text = (nl or "").strip()
+        if not text or not _is_hover_nl(text):
+            continue
+        if text.lower() in claimed:
+            continue
+        target = _hover_target_from_nl(text)
+        if not target:
+            continue
+        if target.lower() in hovered_targets:
+            # Hover act exists without NL binding — attach NL.
+            for step in out:
+                if str(step.get("action") or "").lower() != "hover":
+                    continue
+                blob = f"{step.get('value') or ''} {json.dumps(step.get('locator') or {})}".lower()
+                if target.lower() in blob and not (step.get("nlStep") or "").strip():
+                    step["nlStep"] = text
+                    claimed.add(text.lower())
+                    break
+            if text.lower() in claimed:
+                continue
+        locs = [
+            {"kind": "role", "value": "link", "name": target, "exact": False},
+            {"kind": "role", "value": "menuitem", "name": target, "exact": False},
+            {"kind": "text", "value": target, "exact": False},
+        ]
+        # Insert before the next nav click when possible, else append near start.
+        insert_at = len(out)
+        for i, step in enumerate(out):
+            if str(step.get("action") or "").lower() != "click":
+                continue
+            click_blob = f"{step.get('description') or ''} {json.dumps(step.get('locator') or {})}".lower()
+            # Prefer inserting before Plans/Resources-style nav clicks after privacy dismiss.
+            if any(k in click_blob for k in ("plan", "resource", "customer", "product", "solution")):
+                insert_at = i
+                break
+        scaffold = {
+            "index": 0,
+            "action": "hover",
+            "value": target,
+            "url": out[insert_at - 1].get("url") if insert_at > 0 and out else (out[0].get("url") if out else None),
+            "nlStep": text,
+            "locator": locs[0],
+            "semanticLocators": locs[1:],
+            "selectorCandidates": locs,
+            "verified": False,
+            "verifiedBy": None,
+            "elementIndex": None,
+            "backendNodeId": None,
+            "description": f"hover | {target} | scaffolded from NL",
+            "pageTitle": None,
+        }
+        out.insert(insert_at, scaffold)
+        claimed.add(text.lower())
+        hovered_targets.add(target.lower())
+
+    return out
 
 
 def _ensure_optional_dismiss_steps(
@@ -1631,14 +1948,42 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
             step["verified"] = True
             continue
 
-        # "Verify X is visible/displayed/shown" — text/role locator from the NL name.
+        # Main/site navigation chrome — role=navigation (or named menu link).
+        if _is_menu_visible_nl(nl) or _is_menu_expand_nl(nl):
+            menu_name = _menu_name_from_verify_nl(nl) or _hover_target_from_nl(nl)
+            locs: list[dict[str, Any]] = []
+            if menu_name:
+                locs.extend(
+                    [
+                        {"kind": "role", "value": "link", "name": menu_name, "exact": False},
+                        {"kind": "role", "value": "menuitem", "name": menu_name, "exact": False},
+                        {"kind": "text", "value": menu_name, "exact": False},
+                    ]
+                )
+            if re.search(r"\b(main\s+)?navigation(\s+menu)?\b", lower) and not menu_name:
+                locs.append({"kind": "role", "value": "navigation", "exact": False})
+                locs.append({"kind": "css", "value": "nav"})
+            if "submenu" in lower and menu_name:
+                locs.insert(
+                    0,
+                    {"kind": "role", "value": "menu", "name": menu_name, "exact": False},
+                )
+            if locs:
+                step["locator"] = locs[0]
+                step["selectorCandidates"] = locs
+                step["verified"] = True
+                continue
+
+        # "Verify X is/are visible/displayed/shown" — text/role locator from the NL name.
         disp = re.match(
-            r"^(?:verify|assert|check|ensure)\s+(.+?)\s+is\s+(?:displayed|visible|shown)\s*$",
+            r"^(?:verify|assert|check|ensure)\s+(?:that\s+)?(.+?)\s+(?:is|are)\s+"
+            r"(?:displayed|visible|shown|present)\s*$",
             nl,
             re.I,
         )
         if disp:
             name = disp.group(1).strip().strip("\"'")
+            name = re.sub(r"^(?:the|a|an)\s+", "", name, flags=re.I).strip()
             # "the search results page" is page state with no literal copy behind it, but
             # "This page was last edited" is real footer text — only the trailing noun
             # marks the page-state phrasing.
@@ -1646,6 +1991,13 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
             if name and len(name) <= 64 and not page_state:
                 if re.search(r"\.md$|readme", name, re.I):
                     loc = {"kind": "text", "value": name, "exact": False}
+                elif re.search(r"\b(navigation|menu|nav)\b", name, re.I):
+                    loc = {"kind": "role", "value": "navigation", "exact": False}
+                    step["selectorCandidates"] = [
+                        loc,
+                        {"kind": "css", "value": "nav"},
+                        {"kind": "text", "value": name, "exact": False},
+                    ]
                 elif re.search(r"\bsearch\b", name, re.I):
                     # Wikipedia / Booking search fields — prefer searchbox/combobox role,
                     # with text fallback matching placeholder ("Search Wikipedia").

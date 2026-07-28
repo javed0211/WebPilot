@@ -680,7 +680,9 @@ async function launchReplayBrowser(headed: boolean): Promise<Browser> {
   ).toLowerCase();
   const launchOpts = {
     headless: !headed,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: headed
+      ? ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
+      : ['--no-sandbox', '--disable-setuid-sandbox'],
   };
 
   const tryLaunch = async (channel?: string): Promise<Browser> => {
@@ -703,6 +705,20 @@ async function launchReplayBrowser(headed: boolean): Promise<Browser> {
     }
   }
   return tryLaunch();
+}
+
+async function maximizePlaywrightPage(page: Page): Promise<void> {
+  try {
+    const session = await page.context().newCDPSession(page);
+    const { windowId } = await session.send('Browser.getWindowForTarget');
+    await session.send('Browser.setWindowBounds', {
+      windowId,
+      bounds: { windowState: 'maximized' },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[ActHistory] Could not maximize window: ${msg.slice(0, 120)}`);
+  }
 }
 
 const MIN_USABLE_VIDEO_BYTES = 2_000;
@@ -764,13 +780,29 @@ export class ActHistoryPlaywrightRunner {
         fs.mkdirSync(videoTmpDir, { recursive: true });
       }
 
+      const headed = Boolean(options.headed);
+      const configuredViewport =
+        (ConfigManager.getInstance().get('browser.viewport', {
+          width: 1280,
+          height: 720,
+        }) as { width: number; height: number }) || { width: 1280, height: 720 };
+      const videoSize = {
+        width: configuredViewport.width || 1280,
+        height: configuredViewport.height || 720,
+      };
+
       context = await browser.newContext({
-        viewport: { width: 1280, height: 720 },
+        // Headed: fit content to the OS window (null viewport). A fixed 1280x720
+        // viewport inside a smaller default window is what caused "viewport > window".
+        viewport: headed ? null : videoSize,
         recordVideo: recordVideo
-          ? { dir: videoTmpDir, size: { width: 1280, height: 720 } }
+          ? { dir: videoTmpDir, size: videoSize }
           : undefined,
       });
       page = await context.newPage();
+      if (headed) {
+        await maximizePlaywrightPage(page);
+      }
       await installOverlayAutoDismiss(page);
 
       if (ledger) {

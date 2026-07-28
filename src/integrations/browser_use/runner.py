@@ -108,7 +108,9 @@ from .execution_history import (
 )
 from .branding import (
     build_browser_kwargs,
+    ensure_window_maximized,
     install_branding_hook,
+    prefer_maximized_window,
     push_branding_status,
 )
 from .testmu import load_testmu_config
@@ -798,6 +800,7 @@ async def run_native_browser_use_scenario(
     discovery_rules = load_discovery_native_rules()
 
     await browser.start()
+    await ensure_window_maximized(browser)
     if os.environ.get("WEBPILOT_RESET_AUTH") == "1" or os.environ.get("WEBPILOT_FRESH_CONTEXT") == "1":
         try:
             await browser.clear_cookies()
@@ -1224,6 +1227,7 @@ async def run_intelligent_steps(
     active_step_text = ""
 
     await browser.start()
+    await ensure_window_maximized(browser)
     if os.environ.get("WEBPILOT_RESET_AUTH") == "1" or os.environ.get("WEBPILOT_FRESH_CONTEXT") == "1":
         try:
             await browser.clear_cookies()
@@ -1934,6 +1938,7 @@ async def main():
             browser_kwargs[kwarg_key] = perf[perf_key]
     browser_kwargs['keep_alive'] = True  # Required between scoped discovery steps; shutdown_browser() closes at end.
     browser = Browser(**browser_kwargs)
+    prefer_maximized_window(browser)
     print(
         f"[WebPilot] Performance: engine={perf.get('engineMode', 'native')} "
         f"judge={perf.get('judgeMode')} "

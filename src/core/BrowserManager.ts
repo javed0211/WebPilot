@@ -63,9 +63,12 @@ export class BrowserManager {
    * Launches the browser instance and sets up the context and recording settings
    */
   public async launch(options: BrowserManagerLaunchOptions = {}): Promise<Page> {
+    const headed = !this.headless;
     const launchOptions: Parameters<typeof chromium.launch>[0] = {
       headless: this.headless,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: headed
+        ? ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
+        : ['--no-sandbox', '--disable-setuid-sandbox'],
     };
 
     // Instantiate correct browser engine
@@ -95,7 +98,8 @@ export class BrowserManager {
         : undefined;
 
     this.context = await this.browser.newContext({
-      viewport: this.viewport,
+      // Headed: content fills the maximized window. Fixed viewport only in headless.
+      viewport: headed ? null : this.viewport,
       recordVideo,
       acceptDownloads: true,
       ...(options.storageStatePath ? { storageState: options.storageStatePath } : {}),
@@ -106,6 +110,19 @@ export class BrowserManager {
     }
 
     this.page = await this.context.newPage();
+
+    if (headed) {
+      try {
+        const session = await this.context.newCDPSession(this.page);
+        const { windowId } = await session.send('Browser.getWindowForTarget');
+        await session.send('Browser.setWindowBounds', {
+          windowId,
+          bounds: { windowState: 'maximized' },
+        });
+      } catch {
+        // Maximize is best-effort (Firefox/WebKit may not support CDP Browser domain).
+      }
+    }
 
     if (options.eventLedger) {
       const flags = resolveFeatureFlags();

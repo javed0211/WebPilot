@@ -10,6 +10,7 @@ from integrations.browser_use.credentials import (
     prepare_step,
     redact_for_logs,
     resolve_sensitive_text,
+    step_requests_environment_credentials,
     task_requires_environment_credentials,
 )
 
@@ -73,6 +74,32 @@ class CredentialTests(unittest.TestCase):
     def test_task_requires_environment_credentials_for_sign_in_step(self):
         task = "Please execute the following test scenario step-by-step:\nSign in using the QA account"
         self.assertTrue(task_requires_environment_credentials(task))
+
+    def test_task_does_not_require_env_for_inline_login(self):
+        task = (
+            'Please execute the following test scenario step-by-step:\n'
+            'When user logs in with username "Admin" and password "Admin123"'
+        )
+        self.assertFalse(task_requires_environment_credentials(task))
+        self.assertFalse(
+            step_requests_environment_credentials(
+                'When user logs in with username "Admin" and password "Admin123"'
+            )
+        )
+
+    def test_task_does_not_require_env_for_booking_without_placeholders(self):
+        task = (
+            'Please execute the following test scenario step-by-step:\n'
+            '1. Navigate to https://www.booking.com/\n'
+            '4. Enter "London" in the destination field'
+        )
+        self.assertFalse(task_requires_environment_credentials(task))
+
+    def test_task_requires_env_for_valid_credentials_phrase(self):
+        self.assertTrue(
+            task_requires_environment_credentials('Sign in with valid credentials')
+        )
+        self.assertTrue(step_requests_environment_credentials('login with valid credentials'))
 
     @patch('integrations.browser_use.credentials.load_environment_config')
     def test_prepare_step_resolves_base_url_placeholder(self, mock_load_config):
@@ -149,6 +176,32 @@ class CredentialTests(unittest.TestCase):
             )
         self.assertEqual(merged['username'], 'qa-user@example.com')
         self.assertEqual(merged['password'], 'qa-pass')
+
+    @patch('integrations.browser_use.credentials.load_environment_config')
+    def test_enrich_does_not_override_inline_credentials_with_qa_json(self, mock_load_config):
+        mock_load_config.return_value = QA_ENV
+        with patch.dict(os.environ, {'QA_USERNAME': 'qa-user@example.com', 'QA_PASSWORD': 'qa-pass'}):
+            merged = enrich_step_sensitive_data(
+                'When user logs in with username "Admin" and password "Admin123"',
+                'qa',
+                {},
+            )
+        self.assertNotEqual(merged.get('username'), 'qa-user@example.com')
+        self.assertNotEqual(merged.get('password'), 'qa-pass')
+        # Inline password is extracted; username without @ stays in step text only.
+        self.assertEqual(merged.get('password'), 'Admin123')
+
+    @patch('integrations.browser_use.credentials.load_environment_config')
+    def test_enrich_ignores_qa_json_for_non_credential_steps(self, mock_load_config):
+        mock_load_config.return_value = QA_ENV
+        with patch.dict(os.environ, {'QA_USERNAME': 'qa-user@example.com', 'QA_PASSWORD': 'qa-pass'}):
+            merged = enrich_step_sensitive_data(
+                'Navigate to https://www.booking.com/',
+                'qa',
+                {},
+            )
+        self.assertEqual(merged, {})
+        mock_load_config.assert_not_called()
 
 
 if __name__ == '__main__':

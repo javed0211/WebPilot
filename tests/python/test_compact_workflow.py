@@ -966,3 +966,84 @@ def test_search_wikipedia_visible_grounds_from_nearby_input():
     assert nl[2] not in compact["coverage"]["unmapped"]
     search_assert = next(s for s in compact["steps"] if s.get("nlStep") == nl[2])
     assert search_assert.get("locator") or search_assert.get("selectorCandidates")
+
+
+def test_nav_hover_and_menu_verifies_map_from_evaluate():
+    """Kameleoon-style hover via evaluate + menu expand verifies must fully map."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://www.kameleoon.com/",
+            "value": "https://www.kameleoon.com/",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "click",
+            "url": "https://www.kameleoon.com/",
+            "description": 'click | Reject all | button[id="ppms_cm_reject-all"]',
+            "locators": [{"kind": "css", "value": 'button[id="ppms_cm_reject-all"]'}],
+        },
+        {
+            "index": 3,
+            "action": "evaluate",
+            "url": "https://www.kameleoon.com/",
+            "description": "evaluate | hover mouseover Solutions navigation menu",
+        },
+        {
+            "index": 4,
+            "action": "click",
+            "url": "https://www.kameleoon.com/plans",
+            "description": 'click | Plans | Clicked link "Plans"',
+            "locators": [{"kind": "role", "value": "link", "name": "Plans", "exact": True}],
+        },
+        {
+            "index": 5,
+            "action": "click",
+            "url": "https://www.kameleoon.com/resources",
+            "description": 'click | Resources | Clicked link "Resources"',
+            "locators": [{"kind": "role", "value": "link", "name": "Resources", "exact": True}],
+        },
+        {
+            "index": 6,
+            "action": "click",
+            "url": "https://www.kameleoon.com/customers",
+            "description": 'click | Customers | Clicked link "Customers"',
+            "locators": [{"kind": "role", "value": "link", "name": "Customers", "exact": True}],
+        },
+    ]
+    nl = [
+        "Navigate to https://www.kameleoon.com",
+        "If a privacy popup is visible, dismiss it",
+        "Verify that the main navigation menu is visible.",
+        "Move the mouse pointer over the Platform navigation menu.",
+        "Verify that the Platform menu expands.",
+        "Verify that the Platform submenu options are visible.",
+        "Move the mouse pointer over the Solutions navigation menu.",
+        "Verify that the Solutions menu expands.",
+        "Verify that the Solutions submenu options are visible.",
+        "Click the Plans link",
+        "Click the Resources link",
+        "Click the Customers link",
+    ]
+    plan = [
+        {"index": i, "kind": "assert", "nlStep": n}
+        for i, n in enumerate(nl, 1)
+        if n.lower().startswith("verify")
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    cov = compact["coverage"]
+    assert cov["unmapped"] == [], cov
+    assert cov["mapped"] == cov["nlTotal"] == 12
+    hovers = [s for s in compact["steps"] if s.get("action") == "hover"]
+    assert len(hovers) >= 2
+    hover_targets = {str(s.get("value") or "").lower() for s in hovers}
+    assert "platform" in hover_targets
+    assert "solutions" in hover_targets
+    by_status = {s["nlStep"]: s["status"] for s in cov["stepStatuses"]}
+    assert by_status[nl[3]] == "executed"
+    assert by_status[nl[6]] == "executed"
+    assert by_status[nl[2]] == "assertGrounded"
+    assert by_status[nl[4]] == "assertGrounded"
+    assert by_status[nl[7]] == "assertGrounded"

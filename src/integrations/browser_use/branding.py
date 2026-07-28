@@ -324,7 +324,6 @@ def build_browser_kwargs(
         'disable_security': False, # Changed to False to prevent the "invalid argument" infobar in Chromium
         'enable_default_extensions': False,
         'channel': resolve_browser_channel(browser_cfg.get('target')),
-        'args': ['--start-maximized'],
         # Drop flags Chrome now warns about or that show automation infobars.
         'ignore_default_args': [
             '--enable-automation',
@@ -332,11 +331,16 @@ def build_browser_kwargs(
             '--disable-blink-features=AutomationControlled',
         ],
     }
-    # Headful: size the OS window and let the page use the full content area (no fixed viewport).
     if headless:
+        # Headless needs an explicit content size (no OS window).
         kwargs['viewport'] = viewport
     else:
+        # Headful: fill the OS window. Do NOT set viewport — a fixed viewport larger
+        # than the window causes the classic "content bigger than chrome" mismatch.
+        # Prefer --start-maximized; prefer_maximized_window() clears browser-use's
+        # auto window_size=screen so it cannot inject competing --window-size flags.
         kwargs['no_viewport'] = True
+        kwargs['args'] = ['--start-maximized']
     # Prefer discovery-session video (CDP screencast + ffmpeg) so report evidence does
     # not require a second Playwright browser. Disabled when ffmpeg is unavailable.
     if browser_cfg.get('record_video') and browser_cfg.get('video_dir'):
@@ -349,6 +353,53 @@ def build_browser_kwargs(
     if browser_cfg.get('record_trace'):
         kwargs['traces_dir'] = browser_cfg['traces_dir']
     return kwargs
+
+
+def prefer_maximized_window(browser: Any) -> None:
+    """Stop browser-use from emitting --window-size=screen (fights --start-maximized).
+
+    BrowserProfile.detect_display_configuration() always sets window_size to the
+    display size in headful mode, which makes get_args() prefer --window-size over
+    --start-maximized. Clear it before launch so maximize wins.
+    """
+    try:
+        profile = getattr(browser, 'browser_profile', None)
+        if profile is None or getattr(profile, 'headless', False):
+            return
+        profile.window_size = None
+        profile.no_viewport = True
+        profile.viewport = None
+    except Exception as exc:
+        print(f'[WebPilot] Warning: could not prefer maximized window: {exc}')
+
+
+async def ensure_window_maximized(browser_session: Any) -> None:
+    """Maximize the OS window via CDP after launch (belt-and-suspenders with --start-maximized)."""
+    try:
+        profile = getattr(browser_session, 'browser_profile', None)
+        if profile is not None and getattr(profile, 'headless', False):
+            return
+        cdp = await browser_session.get_or_create_cdp_session()
+        target_id = getattr(cdp, 'target_id', None) or getattr(
+            browser_session, 'agent_focus_target_id', None
+        )
+        if not target_id:
+            return
+        window_info = await cdp.cdp_client.send.Browser.getWindowForTarget(
+            params={'targetId': target_id},
+        )
+        window_id = window_info.get('windowId')
+        if window_id is None:
+            return
+        await cdp.cdp_client.send.Browser.setWindowBounds(
+            params={
+                'windowId': window_id,
+                'bounds': {'windowState': 'maximized'},
+            },
+        )
+        print('[WebPilot] Browser window maximized')
+    except Exception as exc:
+        print(f'[WebPilot] Warning: could not maximize browser window: {exc}')
 
 
 async def inject_webpilot_branding(

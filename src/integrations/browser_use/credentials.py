@@ -213,10 +213,11 @@ def extract_step_credentials(step: str) -> tuple[str, dict[str, str]]:
 
 def resolve_step_placeholders(step: str, env_name: str) -> tuple[str, dict[str, str]]:
     """Expand ${baseURL}, ${username}, ${QA_PASSWORD}, etc. Mask secrets for the LLM."""
-    var_map, sensitive_keys = build_environment_variable_map(env_name)
     sensitive: dict[str, str] = {}
     if not STEP_PLACEHOLDER_RE.search(step):
         return step, sensitive
+
+    var_map, sensitive_keys = build_environment_variable_map(env_name)
 
     def replace_placeholder(match: re.Match[str]) -> str:
         key = match.group(1).strip()
@@ -323,20 +324,42 @@ def build_sensitive_data_from_steps(steps: list[str], env_name: str) -> tuple[li
     return sanitized_steps, placeholders
 
 
+_ENV_CREDENTIAL_PHRASES = (
+    'valid credentials',
+    'qa account',
+    'qa credentials',
+    'environment credentials',
+    'configured credentials',
+    'env credentials',
+)
+
+
+def step_requests_environment_credentials(step: str) -> bool:
+    """True only when the step explicitly opts into env JSON credentials.
+
+    Inline username/password in the test file must win — bare words like
+    "login" / "password" alone must not pull qa.json credentials.
+    """
+    if not (step or '').strip():
+        return False
+    if STEP_PLACEHOLDER_RE.search(step):
+        return True
+    lowered = step.lower()
+    return any(phrase in lowered for phrase in _ENV_CREDENTIAL_PHRASES)
+
+
 def task_requires_environment_credentials(task: str) -> bool:
+    """True when the scenario opts into env credentials via ${…} or explicit phrases."""
+    if not task:
+        return False
     if STEP_PLACEHOLDER_RE.search(task):
         return True
-    lowered = task.lower()
-    if any(
-        phrase in lowered
-        for phrase in ('valid credentials', 'sign in', 'sign-in', 'login', 'password', 'authenticate')
-    ):
-        return True
     for line in task.splitlines():
-        stripped = line.strip()
-        if stripped and is_credential_step(stripped):
+        if step_requests_environment_credentials(line):
             return True
-    return False
+    # Whole-task scan for multi-line phrases
+    lowered = task.lower()
+    return any(phrase in lowered for phrase in _ENV_CREDENTIAL_PHRASES)
 
 
 def flatten_sensitive_data(sensitive_data: dict[str, Any] | None) -> dict[str, str]:
@@ -388,16 +411,20 @@ def enrich_step_sensitive_data(
     env_name: str,
     *sources: dict[str, Any] | None,
 ) -> dict[str, str | dict[str, str]]:
-    """Merge inline, global, and environment credentials for a step."""
+    """Merge inline, global, and environment credentials for a step.
+
+    Environment JSON credentials are loaded only when the step opts in
+    (${…} or "valid credentials"). Existing inline/test values are never overwritten.
+    """
     _, prepared_sensitive = prepare_step(step, env_name)
     merged = merge_sensitive_data(prepared_sensitive, *sources)
-    if not is_credential_step(step):
+    if not step_requests_environment_credentials(step):
         return merged
 
     env_creds = load_environment_credentials(env_name)
     for key, value in env_creds.items():
         if value and not _is_unresolved_placeholder(value):
-            merged[key] = value
+            merged.setdefault(key, value)
     return merged
 
 

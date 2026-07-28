@@ -159,6 +159,35 @@ export class Engine {
     return JSON.parse(interpolated);
   }
 
+  /**
+   * Start URL for legacy Playwright path.
+   * Prefer scenario metadata / URLs already in the test — do not force qa.json
+   * baseUrl when the scenario already navigates itself (e.g. booking.com).
+   */
+  private resolveStartUrl(
+    scenarioMeta: { baseUrl?: string },
+    plan: Array<{ originalText?: string }>,
+    testContent: string,
+    envConfig: { baseUrl?: string }
+  ): string | undefined {
+    const metaBase = (scenarioMeta.baseUrl || '').trim();
+    if (metaBase) return metaBase;
+
+    const usesEnvBasePlaceholder = /\$\{\s*(baseURL|baseUrl|BASE_URL)\s*\}/i.test(testContent);
+    const absoluteUrlInPlan = plan.some((step) =>
+      /https?:\/\/[^\s"'<>]+/i.test(step.originalText || '')
+    );
+    const absoluteUrlInFile = /https?:\/\/[^\s"'<>]+/i.test(testContent);
+
+    // Test already has a concrete URL (or will expand ${baseURL} in a step) — skip auto-goto.
+    if (!usesEnvBasePlaceholder && (absoluteUrlInPlan || absoluteUrlInFile)) {
+      return undefined;
+    }
+
+    const envBase = (envConfig.baseUrl || '').trim();
+    return envBase || undefined;
+  }
+
   private async mergeCodegenIntoReport(
     testSlug: string,
     codegenResult: PostExecutionCodegenResult
@@ -828,7 +857,10 @@ export class Engine {
     let envConfig = this.loadConfigJSON(envPath);
     envConfig = this.interpolateSecrets(envConfig);
 
-    Logger.info(`Environment "${this.envName}" → ${envConfig.baseUrl}`);
+    Logger.info(
+      `Environment "${this.envName}"` +
+        (envConfig.baseUrl ? ` (config baseUrl=${envConfig.baseUrl})` : '')
+    );
 
     // Instantiate LLM client and agents
     this.llmClient = new LLMClient();
@@ -936,10 +968,11 @@ export class Engine {
     });
     eventLedger?.appendLifecycle('ui.started', 'started');
     
-    // Automatically open Base URL
-    if (envConfig.baseUrl) {
-      Logger.info(`Navigate to ${envConfig.baseUrl}`);
-      await page.goto(envConfig.baseUrl);
+    // Open a start URL only when the scenario opts into env baseUrl or has no URL of its own.
+    const startUrl = this.resolveStartUrl(scenarioMeta, plan, testContent, envConfig);
+    if (startUrl) {
+      Logger.info(`Navigate to ${startUrl}`);
+      await page.goto(startUrl);
     }
 
     // Loop through step sequences
