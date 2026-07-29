@@ -14,7 +14,9 @@ framework:
   openhands:
     enabled: true
     model: null
-    workspace: "."
+    # Scoped folder OpenHands may edit (discovery evidence stays in WebPilot runtime).
+    # Defaults to framework.generatedCodePath when unset. Override with WEBPILOT_OPENHANDS_WORKSPACE.
+    workspace: "./packages/test-framework"
     maxIterations: 40
   codegenQuality:
     # Set false to reject deterministic specs containing raw page.* fallbacks

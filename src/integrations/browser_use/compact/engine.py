@@ -655,6 +655,23 @@ def _strip_gherkin_prefix(text: str) -> str:
     ).strip()
 
 
+def _is_navigate_nl(text: str) -> bool:
+    """True for goto/navigate/open first-page NL, including unresolved ${baseUrl}."""
+    bare = _strip_gherkin_prefix(text).lower()
+    if not bare:
+        return False
+    # "navigate back" is go_back, not first-page navigate.
+    if re.search(r"\b(navigate\s+back|go\s+back|previous\s+page|browser\s+back)\b", bare):
+        return False
+    if re.search(r"\$\{\s*(baseurl|base_url|baseURL|BASE_URL)\s*\}", text or "", re.I):
+        return True
+    if re.match(r"^(goto|go\s+to|navigate(\s+to)?|open)\b", bare):
+        return True
+    if "http://" in bare or "https://" in bare or "www." in bare:
+        return bool(re.search(r"\b(goto|go\s+to|navigate|open|visit|load)\b", bare))
+    return False
+
+
 def _looks_like_verify_nl(text: str) -> bool:
     bare = _strip_gherkin_prefix(text).lower()
     if not bare:
@@ -1040,8 +1057,14 @@ def _align_nl_step(
         if idx < min_nl_index:
             score -= 5
         match_l = bare or lower
-        if action in ("navigate", "open") and ("navigate" in match_l or "http" in match_l or "open" in match_l):
-            score += 3
+        if action in ("navigate", "open") and _is_navigate_nl(text):
+            # goto / go to / open / navigate / http(s) / ${baseUrl} placeholders
+            score += 6
+            if re.search(r"\$\{\s*(baseurl|base_url|baseURL|BASE_URL)\s*\}", text, re.I):
+                # Unexpanded env placeholder — still a first-step navigate intent.
+                score += 2
+            if "http" in match_l or "www." in match_l:
+                score += 2
         if action == "go_back":
             # "Navigate back to the previous page" / "go back" / "browser back"
             if any(k in match_l for k in ("go back", "navigate back", "previous page", "browser back")):
@@ -1426,6 +1449,16 @@ def _coverage(
                 status = "executed"
                 reason = "search submit/Enter act present (reclassified)"
             # else remain notExecuted (hard)
+
+        # goto / navigate NL covered by any navigate act (incl. unresolved ${baseUrl}).
+        if status == "notExecuted" and _is_navigate_nl(text):
+            for s in compact_steps:
+                if str(s.get("action") or "").lower() not in ("navigate", "goto", "go_to", "open"):
+                    continue
+                status = "executed"
+                reason = "navigate act covers goto/open NL"
+                evidence_idx = s.get("index")
+                break
 
         if status == "notExecuted" and _is_optional_nl(text):
             if any(k in lower for k in ("cookie", "consent")) and has_cookie_accept:

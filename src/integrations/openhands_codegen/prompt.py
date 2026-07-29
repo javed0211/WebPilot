@@ -27,6 +27,7 @@ def build_codegen_prompt(
     spec_path: str,
     history: dict[str, Any],
     test_file_path: str | None = None,
+    workspace_label: str = "codegen workspace",
 ) -> str:
     nl_steps = history.get("nlSteps") or []
     compact = history.get("compactWorkflow") or {}
@@ -45,32 +46,36 @@ def build_codegen_prompt(
         "compactSteps": compact_steps,
     }
 
-    return f"""You are editing a local WebPilot repository to generate Playwright test code.
+    return f"""You are editing a scoped automation workspace to generate Playwright test code.
+
+Workspace root (ONLY folder you may edit): {workspace_label}
 
 Goal:
-- Generate TypeScript Playwright code from WebPilot execution evidence only.
-- Keep discovery logic out of scope. Use only the compact workflow and execution history as truth.
+- Generate TypeScript Playwright code from WebPilot discovery evidence only.
+- Discovery already happened outside this workspace. Do not rediscover the site.
+- Use only the compact workflow / NL evidence below as truth.
 
-Repository conventions:
+Workspace conventions:
 - Use `@playwright/test`.
-- Reuse `packages/test-framework/core/BasePage.ts`.
-- Follow existing Playwright fixture/config patterns under `packages/test-framework/`.
-- Write the spec to `{spec_path}`.
-- Create page object files under `packages/test-framework/pages/` when needed.
+- Reuse `core/BasePage.ts` (or existing BasePage in this workspace).
+- Follow fixtures/config already present in this workspace.
+- Write the spec to `{spec_path}` (path relative to this workspace).
+- Create/update page objects under `pages/` when needed.
 
 Hard requirements:
-- Do not invent steps, assertions, or navigation that do not exist in the evidence.
-- Prefer verified role/label/text locators from `compactSteps`.
-- Optional compact steps must be implemented defensively so the test does not fail when the element is absent.
-- Keep the generated flow replayable by `webpilot replay`.
-- Generate one main page object class named `{page_class}` unless the evidence clearly requires more than one.
-- Match the site context `{site_hint}` when naming helpers/selectors, but do not add branding copy that is not already present in the evidence.
-- Do not edit unrelated files.
+- Stay inside this workspace. Do not edit parent WebPilot engine/src, docs, or unrelated packages.
+- Do not invent steps, assertions, or navigation beyond the evidence.
+- Prefer verified role/label/text locators from `compactSteps`. When a verified CSS candidate exists (e.g. autocomplete result id), prefer it over fragile exact option names scoped to `main`.
+- Optional compact steps must be implemented defensively.
+- Prefer relative/dynamic dates over hard-coded calendar day labels when the NL says "at least N days from today".
+- Generate one main page object class named `{page_class}` unless evidence clearly requires more.
+- Match site context `{site_hint}` for naming helpers only.
+- Do not edit unrelated existing specs/pages.
 
 Deliverables:
-1. Create or update the necessary page object file(s) in `packages/test-framework/pages/`.
+1. Create or update page object file(s) under `pages/`.
 2. Create or update the spec at `{spec_path}`.
-3. Ensure imports resolve inside this repo.
+3. Ensure imports resolve inside this workspace.
 
 Execution evidence JSON:
 ```json

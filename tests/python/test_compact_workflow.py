@@ -1286,3 +1286,35 @@ def test_heuristics_fallback_off_by_default():
         assert not (compact.get("meta") or {}).get("heuristicsFallback")
     finally:
         os.environ.pop("WEBPILOT_COMPACT_HEURISTICS", None)
+
+
+def test_goto_baseurl_placeholder_maps_to_navigate():
+    """D365-style `goto "${baseUrl}"` must bind to navigate acts (compact gate)."""
+    history = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://contoso.crm4.dynamics.com/",
+            "value": "https://contoso.crm4.dynamics.com/",
+            "description": "navigate",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "input",
+            "value": "user@example.com",
+            "description": "email",
+            "locators": [{"kind": "label", "value": "Email"}],
+        },
+    ]
+    for nl_step in (
+        'goto "${baseUrl}"',
+        'goto "${baseURL}"',
+        'go to "${baseUrl}"',
+    ):
+        compact = build_compact_workflow(history, [nl_step, 'Enter email "user@example.com"'], [])
+        cov = compact["coverage"]
+        assert cov["mapped"] == cov["nlTotal"] == 2, (nl_step, cov)
+        assert not cov["unmapped"], (nl_step, cov)
+        by = {s["nlStep"]: s["status"] for s in cov["stepStatuses"]}
+        assert by[nl_step] == "executed", (nl_step, by)

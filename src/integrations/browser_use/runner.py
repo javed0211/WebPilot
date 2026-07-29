@@ -1036,8 +1036,9 @@ async def run_native_browser_use_scenario(
         print(f"[WebPilot] Discovery stopped by control-loop breaker: {loop_breaker.message}")
     # ActHistory from browser-use is the sole executionHistory source of truth.
     # Do NOT overwrite with NL-aligned zipper (legacy build_nl_aligned_codegen_history).
+    # Prefer placeholder-expanded steps so compact can bind goto "${baseUrl}" → real URL.
     context = build_full_execution_context(
-        history, steps, test_name, page_snapshots=page_snapshots or None
+        history, sanitized_steps or steps, test_name, page_snapshots=page_snapshots or None
     )
     if loop_breaker.triggered:
         context["isSuccessful"] = False
@@ -1105,7 +1106,7 @@ async def run_native_browser_use_scenario(
         from .discovery_tuning import extract_initial_navigate_url
         from .rulebooks import parse_site_pack_override
 
-        compact_url = extract_initial_navigate_url(steps) or None
+        compact_url = extract_initial_navigate_url(list(context.get("nlSteps") or sanitized_steps or steps)) or None
         if not compact_url:
             for row in context.get("actHistory") or []:
                 u = str((row or {}).get("url") or "").strip()
@@ -1123,7 +1124,7 @@ async def run_native_browser_use_scenario(
 
         compact = build_compact_workflow(
             list(context.get("actHistory") or []),
-            list(context.get("nlSteps") or steps),
+            list(context.get("nlSteps") or sanitized_steps or steps),
             list(context.get("assertionPlan") or []),
             native_captured_actions=captured_actions or None,
             source="browser-use-compact",
@@ -1386,6 +1387,12 @@ async def run_intelligent_steps(
                 )
             except Exception:
                 pass
+
+    # Collect sanitized NL once so history/compact use expanded ${baseUrl} etc.
+    sanitized_nl: list[str] = []
+    for raw_step in steps:
+        sanitized_only, _ = prepare_step(raw_step, env_name)
+        sanitized_nl.append(sanitized_only)
 
     for step_index, step in enumerate(steps, start=1):
         sanitized_step, step_sensitive = prepare_step(step, env_name)
@@ -1713,7 +1720,7 @@ async def run_intelligent_steps(
 
     context = {
         "testName": test_name,
-        "nlSteps": steps,
+        "nlSteps": sanitized_nl or steps,
         "executionHistory": execution_history,
         "runtimeInsights": {
             "nlStepCount": len(steps),

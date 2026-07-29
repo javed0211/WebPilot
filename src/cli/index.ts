@@ -432,6 +432,18 @@ function writeProjectProfileConfig(projectRoot: string, profile: InitProfile): v
   if (/generatedCodePath:\s*"[^"]+"/.test(yaml)) {
     yaml = yaml.replace(/generatedCodePath:\s*"[^"]+"/, `generatedCodePath: "${generatedCodePath}"`);
   }
+  // Bind OpenHands edits to the same codegen workspace as generatedCodePath.
+  if (/openhands:\s*\n(?:[ \t]+[^\n]*\n)*?[ \t]+workspace:\s*"[^"]+"/.test(yaml)) {
+    yaml = yaml.replace(
+      /(openhands:\s*\n(?:[ \t]+[^\n]*\n)*?[ \t]+workspace:\s*)"[^"]+"/,
+      `$1"${generatedCodePath}"`
+    );
+  } else if (/openhands:\s*\n/.test(yaml)) {
+    yaml = yaml.replace(
+      /(openhands:\s*\n)/,
+      `$1    workspace: "${generatedCodePath}"\n`
+    );
+  }
 
   const projectBlock = `# Project generation profile selected by webpilot init.
 # Codegen reads project.language / automationTool. Default path is deterministic-only (no agent fallback).
