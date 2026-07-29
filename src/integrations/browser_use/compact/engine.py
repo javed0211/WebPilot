@@ -672,6 +672,28 @@ def _is_navigate_nl(text: str) -> bool:
     return False
 
 
+def _is_generic_page_visible_nl(text: str) -> bool:
+    """True for vague page/screen visibility verifies with no named page noun."""
+    bare = _strip_gherkin_prefix(text).lower()
+    if not bare:
+        return False
+    # Named pages have dedicated grounding (home, products, cart, resident care home, …).
+    if re.search(
+        r"\b(home\s+page|homepage|landing|products?\s+page|cart|article|"
+        r"detail|overview|help|support|dashboard|resident)\b",
+        bare,
+    ):
+        return False
+    return bool(
+        re.search(
+            r"^(?:verify|assert|check|ensure)\s+(?:that\s+)?(?:the\s+)?"
+            r"(?:page|screen|view)\s+is\s+(?:visible|displayed|shown|present)"
+            r"(?:\s+successfully)?\s*$",
+            bare,
+        )
+    )
+
+
 def _looks_like_verify_nl(text: str) -> bool:
     bare = _strip_gherkin_prefix(text).lower()
     if not bare:
@@ -1459,6 +1481,23 @@ def _coverage(
                 reason = "navigate act covers goto/open NL"
                 evidence_idx = s.get("index")
                 break
+
+        # Vague "page is visible" covered when a prior click/navigate has a URL.
+        if status in ("notExecuted", "assertHollow") and _is_generic_page_visible_nl(text):
+            has_url = any(
+                str(s.get("url") or "").startswith("http")
+                for s in compact_steps
+            )
+            if has_url:
+                if bound and any(_assert_is_grounded(s) for s in bound):
+                    status = "assertGrounded"
+                    reason = "page-visible verify grounded from URL"
+                else:
+                    status = "assertGrounded"
+                    reason = "observed page URL covers generic page-visible NL"
+                    for s in compact_steps:
+                        if str(s.get("url") or "").startswith("http"):
+                            evidence_idx = s.get("index")
 
         if status == "notExecuted" and _is_optional_nl(text):
             if any(k in lower for k in ("cookie", "consent")) and has_cookie_accept:
@@ -2359,6 +2398,22 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
                 step["url"] = home
                 continue
 
+        # Vague "Verify that page is visible successfully" (no named page) — ground from
+        # the URL of the preceding click/navigate (e.g. Help and support → /help).
+        if _is_generic_page_visible_nl(nl):
+            prev_url = None
+            for prev in reversed(steps[:pos]):
+                u = str(prev.get("url") or "").strip()
+                if u.startswith("http"):
+                    prev_url = u
+                    break
+            if not prev_url:
+                prev_url = next((u for u in urls_from_here if u.startswith("http")), None)
+            if prev_url:
+                step["value"] = f"__url_equals__:{prev_url}"
+                step["url"] = prev_url
+                continue
+
         # ALL PRODUCTS / products list / searched products / detail page
         if re.search(r"\ball\s+products\b|\bproducts\s+page\b|\bnavigated\s+to\s+all\s+products\b", bare):
             hit = next((u for u in urls if "/products" in u.lower()), None)
@@ -2510,9 +2565,10 @@ def _ground_hollow_asserts_from_nl_and_urls(steps: list[dict[str, Any]]) -> list
                 continue
 
         # "Verify X is/are visible/displayed/shown" — text/role locator from the NL name.
+        # Allow trailing "successfully" (common in smoke scenarios).
         disp = re.match(
             r"^(?:verify|assert|check|ensure)\s+(?:that\s+)?(.+?)\s+(?:is|are)\s+"
-            r"(?:displayed|visible|shown|present)\s*$",
+            r"(?:displayed|visible|shown|present)(?:\s+successfully)?\s*$",
             nl,
             re.I,
         )

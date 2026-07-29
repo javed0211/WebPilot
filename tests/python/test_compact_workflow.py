@@ -1318,3 +1318,49 @@ def test_goto_baseurl_placeholder_maps_to_navigate():
         assert not cov["unmapped"], (nl_step, cov)
         by = {s["nlStep"]: s["status"] for s in cov["stepStatuses"]}
         assert by[nl_step] == "executed", (nl_step, by)
+
+
+def test_generic_page_visible_grounds_from_prior_click_url():
+    """Bupa-style 'Verify that page is visible successfully' after Help click."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "url": "https://careservices.example/residents",
+            "value": "https://careservices.example/residents",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "click",
+            "description": "Help and support",
+            "url": "https://careservices.example/residents/help",
+            "locators": [{"kind": "role", "value": "link", "name": "Help and support"}],
+        },
+        {
+            "index": 3,
+            "action": "click",
+            "description": "Care",
+            "url": "https://careservices.example/residents",
+            "locators": [{"kind": "role", "value": "link", "name": "Care"}],
+        },
+    ]
+    nl = [
+        "Navigate to https://careservices.example/residents",
+        "Click on Help and support button on header section",
+        "Verify that page is visible successfully",
+        "Click on Care button on header section",
+        "Verify that the resident care home page is visible successfully",
+    ]
+    plan = [
+        {"kind": "assert", "nlStep": nl[2]},
+        {"kind": "assert", "nlStep": nl[4]},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    assert compact["coverage"]["unmapped"] == [], compact["coverage"]
+    assert compact["coverage"]["mapped"] == len(nl)
+    hollow = next(s for s in compact["steps"] if s.get("nlStep") == nl[2])
+    assert str(hollow.get("value") or "").startswith("__url_equals__:"), hollow
+    assert "/help" in str(hollow.get("url") or "")
+    status = next(s for s in compact["coverage"]["stepStatuses"] if s["nlStep"] == nl[2])
+    assert status["status"] == "assertGrounded", status
