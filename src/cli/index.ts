@@ -20,7 +20,6 @@ import { listSummarySlugs, resolveSummaryPath, migrateLegacyReportFiles, ensureR
 import { setupPythonVenv } from '../integrations/browser_use/PythonRuntime';
 import { RepoKnowledgeGraph } from '../core/knowledge/RepoKnowledgeGraph';
 import { HEALING_PROPOSALS_DIR, KNOWLEDGE_GRAPH_PATH } from '../core/ProjectPaths';
-import { DeterministicCodegenPipeline } from '../core/codegen/DeterministicCodegenPipeline';
 import { readLatestPointer } from '../core/codegen/CodegenPaths';
 import { BrowserProviderRegistry } from '../core/browserProviders/BrowserProviderRegistry';
 import { ConfigManager } from '../core/ConfigManager';
@@ -2458,11 +2457,9 @@ program
     }
     if (options.codegen) {
       process.env.WEBPILOT_CODEGEN = '1';
-      // Honor framework.codegenMode (default deterministic). `auto` maps to deterministic — no agent fallback.
       if (!process.env.WEBPILOT_CODEGEN_MODE) {
-        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'deterministic');
-        process.env.WEBPILOT_CODEGEN_MODE =
-          cfgMode === 'llm' ? 'llm' : cfgMode === 'auto' ? 'auto' : 'deterministic';
+        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'openhands');
+        process.env.WEBPILOT_CODEGEN_MODE = cfgMode === 'openhands' ? 'openhands' : 'openhands';
       }
     }
     if (options.forceCodegen) {
@@ -2521,9 +2518,8 @@ program
     if (metadataCodegen) {
       process.env.WEBPILOT_CODEGEN = '1';
       if (!process.env.WEBPILOT_CODEGEN_MODE) {
-        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'deterministic');
-        process.env.WEBPILOT_CODEGEN_MODE =
-          cfgMode === 'llm' ? 'llm' : cfgMode === 'auto' ? 'auto' : 'deterministic';
+        const cfgMode = ConfigManager.getInstance().get('framework.codegenMode', 'openhands');
+        process.env.WEBPILOT_CODEGEN_MODE = cfgMode === 'openhands' ? 'openhands' : 'openhands';
       }
     }
     if (metadataReport) {
@@ -3045,31 +3041,20 @@ historyCmd
 
 /**
  * COMMAND: generate
- * Build Playwright code from a saved execution history (agent+tools by default when
- * the knowledge graph has pages; use --deterministic for template-only emit).
+ * Build Playwright code from a saved execution history using OpenHands.
  */
 program
   .command('generate')
-  .description('Generate Playwright code from a saved execution trace (agent+KG tools by default)')
+  .description('Generate Playwright code from a saved execution trace using OpenHands')
   .option('--from <slug>', 'Scenario slug to generate from, or "latest"', 'latest')
   .option('--no-validate', 'Skip TypeScript and Playwright validation')
-  .option('--deterministic', 'Force deterministic template emit (no coding agent)')
-  .option('--agent', 'Force coding-agent codegen over the knowledge graph')
-  .option('--architecture <arch>', 'Override architecture: flat, pom, bdd, pom-bdd')
-  .option('--no-enrich', 'Skip LLM graph enrichment before agent codegen')
-  .option('--repair', 'Opt-in LLM repair when deterministic validation fails (deterministic path)')
-  .option('--no-repair', 'Skip repair round on agent validation failure')
   .action(async (options: {
     from?: string;
     validate?: boolean;
-    deterministic?: boolean;
-    agent?: boolean;
-    architecture?: string;
-    enrich?: boolean;
-    repair?: boolean;
   }) => {
-    const { AgentCodegenPipeline } = require('../core/codegen/AgentCodegenPipeline') as typeof import('../core/codegen/AgentCodegenPipeline');
-    const { resolveCodegenArchitecture } = require('../core/knowledge/RepoArchitectureDetect') as typeof import('../core/knowledge/RepoArchitectureDetect');
+    const { runPostExecutionCodegen } = require('../core/codegen/PostExecutionCodegen') as typeof import('../core/codegen/PostExecutionCodegen');
+    const { resolveExecutionHistoryPath } = require('../core/ReportPaths') as typeof import('../core/ReportPaths');
+    const { LLMClient } = require('../core/LLMClient') as typeof import('../core/LLMClient');
 
     const slug =
       options.from === 'latest'
@@ -3078,53 +3063,40 @@ program
           })()
         : options.from!;
 
-    const detection = resolveCodegenArchitecture({
-      override: options.architecture,
-    });
-    const forceDeterministic = Boolean(options.deterministic) || process.env.WEBPILOT_CODEGEN_DETERMINISTIC === '1';
-    const forceAgent = Boolean(options.agent) || process.env.WEBPILOT_CODEGEN_AGENT === '1';
-    const useAgent =
-      !forceDeterministic &&
-      (forceAgent || AgentCodegenPipeline.shouldPreferAgent());
-
-    console.log(`\n${chalk.magenta(useAgent ? '=== WebPilot Agent Codegen ===' : '=== WebPilot Deterministic Codegen ===')}`);
+    console.log(`\n${chalk.magenta('=== WebPilot OpenHands Codegen ===')}`);
     console.log(`  Scenario slug: ${chalk.cyan(slug)}`);
-    console.log(
-      `  Architecture : ${chalk.cyan(detection.architecture)} ` +
-        chalk.dim(`(${detection.confidence}) ${detection.reasons[0] || ''}`)
-    );
 
     try {
-      if (useAgent) {
-        const result = await AgentCodegenPipeline.runFromSlug(slug, {
-          validate: options.validate !== false,
-          architecture: options.architecture || detection.architecture,
-          enrichGraph: options.enrich !== false,
-          repair: options.repair !== false,
-        });
-        console.log(`\n${chalk.green('Generated files:')}`);
-        for (const file of result.files) {
-          console.log(`  - ${file.path}`);
-        }
-        console.log(`\n${chalk.dim('Trace:')} ${result.metadata.sourceTrace}`);
-        console.log(`${chalk.dim('Plan:')} ${result.metadata.sourcePlan}`);
-        console.log(`\n${DeterministicCodegenPipeline.planSummary(result.plan)}`);
-        console.log(`\n${chalk.dim('Replay without LLM:')} webpilot replay ${result.plan.specPath}`);
-        return;
+      process.env.WEBPILOT_CODEGEN = '1';
+      process.env.WEBPILOT_CODEGEN_MODE = 'openhands';
+      const historyPath = resolveExecutionHistoryPath(slug);
+      if (!fs.existsSync(historyPath)) {
+        throw new Error(`No execution history found for ${slug}. Run the scenario first.`);
       }
-
-      const result = await DeterministicCodegenPipeline.runFromSlug(slug, {
+      const historyDocument = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+      const executionHistory = (historyDocument.actHistory || historyDocument.executionHistory || []) as any[];
+      const result = await runPostExecutionCodegen({
+        testName: slug,
+        testFilePath: historyDocument.testFile || historyDocument.test || slug,
+        executionHistory,
+        llmClient: new LLMClient(),
+        architecture: 'pom',
         validate: options.validate !== false,
-        agentRepair: Boolean(options.repair),
+        historyDocument,
       });
       console.log(`\n${chalk.green('Generated files:')}`);
       for (const file of result.files) {
         console.log(`  - ${file.path}`);
       }
-      console.log(`\n${chalk.dim('Trace:')} ${result.metadata.sourceTrace}`);
-      console.log(`${chalk.dim('Plan:')} ${result.metadata.sourcePlan}`);
-      console.log(`\n${DeterministicCodegenPipeline.planSummary(result.plan)}`);
-      console.log(`\n${chalk.dim('Replay without LLM:')} webpilot replay ${result.plan.specPath}`);
+      if (!result.success) {
+        throw new Error(result.summary);
+      }
+      if (result.metadata?.sourceTrace) {
+        console.log(`\n${chalk.dim('Trace:')} ${result.metadata.sourceTrace}`);
+      }
+      if (result.reportCodegen?.specPath) {
+        console.log(`\n${chalk.dim('Replay without LLM:')} webpilot replay ${result.reportCodegen.specPath}`);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`Codegen failed: ${msg}`));

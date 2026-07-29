@@ -10,10 +10,12 @@ framework:
   defaultEnvironment: "qa"
   interactive: true
   useBrowserUse: true
-  codegenMode: deterministic # deterministic | llm | auto
-  # deterministic (default): ActHistory → profile emit → validate. Fail closed on codegen errors.
-  # auto is treated as deterministic (no CodegenAgent fallback — avoids false PASSED).
-  # llm: explicit CodegenAgent only (TypeScript Playwright). Prefer: webpilot generate --repair.
+  codegenMode: openhands
+  openhands:
+    enabled: true
+    model: null
+    workspace: "."
+    maxIterations: 40
   codegenQuality:
     # Set false to reject deterministic specs containing raw page.* fallbacks
     # for interactions/assertions. Waits and screenshots remain audit-visible

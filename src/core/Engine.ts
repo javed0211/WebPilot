@@ -12,7 +12,6 @@ import { SymbolParser } from './SymbolParser';
 import { CodegenContext } from './CodegenContext';
 import { RepoKnowledgeGraph } from './knowledge/RepoKnowledgeGraph';
 import { resolveCodegenArchitecture } from './knowledge/RepoArchitectureDetect';
-import { CodegenWriter } from './CodegenWriter';
 import { runPostExecutionCodegen, PostExecutionCodegenResult } from './codegen/PostExecutionCodegen';
 import { RawExecutionStep } from './codegen/ExecutionTrace';
 import { generateExecutionReports } from './ExecutionReportService';
@@ -76,14 +75,6 @@ export interface EngineRunResult {
   success: boolean;
   stepsExecuted: number;
   phases?: import('./RunPhases').RunPhases;
-}
-
-function safeUnlinkCodegenTemp(filePath: string): void {
-  try {
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  } catch {
-    // ignore
-  }
 }
 
 export interface EngineOptions {
@@ -627,7 +618,6 @@ export class Engine {
           runStartedAt: this.runStartedAt,
           allowCodegenHarvest: true,
         };
-        const tempCodegenPath = path.join(process.cwd(), 'packages', 'test-framework', 'temp_codegen.json');
         const baseName = path.basename(this.testFilePath, path.extname(this.testFilePath));
         const codegenRequested = process.env.WEBPILOT_CODEGEN === '1';
 
@@ -689,136 +679,53 @@ export class Engine {
           return { success: false, stepsExecuted, phases };
         }
 
-        if (!fs.existsSync(tempCodegenPath)) {
-          if (codegenRequested) {
+        if (!codegenRequested) {
+          phases.codegen = 'not-requested';
+          phases.specRerun = 'not-requested';
+        } else {
+          Logger.info('Running OpenHands codegen from execution history');
+          UsageTracker.setPhase('codegen');
+          this.llmClient = new LLMClient();
+          const historyFile = resolveExecutionHistoryPath(baseName);
+          let steps: RawExecutionStep[] = [];
+          let historyDocument: Record<string, unknown> | undefined;
+          if (fs.existsSync(historyFile)) {
+            const raw = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+            historyDocument = raw;
+            steps = (raw.actHistory || raw.executionHistory || raw.steps || []) as RawExecutionStep[];
+            stepsExecuted = steps.length || stepsExecuted;
+          }
+          const codegenResult = await runPostExecutionCodegen({
+            testName: baseName,
+            testFilePath: this.testFilePath,
+            executionHistory: steps,
+            llmClient: this.llmClient,
+            architecture: this.architecture,
+            symbolGraphContext: CodegenContext.buildSymbolGraphContext(),
+            historyDocument,
+          });
+          if (!codegenResult.success) {
             phases.codegen = 'failed';
             phases.specRerun = 'failed';
             phases.reasons = {
               ...(phases.reasons || {}),
-              codegen: 'temp_codegen.json missing after discovery',
+              codegen: codegenResult.summary,
             };
-            Logger.error(
-              'Codegen was requested (--codegen) but packages/test-framework/temp_codegen.json is missing. ' +
-                'Discovery may have skipped codegen (failed run) or the Python handoff failed.'
-            );
+            Logger.error(codegenResult.summary);
             await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases, videoOpts);
             this.logPhases(phases);
             this.patchSummaryProvenance(baseName, {
-              status: overallSuccess(phases) ? 'PASSED' : 'FAILED',
+              status: 'FAILED',
+              statusReason: codegenResult.summary,
+              failureContext: codegenResult.summary,
               phases,
             });
             this.finalizeJobUsage(baseName);
             return { success: false, stepsExecuted: 0, phases };
           }
-          phases.codegen = 'not-requested';
-          phases.specRerun = 'not-requested';
-        } else {
-          Logger.info('Post-processing generated POMs and specs');
-          UsageTracker.setPhase('codegen');
-          const codegenData = JSON.parse(fs.readFileSync(tempCodegenPath, 'utf8'));
-
-          if (codegenData?.deterministic) {
-            this.llmClient = new LLMClient();
-            const historyFile =
-              codegenData.executionHistoryPath || resolveExecutionHistoryPath(baseName);
-            let steps: RawExecutionStep[] = [];
-            let historyDocument: Record<string, unknown> | undefined;
-            if (fs.existsSync(historyFile)) {
-              const raw = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
-              historyDocument = raw;
-              steps = (raw.actHistory || raw.executionHistory || raw.steps || []) as RawExecutionStep[];
-              stepsExecuted = steps.length || stepsExecuted;
-            }
-            if (historyDocument && !isSuccessfulActHistory(historyDocument)) {
-              phases.discovery = 'failed';
-              phases.codegen = 'skipped';
-              phases.specRerun = 'skipped';
-              Logger.warn('Skipping codegen — only successful executions generate code');
-              safeUnlinkCodegenTemp(tempCodegenPath);
-              await this.attachPlaywrightReportVideo(baseName, false, phases, {
-                ...videoOpts,
-                allowCodegenHarvest: false,
-              });
-              this.logPhases(phases);
-              this.patchSummaryProvenance(baseName, { status: 'FAILED', phases });
-              this.finalizeJobUsage(baseName);
-              return { success: false, stepsExecuted: steps.length, phases };
-            }
-            const codegenResult = await runPostExecutionCodegen({
-              testName: baseName,
-              testFilePath: this.testFilePath,
-              executionHistory: steps,
-              llmClient: this.llmClient,
-              architecture: this.architecture,
-              symbolGraphContext: CodegenContext.buildSymbolGraphContext(),
-              historyDocument,
-            });
-            if (!codegenResult.success) {
-              phases.codegen = 'failed';
-              phases.specRerun = 'failed';
-              phases.reasons = {
-                ...(phases.reasons || {}),
-                codegen: codegenResult.summary,
-              };
-              Logger.error(codegenResult.summary);
-              safeUnlinkCodegenTemp(tempCodegenPath);
-              await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases, videoOpts);
-              this.logPhases(phases);
-              this.patchSummaryProvenance(baseName, {
-                status: 'FAILED',
-                statusReason: codegenResult.summary,
-                failureContext: codegenResult.summary,
-                phases,
-              });
-              this.finalizeJobUsage(baseName);
-              return { success: false, stepsExecuted: 0, phases };
-            }
-            // writeAndValidate inside deterministic codegen includes Playwright spec rerun.
-            phases.codegen = 'passed';
-            phases.specRerun = 'passed';
-            Logger.success(codegenResult.summary);
-            await this.mergeCodegenIntoReport(baseName, codegenResult);
-          } else if (codegenData?.files?.length) {
-            this.llmClient = new LLMClient();
-            const execCtx = codegenData.executionContext as { urlSequence?: string[] } | undefined;
-            const { ok } = await CodegenWriter.writeAndValidate(codegenData.files, this.llmClient, {
-              testSlug: baseName,
-              urls: execCtx?.urlSequence,
-            });
-            if (!ok) {
-              phases.codegen = 'failed';
-              phases.specRerun = 'failed';
-              Logger.error('Generated code failed validation');
-              safeUnlinkCodegenTemp(tempCodegenPath);
-              await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases, videoOpts);
-              this.logPhases(phases);
-              this.patchSummaryProvenance(baseName, { status: 'FAILED', phases });
-              this.finalizeJobUsage(baseName);
-              return { success: false, stepsExecuted: 0, phases };
-            }
-            phases.codegen = 'passed';
-            phases.specRerun = 'passed';
-          } else {
-            phases.codegen = codegenRequested ? 'failed' : 'not-requested';
-            phases.specRerun = phases.codegen;
-          }
-
-          if (codegenData?.artifacts) {
-            const reportPath = resolveSummaryPath(baseName);
-            let report: Record<string, unknown> = {};
-            if (fs.existsSync(reportPath)) {
-              report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-            }
-            report.artifacts = codegenData.artifacts;
-            if (codegenData.executionHistoryPath) {
-              report.executionHistoryPath = codegenData.executionHistoryPath;
-            }
-            fs.mkdirSync(path.dirname(summaryPath(baseName)), { recursive: true });
-            fs.writeFileSync(summaryPath(baseName), JSON.stringify(report, null, 2), 'utf8');
-            Logger.info(`Artifacts: ${JSON.stringify(codegenData.artifacts)}`);
-          }
-
-          safeUnlinkCodegenTemp(tempCodegenPath);
+          phases.codegen = 'passed';
+          phases.specRerun = 'passed';
+          await this.mergeCodegenIntoReport(baseName, codegenResult);
         }
 
         await this.attachPlaywrightReportVideo(baseName, discoveryOk, phases, videoOpts);

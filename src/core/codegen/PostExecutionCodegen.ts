@@ -1,28 +1,27 @@
-import { ConfigManager } from '../ConfigManager';
-import { GeneratedFile } from '../../agents/CodegenAgent';
-import { CodegenContext } from '../CodegenContext';
-import { LLMClient } from '../LLMClient';
-import { Logger } from '../../utils/Logger';
-import { ActHistoryCodegenAdapter } from './ActHistoryCodegenAdapter';
-import {
-  evaluateCompactCoverageGate,
-  evaluateCompactVerifiedGate,
-  formatCompactCoverageLog,
-  getCompactWorkflow,
-} from './CompactWorkflow';
-import { DeterministicCodegenPipeline, PipelineInput } from './DeterministicCodegenPipeline';
-import { CodegenMetadata, CodegenProfilePlan } from './GenerationPlan';
-import { ReportCodegenInfo } from '../execution_report/types';
-import { RawExecutionStep } from './ExecutionTrace';
-import { tryReuseExistingGeneratedSpec } from './ExistingCodegenReuse';
-import { isSuccessfulActHistory } from './HistoryReuse';
-import { isReplayHealEnabled } from '../replay/ReplayHealPolicy';
-import { ActHistoryReplayService } from '../replay/ActHistoryReplayService';
-import { resolveExecutionHistoryPath } from '../ReportPaths';
 import * as fs from 'fs';
 import * as path from 'path';
+import { execFileSync } from 'child_process';
+import { ConfigManager } from '../ConfigManager';
+import type { LLMClient } from '../LLMClient';
+import { Logger } from '../../utils/Logger';
+import { resolveExecutionHistoryPath } from '../ReportPaths';
+import { generatedSpecPath } from './GeneratedPaths';
+import { evaluateCompactCoverageGate, evaluateCompactVerifiedGate, formatCompactCoverageLog, getCompactWorkflow } from './CompactWorkflow';
+import { isSuccessfulActHistory } from './HistoryReuse';
+import { resolvePlaywrightCli } from '../PlaywrightCliPath';
+import { BrowserProviderRegistry } from '../browserProviders/BrowserProviderRegistry';
+import { findCliInstallRoot } from '../../cli/ProjectContext';
+import { ensureBrowserUsePython, splitPythonCommand } from '../../integrations/browser_use/PythonRuntime';
+import type { ReportCodegenInfo } from '../execution_report/types';
+import type { CodegenMetadata, CodegenProfilePlan } from './GenerationPlan';
+import type { RawExecutionStep } from './ExecutionTrace';
 
-export type CodegenMode = 'deterministic' | 'llm' | 'auto';
+export interface GeneratedFile {
+  path: string;
+  content?: string;
+}
+
+export type CodegenMode = 'openhands';
 
 export interface PostExecutionCodegenResult {
   success: boolean;
@@ -40,8 +39,6 @@ export function readProjectCodegenProfile(): CodegenProfilePlan {
     .replace(/\/$/, '');
   const configuredLanguage = config.get('project.language') as string | undefined;
   let language = configuredLanguage;
-  // Init sets generatedCodePath to ./tests/generated for Python. If language was
-  // omitted/overwritten, infer python so we do not silently emit TypeScript specs.
   if (!language && /(?:^|\/)tests\/generated$/.test(generatedCodePath)) {
     language = 'python';
   }
@@ -51,80 +48,11 @@ export function readProjectCodegenProfile(): CodegenProfilePlan {
   const testFramework =
     config.get('project.testFramework') ||
     (language === 'python' ? 'pytest' : 'playwright-test');
-  return {
-    language,
-    automationTool,
-    frameworkPattern,
-    testFramework,
-  };
-}
-
-function hasExplicitProjectLanguage(): boolean {
-  const language = ConfigManager.getInstance().get('project.language');
-  return typeof language === 'string' && language.trim().length > 0;
-}
-
-/** Fail closed when Python codegen did not produce a runnable pytest module. */
-export function assertPythonCodegenOutputs(files: GeneratedFile[]): void {
-  const normalized = files.map((file) => ({
-    ...file,
-    path: file.path.replace(/\\/g, '/'),
-  }));
-  const testFiles = normalized.filter((file) => /\/test_[^/]+\.py$/.test(file.path));
-  if (!testFiles.length) {
-    throw new Error(
-      'Python codegen produced no tests/generated/test_*.py files. ' +
-        'Check project.language is "python" in resources/config/webpilot.yaml (webpilot init --language python).'
-    );
-  }
-  for (const file of testFiles) {
-    const fullPath = path.join(process.cwd(), file.path);
-    if (!fs.existsSync(fullPath)) {
-      throw new Error(`Python codegen did not write ${file.path} to disk`);
-    }
-    const content = fs.readFileSync(fullPath, 'utf8');
-    if (!/def\s+test_/.test(content)) {
-      throw new Error(`Python test file ${file.path} has no def test_* function`);
-    }
-    // Broken short imports (from pages.X) look like "no tests" under pytest collection.
-    if (/^from pages\./m.test(content)) {
-      throw new Error(
-        `Python test ${file.path} uses broken "from pages.*" imports; expected tests.generated.pages.*`
-      );
-    }
-  }
-}
-
-/** LLM CodegenAgent / RepoEdit repair only supports TypeScript Playwright today. */
-export function supportsTypeScriptAgentCodegen(profile: CodegenProfilePlan = readProjectCodegenProfile()): boolean {
-  return profile.language === 'typescript' && profile.automationTool === 'playwright';
+  return { language, automationTool, frameworkPattern, testFramework };
 }
 
 export function resolveCodegenMode(): CodegenMode {
-  const envMode = process.env.WEBPILOT_CODEGEN_MODE?.trim().toLowerCase();
-  if (envMode === 'deterministic' || envMode === 'llm' || envMode === 'auto') {
-    // `auto` is treated as deterministic — no LLM repair/fallback (avoids false PASSED).
-    return envMode === 'auto' ? 'deterministic' : envMode;
-  }
-  const configMode = ConfigManager.getInstance().get('framework.codegenMode', 'deterministic');
-  if (configMode === 'llm') return 'llm';
-  // auto and deterministic (and anything else) → deterministic only
-  return 'deterministic';
-}
-
-function buildSummary(metadata: CodegenMetadata, fileCount: number): string {
-  const replay =
-    metadata.mode === 'deterministic' || !metadata.mode
-      ? `webpilot replay ${metadata.specPath}`
-      : `webpilot replay ${metadata.specPath}`;
-  return `Codegen (${metadata.mode || 'deterministic'}) wrote ${fileCount} file(s) for ${metadata.scenarioSlug}. Replay with: ${replay}`;
-}
-
-function toPipelineSteps(steps: RawExecutionStep[]): PipelineInput['steps'] {
-  return steps.map((step) => ({
-    ...step,
-    description: step.description || step.action,
-  }));
+  return 'openhands';
 }
 
 function loadHistoryDocument(
@@ -141,47 +69,126 @@ function loadHistoryDocument(
   }
 }
 
-/**
- * Codegen is only allowed after a successful discovery/execution.
- * Failed ActHistory must not produce POMs/specs (avoids false-positive "PASSED").
- */
-function skipCodegenUnlessSuccessful(
-  historyDocument: Record<string, unknown> | undefined
-): PostExecutionCodegenResult | null {
-  // No ActHistory document → caller already gated success (e.g. local Playwright path).
-  if (!historyDocument) return null;
-  if (isSuccessfulActHistory(historyDocument)) return null;
-  Logger.warn(
-    'Skipping codegen — only successful executions generate code (discovery/execution failed)'
-  );
+function codegenBlocked(
+  summary: string
+): PostExecutionCodegenResult {
+  return { success: false, summary, files: [] };
+}
+
+function buildMetadata(slug: string, files: GeneratedFile[], specPath: string): CodegenMetadata {
   return {
-    success: false,
-    summary:
-      'Codegen skipped — execution was not successful. Fix the failing run (or use --force-discovery) before generating code.',
-    files: [],
+    generatedBy: 'webpilot',
+    scenarioSlug: slug,
+    sourceTrace: resolveExecutionHistoryPath(slug),
+    sourcePlan: '',
+    profile: 'typescript/playwright/pom',
+    specPath,
+    pageObjectPaths: files
+      .map((file) => file.path)
+      .filter((file) => /\/pages\/.+\.ts$/i.test(file.replace(/\\/g, '/'))),
+    generatedFiles: files.map((file) => file.path),
+    replayCommand: `webpilot replay ${specPath}`,
+    validationCommand: `node ${resolvePlaywrightCli()} test ${specPath} --config=packages/test-framework/playwright.config.ts --project=chromium`,
+    updatedAt: new Date().toISOString(),
+    mode: 'llm',
   };
+}
+
+function buildReportCodegen(metadata: CodegenMetadata, files: GeneratedFile[]): ReportCodegenInfo {
+  return {
+    mode: 'openhands',
+    specPath: metadata.specPath || generatedSpecPath(metadata.scenarioSlug),
+    pageObjectPaths: metadata.pageObjectPaths || [],
+    metadataPath: '',
+    tracePath: '',
+    planPath: '',
+    replayCommand: metadata.replayCommand || `webpilot replay ${metadata.specPath}`,
+    validationCommand: metadata.validationCommand,
+    generatedFiles: files.map((file) => file.path),
+    notes: ['Generated by OpenHands SDK from WebPilot execution evidence.'],
+  };
+}
+
+function validateGeneratedSpec(specPath: string): { ok: boolean; detail: string } {
+  const headed = BrowserProviderRegistry.resolveHeaded();
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        resolvePlaywrightCli(),
+        'test',
+        specPath,
+        '--config=packages/test-framework/playwright.config.ts',
+        '--project=chromium',
+        headed ? '--headed' : '--headless',
+      ],
+      { cwd: process.cwd(), env: process.env, stdio: 'inherit' }
+    );
+    return { ok: true, detail: `Playwright validation passed: ${specPath}` };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, detail: `Generated code failed validation for ${specPath}: ${message}` };
+  }
+}
+
+function parseJsonOutput(stdout: string): Record<string, unknown> {
+  const raw = (stdout || '').trim();
+  if (!raw) return {};
+  const lastLine = raw.split(/\r?\n/).filter(Boolean).at(-1) || '{}';
+  return JSON.parse(lastLine) as Record<string, unknown>;
+}
+
+function runOpenHandsPython(args: string[]): Record<string, unknown> {
+  const pythonPath = ensureBrowserUsePython();
+  const installRoot = findCliInstallRoot();
+  const { exe, prefixArgs } = splitPythonCommand(pythonPath);
+  const out = execFileSync(
+    exe,
+    [...prefixArgs, '-m', 'integrations.openhands_codegen', ...args],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        WEBPILOT_PROJECT_ROOT: process.cwd(),
+        WEBPILOT_INSTALL_ROOT: installRoot,
+        PYTHONPATH: [
+          path.join(installRoot, 'packages', 'browser-use'),
+          path.join(installRoot, 'src'),
+        ].join(path.delimiter),
+      },
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }
+  );
+  return parseJsonOutput(out);
 }
 
 export async function runPostExecutionCodegen(options: {
   testName: string;
   testFilePath: string;
-  executionHistory: PipelineInput['steps'];
+  executionHistory: RawExecutionStep[];
   llmClient: LLMClient;
   architecture: 'flat' | 'pom' | 'bdd' | 'pom-bdd';
   symbolGraphContext?: string;
   fallbackReason?: string;
   validate?: boolean;
-  /** Optional raw execution context (ActHistory document fields). */
   historyDocument?: Record<string, unknown>;
-  /**
-   * When Engine already validated ActHistory via browser replay, skip the
-   * duplicate heal-replay inside codegen (avoids opening the browser twice).
-   */
   skipActHistoryHeal?: boolean;
 }): Promise<PostExecutionCodegenResult> {
+  void options.executionHistory;
+  void options.llmClient;
+  void options.architecture;
+  void options.symbolGraphContext;
+  void options.fallbackReason;
+  void options.skipActHistoryHeal;
+
   const historyDocument = loadHistoryDocument(options.testName, options.historyDocument);
-  const blocked = skipCodegenUnlessSuccessful(historyDocument);
-  if (blocked) return blocked;
+  if (!historyDocument || !isSuccessfulActHistory(historyDocument)) {
+    Logger.warn('Skipping codegen — only successful executions generate code');
+    return codegenBlocked(
+      'Codegen skipped — execution was not successful. Fix the failing run (or use --force-discovery) before generating code.'
+    );
+  }
 
   const compact = getCompactWorkflow(historyDocument);
   if (compact) {
@@ -190,273 +197,81 @@ export async function runPostExecutionCodegen(options: {
     const coverageGate = evaluateCompactCoverageGate(compact, { codegen: true });
     if (!coverageGate.ok) {
       Logger.warn(coverageGate.message);
-      return {
-        success: false,
-        summary:
-          'Codegen blocked — compact workflow NL coverage incomplete. ' +
-          'Re-run discovery (--force-discovery) or set WEBPILOT_COMPACT_COVERAGE_GATE=warn. ' +
-          coverageGate.message,
-        files: [],
-      };
-    }
-    if (coverageGate.coverage?.unmapped?.length) {
-      Logger.warn(coverageGate.message);
+      return codegenBlocked(
+        'Codegen blocked — compact workflow NL coverage incomplete. ' + coverageGate.message
+      );
     }
     const verifiedGate = evaluateCompactVerifiedGate(compact);
     if (!verifiedGate.ok) {
       Logger.warn(verifiedGate.message);
-      return {
-        success: false,
-        summary: `Codegen blocked — ${verifiedGate.message}`,
-        files: [],
-      };
+      return codegenBlocked(`Codegen blocked — ${verifiedGate.message}`);
     }
   }
 
-  const mode = resolveCodegenMode();
   const projectProfile = readProjectCodegenProfile();
-  const tsAgentOk = supportsTypeScriptAgentCodegen(projectProfile);
-  const generatedCodePath = String(
-    ConfigManager.getInstance().get('framework.generatedCodePath', '') || ''
-  ).replace(/\\/g, '/');
-  if (
-    projectProfile.language === 'typescript' &&
-    /(?:^|\/)tests\/generated\/?$/.test(generatedCodePath.replace(/\/$/, ''))
-  ) {
-    Logger.warn(
-      `framework.generatedCodePath is "${generatedCodePath}" but project.language is typescript — ` +
-        `codegen will write .spec.ts under packages/test-framework, not Python under tests/generated. ` +
-        `Set project.language: python (or re-run: webpilot init --language python).`
+  if (!(projectProfile.language === 'typescript' && projectProfile.automationTool === 'playwright')) {
+    return codegenBlocked(
+      `OpenHands codegen currently supports only typescript/playwright. Current profile is ${projectProfile.language}/${projectProfile.automationTool}.`
     );
   }
-  if (projectProfile.language === 'python' && !hasExplicitProjectLanguage()) {
-    Logger.warn(
-      'project.language was inferred as python from framework.generatedCodePath — ' +
-        'add an explicit project.language: python block to webpilot.yaml'
-    );
-  }
-  Logger.detail(
-    `Codegen profile: ${projectProfile.language}/${projectProfile.automationTool}/${projectProfile.frameworkPattern}`
-  );
 
-  const existing = tryReuseExistingGeneratedSpec(options.testName);
-  if (existing.reuse && existing.specPath) {
-    Logger.info(`Skipping codegen regenerate — ${existing.reason}`);
-    const content = fs.readFileSync(path.join(process.cwd(), existing.specPath), 'utf8');
-    return {
-      success: true,
-      summary: `Codegen reused existing passing spec ${existing.specPath} (0 LLM tokens). Replay with: webpilot replay ${existing.specPath}`,
-      files: [{ path: existing.specPath, content }],
-      reportCodegen: {
-        mode: 'reuse',
-        specPath: existing.specPath,
-        pageObjectPaths: [],
-        metadataPath: '',
-        tracePath: '',
-        planPath: '',
-        replayCommand: `webpilot replay ${existing.specPath}`,
-        generatedFiles: [existing.specPath],
-        notes: [existing.reason],
-      },
-    };
-  }
-  if (!existing.reuse && existing.reason) {
-    Logger.detail(`Codegen reuse skipped: ${existing.reason}`);
-  }
+  const specPath = generatedSpecPath(options.testName, process.cwd());
+  const historyPath = resolveExecutionHistoryPath(options.testName);
+  Logger.info('Codegen mode: openhands (WebPilot discovery → OpenHands spec generation)');
 
-  // Spec failed on re-run: auto-heal via ActHistory first (no --heal flag required).
-  // Note: ActHistory heal replay proves the *history* path works; regenerating Playwright
-  // code afterward is a separate concern (codegen quality), not proof that history is wrong.
-  // Skipped when Engine already ran browser ActHistory replay (skipActHistoryHeal).
-  let actHistoryHealPassed = Boolean(options.skipActHistoryHeal);
-  let actHistoryHealSteps = 0;
-  if (
-    !options.skipActHistoryHeal &&
-    !existing.reuse &&
-    existing.specPath &&
-    /failed Playwright/i.test(existing.reason) &&
-    isReplayHealEnabled()
-  ) {
-    Logger.info(
-      'Existing generated spec failed — attempting ActHistory replay with automatic self-heal…'
-    );
-    try {
-      const healedReplay = await ActHistoryReplayService.replay(options.testName, {
-        heal: true,
-      });
-      if (healedReplay.success) {
-        actHistoryHealPassed = true;
-        actHistoryHealSteps = healedReplay.stepsExecuted;
-        Logger.success(
-          `ActHistory heal replay passed (${healedReplay.stepsExecuted} steps` +
-            (healedReplay.healedCount ? `, ${healedReplay.healedCount} healed` : '') +
-            '). Regenerating Playwright code from ActHistory (history is OK — codegen is the weak link)…'
-        );
-      } else {
-        Logger.warn(
-          `ActHistory heal replay still failed (${healedReplay.failure || 'unknown'}). Falling back to codegen regenerate.`
-        );
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      Logger.warn(`ActHistory heal attempt skipped: ${message}`);
-    }
-  }
-
-  const graphContext =
-    options.symbolGraphContext ?? CodegenContext.buildSymbolGraphContext();
-
-  let steps = toPipelineSteps(options.executionHistory);
-  let historySource = 'runtime-history';
-  if (historyDocument) {
-    const adapted = ActHistoryCodegenAdapter.fromDocument(historyDocument, options.testName);
-    if (adapted.steps.length) {
-      steps = adapted.steps;
-      historySource = adapted.historySource || historySource;
-    }
-  } else {
-    const fromDisk = ActHistoryCodegenAdapter.loadFromSlug(options.testName);
-    if (fromDisk?.steps.length) {
-      steps = fromDisk.steps;
-      historySource = fromDisk.historySource || historySource;
-    }
-  }
-
-  const pipelineInput: PipelineInput = {
-    scenario: options.testName,
-    scenarioSlug: options.testName,
-    sourceFile: options.testFilePath,
-    steps,
-    targetUrl: steps.find((step) => step.url)?.url || undefined,
-    historySource,
-    symbolGraphContext: graphContext,
-  };
-
-  const runDeterministic = async (): Promise<PostExecutionCodegenResult> => {
-    const result = await DeterministicCodegenPipeline.run(pipelineInput, {
-      validate: options.validate !== false,
-      // Never repair/fallback during `webpilot run --codegen` — fail closed.
-      agentRepair: false,
-    });
-    if (projectProfile.language === 'python') {
-      assertPythonCodegenOutputs(result.files);
-    }
-    const reportCodegen = DeterministicCodegenPipeline.toReportCodegen(result.metadata, result.plan);
-    const outputHint =
-      projectProfile.language === 'python'
-        ? result.files
-            .map((file) => file.path.replace(/\\/g, '/'))
-            .filter((p) => p.endsWith('.py'))
-            .slice(0, 5)
-            .join(', ')
-        : result.metadata.specPath;
-    Logger.success(
-      `Codegen wrote ${result.files.length} ${projectProfile.language} file(s)` +
-        (outputHint ? `: ${outputHint}` : '')
-    );
-    return {
-      success: true,
-      summary: buildSummary(result.metadata, result.files.length),
-      files: result.files,
-      metadata: result.metadata,
-      reportCodegen,
-    };
-  };
-
-  const runLlm = async (): Promise<PostExecutionCodegenResult> => {
-    if (!tsAgentOk) {
-      throw new Error(
-        `LLM CodegenAgent only supports TypeScript Playwright. ` +
-          `Current project profile is ${projectProfile.language}/${projectProfile.automationTool} ` +
-          `(set by webpilot init → project.language). Use deterministic codegen for this stack.`
-      );
-    }
-    const { AgentCodegenPipeline } = await import('./AgentCodegenPipeline');
-    const { resolveCodegenArchitecture } = await import('../knowledge/RepoArchitectureDetect');
-    const detection = resolveCodegenArchitecture({
-      override: options.architecture,
-    });
-    try {
-      const result = await AgentCodegenPipeline.run(pipelineInput, {
-        validate: options.validate !== false,
-        architecture: detection.architecture,
-        enrichGraph: process.env.WEBPILOT_GRAPH_ENRICH !== '0',
-        repair: true,
-      });
-      return {
-        success: true,
-        summary: buildSummary(result.metadata, result.files.length),
-        files: result.files,
-        metadata: result.metadata,
-        reportCodegen: DeterministicCodegenPipeline.toReportCodegen(result.metadata, result.plan),
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      Logger.error(`Agent codegen failed: ${message}`);
-      return {
-        success: false,
-        summary: `Agent codegen failed: ${message}`,
-        files: [],
-      };
-    }
-  };
-
-  const withHealContext = (result: PostExecutionCodegenResult): PostExecutionCodegenResult => {
-    if (!actHistoryHealPassed || result.success) return result;
-    return {
-      ...result,
-      summary:
-        `ActHistory heal replay passed (${actHistoryHealSteps} steps) but Playwright codegen regenerate failed. ` +
-        `History is correct — use: webpilot run <test>  (without --codegen) to replay history, ` +
-        `or fix generated specs. Underlying: ${result.summary}`,
-    };
-  };
-
-  if (mode === 'llm') {
-    if (!tsAgentOk) {
-      Logger.warn(
-        `Codegen mode llm is TypeScript-only; using deterministic codegen for ` +
-          `${projectProfile.language}/${projectProfile.automationTool} (honors webpilot init profile).`
-      );
-      try {
-        return withHealContext(await runDeterministic());
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        Logger.error(`Deterministic codegen failed: ${message}`);
-        return withHealContext({
-          success: false,
-          summary: `Deterministic codegen failed: ${message}`,
-          files: [],
-        });
-      }
-    }
-    Logger.info('Codegen mode: llm (explicit CodegenAgent — no deterministic draft)');
-    try {
-      return withHealContext(await runLlm());
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      Logger.error(`LLM codegen failed: ${message}`);
-      return withHealContext({
-        success: false,
-        summary: `LLM codegen failed: ${message}`,
-        files: [],
-      });
-    }
-  }
-
-  // deterministic (default): ActHistory → profile emit → validate. Fail closed — no agent fallback.
+  let payload: Record<string, unknown>;
   try {
-    Logger.info(
-      `Codegen mode: deterministic (${projectProfile.language}/${projectProfile.automationTool}; no agent fallback)`
-    );
-    return withHealContext(await runDeterministic());
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    Logger.error(`Deterministic codegen failed: ${message}`);
-    return withHealContext({
-      success: false,
-      summary: `Deterministic codegen failed: ${message}`,
-      files: [],
-    });
+    payload = runOpenHandsPython([
+      String(historyPath),
+      options.testName,
+      '--workspace',
+      process.cwd(),
+      '--spec-path',
+      specPath,
+      '--validate',
+      options.validate === false ? '0' : '1',
+    ]);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    Logger.error(`OpenHands codegen failed: ${message}`);
+    return codegenBlocked(`OpenHands codegen failed: ${message}`);
   }
+
+  if (payload.success !== true) {
+    const message = String(payload.summary || payload.error || 'OpenHands codegen failed');
+    Logger.error(message);
+    return codegenBlocked(message);
+  }
+
+  const files = Array.isArray(payload.filesChanged)
+    ? (payload.filesChanged as Array<Record<string, unknown>>).map((item) => ({
+        path: String(item.path || ''),
+        content: typeof item.content === 'string' ? item.content : undefined,
+      }))
+    : [];
+  const metadata = buildMetadata(options.testName, files, specPath);
+  const validation =
+    options.validate === false ? { ok: true, detail: 'Validation skipped by --no-validate' } : validateGeneratedSpec(specPath);
+  if (!validation.ok) {
+    return {
+      success: false,
+      summary: validation.detail,
+      files,
+      metadata,
+      reportCodegen: buildReportCodegen(metadata, files),
+    };
+  }
+
+  const summary = String(
+    payload.summary ||
+      `Codegen (openhands) wrote ${files.length} file(s) for ${options.testName}. Replay with: webpilot replay ${specPath}`
+  );
+  Logger.success(summary);
+  return {
+    success: true,
+    summary,
+    files,
+    metadata,
+    reportCodegen: buildReportCodegen(metadata, files),
+  };
 }

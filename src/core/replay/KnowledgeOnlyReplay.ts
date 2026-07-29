@@ -5,6 +5,7 @@ import { resolveExecutionHistoryPath } from '../ReportPaths';
 import { BrowserProviderRegistry } from '../browserProviders/BrowserProviderRegistry';
 import { ActHistoryReplayService } from './ActHistoryReplayService';
 import type { ActReplayResult } from './ActHistoryTypes';
+import { generatedSpecPath } from '../codegen/GeneratedPaths';
 
 export type KnowledgeOnlyStrategy = 'spec' | 'act-history' | 'unavailable';
 
@@ -17,7 +18,7 @@ export interface KnowledgeOnlyPlan {
 }
 
 function defaultSpecPath(slug: string): string {
-  return path.join('packages', 'test-framework', 'tests', `${slug}.spec.ts`);
+  return generatedSpecPath(slug);
 }
 
 function hasActHistory(slug: string): { ok: boolean; path: string } {

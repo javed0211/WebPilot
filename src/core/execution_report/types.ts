@@ -65,7 +65,7 @@ export interface TestRunHistory {
 }
 
 export interface ReportCodegenInfo {
-  mode: 'deterministic' | 'llm' | 'auto' | 'reuse';
+  mode: 'deterministic' | 'llm' | 'auto' | 'reuse' | 'openhands';
   specPath: string;
   pageObjectPaths: string[];
   metadataPath: string;

@@ -32,6 +32,7 @@ npm ci
 npm run build
 npx playwright install chromium
 npm run setup
+python -m pip install -U openhands-sdk openhands-tools
 
 cp .env.example .env
 ```
@@ -64,7 +65,7 @@ Test: Add Products in Cart
 5. Verify the product appears in the cart
 ```
 
-WebPilot can execute that flow, collect runtime evidence, generate framework-specific test code, and write a report.
+WebPilot can execute that flow, collect runtime evidence, generate Playwright test code through OpenHands, and write a report.
 
 ## Reports
 

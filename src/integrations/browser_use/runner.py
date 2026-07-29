@@ -2294,58 +2294,17 @@ async def main():
             and int(execution_context.get('learnedSteps', 0)) == 0
         )
         codegen_requested = os.environ.get('WEBPILOT_CODEGEN') == '1'
-        skip_codegen = not codegen_requested
-        codegen_mode = resolve_codegen_mode()
-        code_data = None
-        if skip_codegen:
-            print("\n[Knowledge] Skipping Playwright code generation (use --codegen to enable it).")
-        elif codegen_mode in ('deterministic', 'auto'):
-            print(f"\n[Codegen] Queuing deterministic codegen (mode={codegen_mode}) — no LLM file generation.")
-            code_data = {
-                'deterministic': True,
-                'summary': f'Deterministic codegen queued for {test_name}.',
-            }
+        if codegen_requested:
+            print("\n[Codegen] Discovery completed. OpenHands will generate Playwright code from execution history.")
+            codegen_summary = f"Discovery completed for {test_name}. OpenHands codegen queued from execution history."
         else:
-            print(f"\nGenerating Playwright TS code ({provider})...")
-            code_data = await generate_playwright_code(
-                provider,
-                llm_cfg,
-                test_name,
-                steps,
-                llm_usage_totals,
-                symbol_graph_context,
-                execution_context=execution_context,
+            print("\n[Knowledge] Skipping Playwright code generation (use --codegen to enable it).")
+            codegen_summary = (
+                f"Reused {int(execution_context.get('reusedSteps', 0))} validated capabilities and learned "
+                f"{int(execution_context.get('learnedSteps', 0))} capabilities with scoped WebPilot discovery."
             )
-        
-        if code_data:
-            files = []
-            if code_data.get('deterministic'):
-                files = []
-            elif isinstance(code_data.get('files'), list):
-                files = code_data['files']
-            else:
-                pom_path = code_data.get('pom_file_path')
-                pom_content = code_data.get('pom_content')
-                spec_path = code_data.get('spec_file_path')
-                spec_content = code_data.get('spec_content')
-                if pom_path and pom_content:
-                    files.append({"path": pom_path, "content": pom_content})
-                if spec_path and spec_content:
-                    files.append({"path": spec_path, "content": spec_content})
 
-            TEST_FRAMEWORK_ROOT.mkdir(parents=True, exist_ok=True)
-            temp_codegen = {
-                "deterministic": bool(code_data.get('deterministic')),
-                "files": files,
-                "executionContext": execution_context,
-                "executionHistoryPath": history_path,
-                "summary": code_data.get('summary') or f"Executed: {test_name}. Automated POM and spec created.",
-            }
-            with open(TEST_FRAMEWORK_ROOT / 'temp_codegen.json', 'w', encoding='utf-8') as f_temp:
-                json.dump(temp_codegen, f_temp, indent=2)
-                
-            print(f"Exported codegen data to: packages/test-framework/temp_codegen.json for AST-based merging")
-
+        if codegen_requested:
             save_llm_usage_file(test_file_path, llm_usage_totals, llm_cfg=llm_cfg)
             total_tokens = llm_usage_totals['promptTokens'] + llm_usage_totals['completionTokens']
             print(
@@ -2363,7 +2322,7 @@ async def main():
                 "status": "PASSED",
                 "timestamp": datetime.datetime.now().isoformat(),
                 "stepsExecuted": len(execution_history) or len(steps),
-                "summary": temp_codegen["summary"],
+                "summary": codegen_summary,
                 "executionHistoryPath": history_path,
                 "tokens": total_tokens,
                 "promptTokens": llm_usage_totals['promptTokens'],
@@ -2382,11 +2341,7 @@ async def main():
             
             with open(summary_path(base_file_name), 'w', encoding='utf-8') as f_rep:
                 json.dump(report_summary, f_rep, indent=2)
-                
-        elif not skip_codegen:
-            print("Failed to generate code via LLM.")
-
-        if skip_codegen:
+        else:
             save_llm_usage_file(test_file_path, llm_usage_totals, llm_cfg=llm_cfg)
             total_tokens = llm_usage_totals['promptTokens'] + llm_usage_totals['completionTokens']
             reused_steps = int(execution_context.get('reusedSteps', 0))
@@ -2400,10 +2355,7 @@ async def main():
                 "executionMode": "intelligent-replay" if reuse_only else "intelligent-hybrid",
                 "timestamp": datetime.datetime.now().isoformat(),
                 "stepsExecuted": len(steps),
-                "summary": (
-                    f"Reused {reused_steps} validated capabilities and learned "
-                    f"{learned_steps} capabilities with scoped WebPilot discovery."
-                ),
+                "summary": codegen_summary,
                 "executionHistoryPath": history_path,
                 "tokens": total_tokens,
                 "promptTokens": llm_usage_totals['promptTokens'],
