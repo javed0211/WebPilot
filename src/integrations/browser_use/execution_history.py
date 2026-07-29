@@ -845,6 +845,15 @@ def build_full_execution_context(
         assertion_plan,
         native_captured_actions=None,
         source="browser-use-compact",
+        url=next(
+            (
+                str(s.get("url") or s.get("value") or "")
+                for s in act_steps
+                if str(s.get("action") or "").lower() in ("navigate", "goto", "go_to", "open")
+                and str(s.get("url") or s.get("value") or "").startswith("http")
+            ),
+            None,
+        ),
     )
 
     return {

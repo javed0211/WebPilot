@@ -9,6 +9,7 @@ Enable full browser-use dumps with WEBPILOT_VERBOSE=1 (or --verbose on CLI).
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -126,9 +127,15 @@ def format_agent_step(
     if eval_prev:
         verdict = "ok"
         lower = eval_prev.lower()
-        if "fail" in lower:
+        if re.search(r"\b(fail|failed|failure)\b", lower) and not re.search(
+            r"\b(partial|uncertain|inconclusive)\b", lower
+        ):
             verdict = "fail"
-        elif "uncertain" in lower:
+        elif re.search(
+            r"\b(uncertain|inconclusive|partial(?:ly)?|not\s+yet\s+verified|unverified|"
+            r"not\s+conclusively|could\s+not\s+confirm|cannot\s+confirm)\b",
+            lower,
+        ):
             verdict = "?"
         lines.append(f"         eval[{verdict}]: {_truncate(eval_prev, 110)}")
 

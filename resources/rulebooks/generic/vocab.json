@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "optional_intents": [
+    "cookie_dismiss",
+    "privacy_dismiss",
+    "language_select",
+    "overlay_close"
+  ],
+  "aliases": {
+    "cookie_dismiss": {
+      "nl_patterns": [
+        "(?i)^if a .*\\b(cookie|consent|location|sign-?in)\\b",
+        "(?i)\\b(cookie|consent)\\b.*(dismiss|accept|close)",
+        "(?i)privacy popup",
+        "(?i)dismiss (it|the|any).*(dialog|banner|popup|cookie)"
+      ],
+      "act_patterns": [
+        "(?i)continue shopping",
+        "(?i)accept all",
+        "(?i)\\bconsent\\b",
+        "(?i)onetrust",
+        "(?i)reject all",
+        "(?i)\\bclose\\b",
+        "(?i)no thanks"
+      ],
+      "locator_templates": [
+        {"kind": "role", "value": "button", "name": "Continue shopping", "exact": true},
+        {"kind": "role", "value": "button", "name": "Continue Shopping", "exact": false},
+        {"kind": "role", "value": "button", "name": "Accept all", "exact": false},
+        {"kind": "role", "value": "button", "name": "Accept", "exact": false},
+        {"kind": "css", "value": "#onetrust-accept-btn-handler"},
+        {"kind": "role", "value": "button", "name": "Close", "exact": false},
+        {"kind": "role", "value": "button", "name": "Reject all", "exact": false}
+      ],
+      "flags": {"optional": true, "scaffold_if_missing": true}
+    },
+    "privacy_dismiss": {
+      "nl_patterns": ["(?i)privacy popup", "(?i)reject all"],
+      "act_patterns": ["(?i)reject all", "(?i)privacy"],
+      "locator_templates": [
+        {"kind": "role", "value": "button", "name": "Reject all", "exact": false}
+      ],
+      "flags": {"optional": true}
+    },
+    "language_select": {
+      "nl_patterns": [
+        "(?i)\\blanguage\\b.*(select|choose|change|set|switch)",
+        "(?i)if it is not already selected"
+      ],
+      "act_patterns": ["(?i)\\blanguage\\b"],
+      "flags": {"optional": true}
+    },
+    "search_submit": {
+      "nl_patterns": [
+        "(?i)^submit (the )?search",
+        "(?i)^(press|hit) enter",
+        "(?i)click (the )?search(\\s+button)?$"
+      ],
+      "act_patterns": [
+        "(?i)clicked button [\"']?search",
+        "(?i)\\bsearch\\b.*(button|submit)",
+        "(?i)press.*(enter|return)"
+      ]
+    },
+    "hover_menu": {
+      "nl_patterns": ["(?i)\\b(hover|mouse over|pointer over|move the mouse)\\b"],
+      "act_patterns": ["(?i)\\b(hover|mouseover|mouseenter)\\b"]
+    },
+    "menu_expand_verify": {
+      "nl_patterns": [
+        "(?i)menu.*(expand|opens?|submenu)",
+        "(?i)navigation menu is visible",
+        "(?i)submenu.*(visible|displayed|shown)"
+      ]
+    },
+    "overlay_close": {
+      "nl_patterns": ["(?i)\\bclose\\b"],
+      "act_patterns": ["(?i)\\bclose\\b", "(?i)no thanks"],
+      "flags": {"optional": true}
+    },
+    "login_email": {
+      "nl_patterns": ["(?i)\\b(email|username|user name)\\b"],
+      "act_patterns": ["(?i)\\b(email|username)\\b"],
+      "secret_families": ["email"],
+      "testid_tokens": ["email", "loginregister", "userid"]
+    },
+    "login_password": {
+      "nl_patterns": ["(?i)\\bpassword\\b"],
+      "act_patterns": ["(?i)\\bpassword\\b"],
+      "secret_families": ["password"]
+    },
+    "login_otp": {
+      "nl_patterns": ["(?i)\\b(verification|otp|mfa|totp|code)\\b"],
+      "act_patterns": ["(?i)\\b(otp|verification|code)\\b"],
+      "secret_families": ["otp"]
+    }
+  },
+  "exclusive_pairs": [
+    ["language_select", "search_submit"]
+  ],
+  "url_tokens": {
+    "home_page": {
+      "nl_patterns": ["(?i)home page.*(visible|displayed|successfully)"],
+      "ground": "url_equals_first"
+    },
+    "url_contains_nl": {
+      "nl_patterns": ["(?i)(?:page )?url contains\\s+(.+)$"],
+      "ground": "url_contains_capture"
+    }
+  },
+  "css_probes": {},
+  "implies": {
+    "hover_menu": ["menu_expand_verify"]
+  },
+  "displayed_rules": {
+    "page_state_trailing": "(?i)\\b(page|screen|view)\\s*$",
+    "prefer_text_not_role": true,
+    "section_role_map": {
+      "section": "heading",
+      "heading": "heading",
+      "button": "button",
+      "link": "link",
+      "tab": "tab"
+    }
+  },
+  "score_weights": {
+    "intent_match": 10,
+    "exclusive_conflict": -20,
+    "overlay_to_optional_nl": 12,
+    "secret_family": 8,
+    "bind_min": 3,
+    "soft_min": 3,
+    "hard_min": 8
+  }
+}

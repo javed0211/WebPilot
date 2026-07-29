@@ -691,6 +691,7 @@ def _build_scoped_agent_kwargs(
     resolved_use_vision,
     step_use_judge: bool,
     perf: dict,
+    should_stop=None,
 ) -> dict:
     return {
         'task': scoped_task,
@@ -699,6 +700,11 @@ def _build_scoped_agent_kwargs(
         'tools': _discovery_tools(resolved_use_vision),
         'calculate_cost': True,
         'register_new_step_callback': on_scoped_step,
+        **(
+            {'register_should_stop_callback': should_stop}
+            if should_stop is not None
+            else {}
+        ),
         'use_vision': resolved_use_vision,
         'use_judge': step_use_judge,
         'ground_truth': step,
@@ -878,7 +884,9 @@ async def run_native_browser_use_scenario(
         if output is not None:
             new_actions = actions_from_output(state, output)
             captured_actions.extend(new_actions)
-            if loop_breaker.observe_actions(new_actions) and loop_breaker.message:
+            tripped = loop_breaker.observe_actions(new_actions)
+            tripped = loop_breaker.observe_model_state(output) or tripped
+            if tripped and loop_breaker.message:
                 print(f"[WebPilot] Control-loop breaker: {loop_breaker.message}")
         try:
             print_agent_step(int(_agent_step or 0), output, new_actions)
@@ -1094,6 +1102,24 @@ async def run_native_browser_use_scenario(
     # Rebuild compactWorkflow after live verify + nativeCapturedActions seeds.
     try:
         from .compact_workflow import build_compact_workflow, compact_steps_to_act_steps
+        from .discovery_tuning import extract_initial_navigate_url
+        from .rulebooks import parse_site_pack_override
+
+        compact_url = extract_initial_navigate_url(steps) or None
+        if not compact_url:
+            for row in context.get("actHistory") or []:
+                u = str((row or {}).get("url") or "").strip()
+                if u.startswith("http"):
+                    compact_url = u
+                    break
+        site_pack = None
+        if test_file_path:
+            try:
+                from pathlib import Path as _Path
+
+                site_pack = parse_site_pack_override(_Path(test_file_path).read_text(encoding="utf-8"))
+            except Exception:
+                site_pack = None
 
         compact = build_compact_workflow(
             list(context.get("actHistory") or []),
@@ -1101,6 +1127,8 @@ async def run_native_browser_use_scenario(
             list(context.get("assertionPlan") or []),
             native_captured_actions=captured_actions or None,
             source="browser-use-compact",
+            url=compact_url,
+            site_pack=site_pack,
         )
         # Optional certify pass on compact interactive steps still unverified.
         certify_flag = os.environ.get("WEBPILOT_COMPACT_CERTIFY", "1").strip().lower()
@@ -1258,7 +1286,7 @@ async def run_intelligent_steps(
 
     from .prompt_loader import load_discovery_step_rules
     from .rulebooks import compose_discovery_rules, parse_site_pack_override
-    from .discovery_tuning import extract_initial_navigate_url
+    from .discovery_tuning import ControlLoopBreaker, extract_initial_navigate_url
 
     site_pack = parse_site_pack_override(_read_scenario_source(test_file_path))
     scoped_discovery_rules, active_packs = compose_discovery_rules(
@@ -1283,6 +1311,10 @@ async def run_intelligent_steps(
     active_capture: list[dict] = []
     active_step_index = 0
     active_step_text = ""
+    scoped_loop_breaker = ControlLoopBreaker()
+
+    async def scoped_should_stop() -> bool:
+        return await scoped_loop_breaker.should_stop()
 
     await browser.start()
     await ensure_window_maximized(browser)
@@ -1315,6 +1347,10 @@ async def run_intelligent_steps(
         if output is not None:
             new_actions = actions_from_output(state, output)
             active_capture.extend(new_actions)
+            tripped = scoped_loop_breaker.observe_actions(new_actions)
+            tripped = scoped_loop_breaker.observe_model_state(output) or tripped
+            if tripped and scoped_loop_breaker.message:
+                print(f"[WebPilot] Control-loop breaker: {scoped_loop_breaker.message}")
         try:
             print_agent_step(
                 int(_agent_step or 0),
@@ -1500,6 +1536,7 @@ async def run_intelligent_steps(
         active_capture = captured_actions
         active_step_index = step_index
         active_step_text = safe_step_label
+        scoped_loop_breaker = ControlLoopBreaker()
 
         scoped_task = build_scoped_task(
             sanitized_step,
@@ -1527,6 +1564,7 @@ async def run_intelligent_steps(
                     resolved_use_vision=resolved_use_vision,
                     step_use_judge=step_use_judge,
                     perf=perf,
+                    should_stop=scoped_should_stop,
                 )
             )
         elif scoped_agent is None:
@@ -1542,6 +1580,7 @@ async def run_intelligent_steps(
                     resolved_use_vision=resolved_use_vision,
                     step_use_judge=step_use_judge,
                     perf=perf,
+                    should_stop=scoped_should_stop,
                 )
             )
         else:
@@ -1552,8 +1591,12 @@ async def run_intelligent_steps(
         before_prompt, before_completion, before_cost, before_calls = await read_browser_use_usage_snapshot(scoped_agent)
         history = await scoped_agent.run(max_steps=scoped_max_steps)
         step_ok = bool(getattr(history, 'is_successful', lambda: False)())
-        if not step_ok and step_retry_on_failure > 0:
+        if scoped_loop_breaker.triggered:
+            step_ok = False
+            print(f"[WebPilot] Step {step_index} stopped by control-loop breaker: {scoped_loop_breaker.message}")
+        if not step_ok and step_retry_on_failure > 0 and not scoped_loop_breaker.triggered:
             print(f"[WebPilot] Step {step_index} failed — retrying once with a fresh agent...")
+            scoped_loop_breaker = ControlLoopBreaker()
             await _release_scoped_agent(scoped_agent)
             scoped_agent = Agent(
                 **_build_scoped_agent_kwargs(
@@ -1567,10 +1610,14 @@ async def run_intelligent_steps(
                     resolved_use_vision=resolved_use_vision,
                     step_use_judge=step_use_judge,
                     perf=perf,
+                    should_stop=scoped_should_stop,
                 )
             )
             history = await scoped_agent.run(max_steps=scoped_max_steps)
             step_ok = bool(getattr(history, 'is_successful', lambda: False)())
+            if scoped_loop_breaker.triggered:
+                step_ok = False
+                print(f"[WebPilot] Step {step_index} stopped by control-loop breaker: {scoped_loop_breaker.message}")
 
         after_prompt, after_completion, after_cost, after_calls = await read_browser_use_usage_snapshot(scoped_agent)
         delta_prompt = max(0, after_prompt - before_prompt)

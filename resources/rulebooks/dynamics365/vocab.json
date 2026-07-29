@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "optional_intents": [],
+  "aliases": {
+    "ignore_and_save": {
+      "nl_patterns": ["(?i)ignore and save", "(?i)check for duplicate"],
+      "act_patterns": ["(?i)ignore and save"],
+      "locator_templates": [
+        {"kind": "role", "value": "button", "name": "Ignore and save", "exact": false},
+        {"kind": "role", "value": "button", "name": "Ignore and Save", "exact": false}
+      ]
+    },
+    "add_new_problem": {
+      "nl_patterns": ["(?i)add new problem"],
+      "act_patterns": ["(?i)add new problem"],
+      "locator_templates": [
+        {"kind": "role", "value": "button", "name": "Add New Problem", "exact": false}
+      ]
+    },
+    "unsaved_continue": {
+      "nl_patterns": ["(?i)unsaved changes", "(?i)save and continue"],
+      "act_patterns": ["(?i)save and continue", "(?i)confirmButton"]
+    }
+  },
+  "exclusive_pairs": [],
+  "url_tokens": {},
+  "css_probes": {},
+  "implies": {}
+}

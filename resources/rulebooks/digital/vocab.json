@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "optional_intents": [],
+  "aliases": {
+    "add_to_cart": {
+      "nl_patterns": [
+        "(?i)\\badd\\b.+(to (the )? )?cart",
+        "(?i)add[\\s_-]*to[\\s_-]*cart"
+      ],
+      "act_patterns": [
+        "(?i)add[\\s_-]*to[\\s_-]*cart",
+        "(?i)addtocart",
+        "(?i)\\.add-to-cart\\b"
+      ],
+      "negative_act": ["(?i)view[\\s_-]*cart", "(?i)/view_cart"]
+    },
+    "view_cart": {
+      "nl_patterns": ["(?i)view[\\s_-]*cart", "(?i)open (the )?cart"],
+      "act_patterns": ["(?i)view[\\s_-]*cart", "(?i)/view_cart"],
+      "locator_templates": [
+        {"kind": "css", "value": "#cartModal a[href=\"/view_cart\"]"},
+        {"kind": "role", "value": "link", "name": "View Cart", "exact": false}
+      ]
+    },
+    "cart_verify": {
+      "nl_patterns": [
+        "(?i)verify.*(product|item).*(cart|appears|visible)",
+        "(?i)product appears in the cart"
+      ],
+      "act_patterns": ["(?i)view[\\s_-]*cart", "(?i)/view_cart"],
+      "ground": {
+        "url_contains_any": ["view_cart", "/cart"],
+        "css": ["#cart_info_table tbody tr", "tr[id^=\"product-\"]", "#cart_info"]
+      }
+    },
+    "continue_shopping": {
+      "nl_patterns": ["(?i)continue shopping"],
+      "act_patterns": ["(?i)continue shopping"],
+      "also_binds_optional": ["cookie_dismiss"],
+      "locator_templates": [
+        {"kind": "role", "value": "button", "name": "Continue Shopping", "exact": false},
+        {"kind": "role", "value": "button", "name": "Continue shopping", "exact": true},
+        {"kind": "css", "value": "#cartModal button.close-modal"}
+      ],
+      "flags": {"optional": true}
+    },
+    "products_nav": {
+      "nl_patterns": ["(?i)click (on )?products", "(?i)\\bproducts\\b"],
+      "act_patterns": ["(?i)\\bproducts\\b"],
+      "href_hints": ["/products"]
+    },
+    "products_page_verify": {
+      "nl_patterns": ["(?i)products page", "(?i)all products"],
+      "ground": {
+        "url_contains_any": ["/products"],
+        "css": [".features_items .product-image-wrapper", ".features_items"]
+      }
+    },
+    "wiki_logo_verify": {
+      "nl_patterns": ["(?i)\\b(logo|homepage|home page|search input)\\b"],
+      "search_page_bridges": [
+        {"query_contains": ["the free encyclopedia", "encyclopedia"], "bonus": 6}
+      ]
+    },
+    "wiki_intro_verify": {
+      "nl_patterns": ["(?i)\\b(introduction|intro|lead)\\b"],
+      "search_page_bridges": [
+        {"query_contains": ["from wikipedia"], "bonus": 8}
+      ]
+    },
+    "wiki_toc_verify": {
+      "nl_patterns": ["(?i)\\b(contents|navigation|toc)\\b"],
+      "search_page_bridges": [
+        {"query_contains": ["contents", "navigation", "toc"], "bonus": 6}
+      ]
+    },
+    "amazon_results": {
+      "nl_patterns": ["(?i)search results", "(?i)results page"],
+      "ground": {
+        "url_regex": "/s\\?|[?&]k=|/search\\b",
+        "css": [".s-search-result", ".a-price", "#nav-logo"]
+      }
+    },
+    "destination_verify": {
+      "nl_patterns": [
+        "(?i)verify the destination",
+        "(?i)accommodation results",
+        "(?i)destination is .+ and"
+      ],
+      "ground": {"entered_value_in_url": true}
+    }
+  },
+  "exclusive_pairs": [
+    ["add_to_cart", "view_cart"],
+    ["add_to_cart", "cart_verify"],
+    ["cookie_dismiss", "products_nav"],
+    ["continue_shopping", "products_nav"]
+  ],
+  "url_tokens": {
+    "products_page": {
+      "nl_patterns": ["(?i)products page", "(?i)all products"],
+      "url_substrings": ["/products"],
+      "emit": "__url_contains__:products"
+    },
+    "cart_page": {
+      "nl_patterns": [
+        "(?i)appears in the cart",
+        "(?i)product appears in the cart",
+        "(?i)verify.*(product|item).*(cart)"
+      ],
+      "url_substrings": ["view_cart", "/cart"],
+      "emit": "__url_contains__:view_cart"
+    },
+    "search_results": {
+      "nl_patterns": ["(?i)search results page"],
+      "url_regex": "/s\\?|[?&]k=|/search\\b"
+    },
+    "entered_value_in_url": {
+      "enabled": true,
+      "min_len": 3
+    }
+  },
+  "css_probes": {
+    "cart_rows": ["tr[id^=\"product\"]", "#cart_info", "product-\\d+", "#cart_info_table"],
+    "amazon_results": ["s-search-result", "a-price", "nav-logo", "#nav-logo"],
+    "ae_products_list": [".features_items .product-image-wrapper", ".features_items"],
+    "ae_home": [".features_items", "header.header"],
+    "wiki_heading": ["#firstHeading", "^h1$", "firstHeading"],
+    "wiki_logo": ["mw-wiki-logo", "Wikipedia"]
+  },
+  "implies": {
+    "hover_menu": ["menu_expand_verify"],
+    "view_cart": ["cart_verify"],
+    "add_to_cart": []
+  }
+}

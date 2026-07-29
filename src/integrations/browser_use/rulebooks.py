@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -198,6 +199,259 @@ def load_pack_markdown(pack_id: str) -> str:
         if body:
             parts.append("## Learned hints (from site-knowledge)\n\n" + body)
     return "\n\n".join(parts).strip()
+
+
+@dataclass
+class IntentAlias:
+    """One NL/act intent with patterns and optional locator templates."""
+
+    id: str
+    nl_patterns: list[str] = field(default_factory=list)
+    act_patterns: list[str] = field(default_factory=list)
+    negative_act: list[str] = field(default_factory=list)
+    locator_templates: list[dict[str, Any]] = field(default_factory=list)
+    flags: dict[str, Any] = field(default_factory=dict)
+    also_binds_optional: list[str] = field(default_factory=list)
+    secret_families: list[str] = field(default_factory=list)
+    testid_tokens: list[str] = field(default_factory=list)
+    ground: dict[str, Any] | None = None
+    search_page_bridges: list[dict[str, Any]] = field(default_factory=list)
+    href_hints: list[str] = field(default_factory=list)
+    score_bonus: int = 10
+
+    def nl_matches(self, text: str) -> bool:
+        return _any_pattern(self.nl_patterns, text)
+
+    def act_matches(self, text: str) -> bool:
+        if _any_pattern(self.negative_act, text):
+            return False
+        return _any_pattern(self.act_patterns, text)
+
+
+@dataclass
+class SiteVocab:
+    """Merged structured vocabulary for compact NL↔act alignment."""
+
+    schema_version: int = 1
+    pack_ids: list[str] = field(default_factory=list)
+    aliases: dict[str, IntentAlias] = field(default_factory=dict)
+    optional_intents: list[str] = field(default_factory=list)
+    exclusive_pairs: list[tuple[str, str]] = field(default_factory=list)
+    url_tokens: dict[str, dict[str, Any]] = field(default_factory=dict)
+    css_probes: dict[str, list[str]] = field(default_factory=dict)
+    implies: dict[str, list[str]] = field(default_factory=dict)
+    displayed_rules: dict[str, Any] = field(default_factory=dict)
+    score_weights: dict[str, int] = field(default_factory=dict)
+
+    def weight(self, key: str, default: int) -> int:
+        try:
+            return int(self.score_weights.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    def intents_for_nl(self, text: str) -> list[str]:
+        return [i for i, alias in self.aliases.items() if alias.nl_matches(text)]
+
+    def intents_for_act(self, text: str) -> list[str]:
+        return [i for i, alias in self.aliases.items() if alias.act_matches(text)]
+
+    def is_optional_intent(self, intent_id: str) -> bool:
+        alias = self.aliases.get(intent_id)
+        if intent_id in self.optional_intents:
+            return True
+        return bool(alias and alias.flags.get("optional"))
+
+    def exclusive_conflict(self, intent_a: str, intent_b: str) -> bool:
+        for left, right in self.exclusive_pairs:
+            if (left == intent_a and right == intent_b) or (left == intent_b and right == intent_a):
+                return True
+        return False
+
+    def css_probe_match(self, selector: str) -> list[str]:
+        """Return probe keys whose patterns appear in the selector string."""
+        sel = (selector or "").strip()
+        if not sel:
+            return []
+        hits: list[str] = []
+        for key, patterns in self.css_probes.items():
+            for pat in patterns:
+                try:
+                    if re.search(pat, sel, re.I) or pat.lower() in sel.lower():
+                        hits.append(key)
+                        break
+                except re.error:
+                    if pat.lower() in sel.lower():
+                        hits.append(key)
+                        break
+        return hits
+
+
+def _any_pattern(patterns: list[str], text: str) -> bool:
+    raw = text or ""
+    if not raw or not patterns:
+        return False
+    for pat in patterns:
+        try:
+            if re.search(pat, raw):
+                return True
+        except re.error:
+            if pat.lower() in raw.lower():
+                return True
+    return False
+
+
+def _vocab_path(pack_id: str) -> Path | None:
+    for root in _rulebook_dirs():
+        path = root / pack_id / "vocab.json"
+        if path.is_file():
+            return path
+    return None
+
+
+def _load_pack_vocab_raw(pack_id: str) -> dict[str, Any] | None:
+    path = _vocab_path(pack_id)
+    if not path:
+        return None
+    try:
+        data = json.loads(_read_text(path))
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _intent_from_raw(intent_id: str, raw: dict[str, Any]) -> IntentAlias:
+    return IntentAlias(
+        id=intent_id,
+        nl_patterns=[str(p) for p in (raw.get("nl_patterns") or []) if p],
+        act_patterns=[str(p) for p in (raw.get("act_patterns") or []) if p],
+        negative_act=[str(p) for p in (raw.get("negative_act") or []) if p],
+        locator_templates=[
+            dict(t) for t in (raw.get("locator_templates") or []) if isinstance(t, dict)
+        ],
+        flags=dict(raw.get("flags") or {}),
+        also_binds_optional=[str(x) for x in (raw.get("also_binds_optional") or []) if x],
+        secret_families=[str(x) for x in (raw.get("secret_families") or []) if x],
+        testid_tokens=[str(x) for x in (raw.get("testid_tokens") or []) if x],
+        ground=dict(raw["ground"]) if isinstance(raw.get("ground"), dict) else None,
+        search_page_bridges=[
+            dict(b) for b in (raw.get("search_page_bridges") or []) if isinstance(b, dict)
+        ],
+        href_hints=[str(x) for x in (raw.get("href_hints") or []) if x],
+        score_bonus=int(raw.get("score_bonus") or 10),
+    )
+
+
+def _merge_vocab(base: SiteVocab, raw: dict[str, Any], pack_id: str) -> SiteVocab:
+    base.pack_ids.append(pack_id)
+    base.schema_version = max(base.schema_version, int(raw.get("schemaVersion") or 1))
+    for intent_id, intent_raw in (raw.get("aliases") or {}).items():
+        if not isinstance(intent_raw, dict):
+            continue
+        incoming = _intent_from_raw(str(intent_id), intent_raw)
+        existing = base.aliases.get(incoming.id)
+        if existing is None:
+            base.aliases[incoming.id] = incoming
+            continue
+        # Later packs override / extend.
+        existing.nl_patterns = list(dict.fromkeys(existing.nl_patterns + incoming.nl_patterns))
+        existing.act_patterns = list(dict.fromkeys(existing.act_patterns + incoming.act_patterns))
+        existing.negative_act = list(dict.fromkeys(existing.negative_act + incoming.negative_act))
+        existing.locator_templates = existing.locator_templates + [
+            t for t in incoming.locator_templates if t not in existing.locator_templates
+        ]
+        existing.flags = {**existing.flags, **incoming.flags}
+        existing.also_binds_optional = list(
+            dict.fromkeys(existing.also_binds_optional + incoming.also_binds_optional)
+        )
+        existing.secret_families = list(
+            dict.fromkeys(existing.secret_families + incoming.secret_families)
+        )
+        existing.testid_tokens = list(
+            dict.fromkeys(existing.testid_tokens + incoming.testid_tokens)
+        )
+        if incoming.ground:
+            existing.ground = {**(existing.ground or {}), **incoming.ground}
+        existing.search_page_bridges = existing.search_page_bridges + incoming.search_page_bridges
+        existing.href_hints = list(dict.fromkeys(existing.href_hints + incoming.href_hints))
+        existing.score_bonus = max(existing.score_bonus, incoming.score_bonus)
+
+    for intent in raw.get("optional_intents") or []:
+        s = str(intent)
+        if s and s not in base.optional_intents:
+            base.optional_intents.append(s)
+
+    for pair in raw.get("exclusive_pairs") or []:
+        if isinstance(pair, (list, tuple)) and len(pair) >= 2:
+            left, right = str(pair[0]), str(pair[1])
+            if (left, right) not in base.exclusive_pairs and (right, left) not in base.exclusive_pairs:
+                base.exclusive_pairs.append((left, right))
+
+    for key, val in (raw.get("url_tokens") or {}).items():
+        if isinstance(val, dict):
+            base.url_tokens[str(key)] = {**(base.url_tokens.get(str(key)) or {}), **val}
+
+    for key, patterns in (raw.get("css_probes") or {}).items():
+        prev = list(base.css_probes.get(str(key)) or [])
+        for pat in patterns or []:
+            s = str(pat)
+            if s and s not in prev:
+                prev.append(s)
+        base.css_probes[str(key)] = prev
+
+    for key, vals in (raw.get("implies") or {}).items():
+        prev = list(base.implies.get(str(key)) or [])
+        for v in vals or []:
+            s = str(v)
+            if s and s not in prev:
+                prev.append(s)
+        base.implies[str(key)] = prev
+
+    if isinstance(raw.get("displayed_rules"), dict):
+        base.displayed_rules = {**base.displayed_rules, **raw["displayed_rules"]}
+    if isinstance(raw.get("score_weights"), dict):
+        for k, v in raw["score_weights"].items():
+            try:
+                base.score_weights[str(k)] = int(v)
+            except (TypeError, ValueError):
+                continue
+    return base
+
+
+def load_site_vocab(
+    *,
+    url: str | None = None,
+    site_pack: str | None = None,
+    pack_ids: list[str] | None = None,
+) -> SiteVocab:
+    """
+    Load and merge vocab.json from active rulebook packs (generic → specialized).
+
+    When no URL/site_pack is given, still loads generic + digital so offline
+    compact fixtures (AE/Wiki/Amazon-shaped tests) keep working without heuristics.
+    """
+    if pack_ids is None:
+        active = resolve_active_packs(url=url, site_pack=site_pack)
+        # Offline / URL-less compact builds: include digital vocab by default.
+        if not url and not site_pack and "digital" not in active and _load_manifest("digital"):
+            active = list(active) + ["digital"]
+        pack_ids = active
+
+    vocab = SiteVocab(
+        score_weights={
+            "intent_match": 10,
+            "exclusive_conflict": -20,
+            "overlay_to_optional_nl": 12,
+            "secret_family": 8,
+            "bind_min": 3,
+            "soft_min": 3,
+            "hard_min": 8,
+        }
+    )
+    for pack_id in pack_ids or []:
+        raw = _load_pack_vocab_raw(pack_id)
+        if raw:
+            _merge_vocab(vocab, raw, pack_id)
+    return vocab
 
 
 def build_rulebook_hints(

@@ -54,3 +54,56 @@ def test_control_loop_breaker_triggers():
     for _ in range(3):
         breaker.observe_actions([action])
     assert breaker.triggered is True
+
+
+def test_control_loop_breaker_stops_repeated_search():
+    """CRM-style loops: search_page was previously ignored and never tripped."""
+    breaker = ControlLoopBreaker(max_retries=3, window=8)
+    action = {"type": "search_page", "value": "Ignore and save"}
+    assert fingerprint_from_captured_action(action) == "search|ignore and save"
+    assert breaker.observe_actions([action]) is False
+    assert breaker.observe_actions([action]) is False
+    assert breaker.observe_actions([action]) is True
+    assert "search|ignore and save" in breaker.message
+
+
+def test_control_loop_breaker_stops_uncertain_eval_streak():
+    breaker = ControlLoopBreaker(max_uncertain=3, max_retries=99, window=20)
+
+    class _State:
+        def __init__(self, ev: str, goal: str):
+            self.evaluation_previous_goal = ev
+            self.next_goal = goal
+
+    class _Out:
+        def __init__(self, ev: str, goal: str):
+            self.current_state = _State(ev, goal)
+
+    for i in range(3):
+        tripped = breaker.observe_model_state(
+            _Out(
+                "Prior check was inconclusive; Problem Details still unverified.",
+                f"Search again for Caller is patient attempt {i}",
+            )
+        )
+    assert tripped is True
+    assert "uncertain" in breaker.message.lower()
+
+
+def test_control_loop_breaker_stops_repeated_goal():
+    breaker = ControlLoopBreaker(max_retries=3, window=8, max_uncertain=99)
+
+    class _State:
+        def __init__(self, goal: str):
+            self.evaluation_previous_goal = "Success."
+            self.next_goal = goal
+
+    class _Out:
+        def __init__(self, goal: str):
+            self.current_state = _State(goal)
+
+    goal = "Locate the Ignore and save control in the duplicate dialog"
+    for _ in range(3):
+        tripped = breaker.observe_model_state(_Out(goal))
+    assert tripped is True
+    assert "repeated agent goals" in breaker.message.lower()

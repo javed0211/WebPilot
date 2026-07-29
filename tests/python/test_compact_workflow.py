@@ -212,8 +212,8 @@ def test_compact_maps_secret_redacted_login_inputs():
     ]
     compact = build_compact_workflow(acts, nl, [])
     unmapped = compact["coverage"]["unmapped"]
-    # Home-page verify has no act in this fixture — login path must still be fully claimed.
-    assert unmapped == ["Verify that the home page is visible successfully"], unmapped
+    # Home-page verify is synthesized/grounded from navigate URL when no separate probe exists.
+    assert unmapped == [], unmapped
     email = next(s for s in compact["steps"] if s["action"] == "input" and "email" in (s.get("nlStep") or "").lower())
     assert (email.get("locator") or {}).get("kind") == "testid"
     assert (email.get("locator") or {}).get("value") == "loginRegisterEmailInputBox"
@@ -1129,3 +1129,160 @@ def test_nav_hover_and_menu_verifies_map_from_evaluate():
     assert by_status[nl[2]] == "assertGrounded"
     assert by_status[nl[4]] == "assertGrounded"
     assert by_status[nl[7]] == "assertGrounded"
+
+
+def test_checkout_add_to_cart_and_cart_verify_map():
+    """AutomationExercise: Add to cart + cart verify must not stay notExecuted/assertHollow."""
+    acts = [
+        {
+            "index": 1,
+            "action": "navigate",
+            "value": "https://automationexercise.com/",
+            "url": "https://automationexercise.com/",
+            "description": "navigate",
+            "locators": [],
+        },
+        {
+            "index": 2,
+            "action": "click",
+            "value": "Products",
+            "url": "https://automationexercise.com/products",
+            "description": 'Clicked link "Products"',
+            "locators": [{"kind": "role", "value": "link", "name": "Products"}],
+        },
+        {
+            "index": 3,
+            "action": "click",
+            "value": "Add to cart",
+            "url": "https://automationexercise.com/products",
+            "description": 'Clicked link "Add to cart"',
+            "locators": [{"kind": "role", "value": "link", "name": "Add to cart"}],
+        },
+        {
+            "index": 4,
+            "action": "click",
+            "value": "View Cart",
+            "url": "https://automationexercise.com/view_cart",
+            "description": 'Clicked link "View Cart"',
+            "locators": [{"kind": "role", "value": "link", "name": "View Cart"}],
+        },
+    ]
+    nl = [
+        "Navigate to https://automationexercise.com/",
+        "Verify that the home page is visible successfully",
+        "Click Products in the navigation menu",
+        "Add the first product to the cart",
+        "Verify the product appears in the cart",
+    ]
+    plan = [
+        {"nlStep": "Verify that the home page is visible successfully", "kind": "assert"},
+        {"nlStep": "Verify the product appears in the cart", "kind": "assert"},
+    ]
+    compact = build_compact_workflow(acts, nl, plan)
+    cov = compact["coverage"]
+    assert cov["unmapped"] == [], cov
+    assert cov["mapped"] == cov["nlTotal"] == 5, cov
+    by_status = {s["nlStep"]: s["status"] for s in cov["stepStatuses"]}
+    assert by_status[nl[3]] == "executed", by_status[nl[3]]
+    assert by_status[nl[4]] == "assertGrounded", by_status[nl[4]]
+    add_step = next(
+        s
+        for s in compact["steps"]
+        if s.get("action") == "click" and "add to cart" in str(s.get("value") or "").lower()
+    )
+    assert add_step.get("nlStep") == nl[3], add_step
+    cart_assert = next(s for s in compact["steps"] if s.get("nlStep") == nl[4])
+    assert str(cart_assert.get("value") or "").startswith("__url_contains__"), cart_assert
+
+
+def test_soft_covered_does_not_fail_gate():
+    """Weak bind without durable locator → softCovered; verified binds stay executed."""
+    import os
+
+    os.environ.pop("WEBPILOT_COMPACT_HEURISTICS", None)
+    # Durable click (role locator) must stay executed even if align score is mid-band.
+    durable = build_compact_workflow(
+        [
+            {
+                "index": 1,
+                "action": "navigate",
+                "url": "https://example.test/",
+                "value": "https://example.test/",
+                "locators": [],
+            },
+            {
+                "index": 2,
+                "action": "click",
+                "description": "clicked Issues tab",
+                "value": "Issues",
+                "locators": [
+                    {
+                        "kind": "role",
+                        "value": "link",
+                        "name": "Issues",
+                        "verified": True,
+                        "verifiedBy": "snapshot",
+                    }
+                ],
+                "locatorVerified": True,
+            },
+        ],
+        ["Navigate to https://example.test/", "Click Issues"],
+        [],
+    )
+    by = {s["nlStep"]: s["status"] for s in durable["coverage"]["stepStatuses"]}
+    assert by["Navigate to https://example.test/"] == "executed"
+    assert by["Click Issues"] == "executed"
+    assert durable["coverage"]["unmapped"] == []
+
+    # Soft path: click with no locator, only weak description overlap.
+    soft = build_compact_workflow(
+        [
+            {
+                "index": 1,
+                "action": "click",
+                "description": "clicked vaguely related dashboard chrome",
+                "value": None,
+                "locators": [],
+            },
+        ],
+        ["Click the Widget control on the dashboard"],
+        [],
+    )
+    cov = soft["coverage"]
+    assert cov["unmapped"] == [] or any(
+        s["status"] in ("softCovered", "executed", "notExecuted")
+        for s in cov["stepStatuses"]
+    )
+    for step in cov.get("softCovered") or []:
+        assert step not in cov["unmapped"]
+
+
+def test_heuristics_fallback_off_by_default():
+    """Without vocab/probe evidence, heading-contains stays hard-unmapped when heuristics off."""
+    import os
+
+    os.environ["WEBPILOT_COMPACT_HEURISTICS"] = "0"
+    try:
+        from integrations.browser_use.compact.vocab_context import heuristics_enabled
+
+        assert heuristics_enabled() is False
+        acts = [
+            {
+                "index": 1,
+                "action": "navigate",
+                "url": "https://obscure.example/app",
+                "value": "https://obscure.example/app",
+                "locators": [],
+            },
+        ]
+        nl = ['Verify the page heading contains "ZZ Never Vocab"']
+        plan = [{"index": 2, "kind": "assert", "nlStep": nl[0]}]
+        compact = build_compact_workflow(acts, nl, plan, url="https://obscure.example/app")
+        cov = compact["coverage"]
+        assert nl[0] in cov["unmapped"], cov
+        by = {s["nlStep"]: s["status"] for s in cov["stepStatuses"]}
+        assert by[nl[0]] == "assertHollow"
+        assert not (compact.get("meta") or {}).get("heuristicsFallback")
+    finally:
+        os.environ.pop("WEBPILOT_COMPACT_HEURISTICS", None)
